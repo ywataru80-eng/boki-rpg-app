@@ -34,7 +34,7 @@ function validate(r,questions=current,files=read){
  let raw=files(p);
  if(files===read&&p==='data/questions.js')raw=unchangedBaselineSource();
  if(files===read&&p==='tests/ledger-opening-migration.test.js'){
-  const before=old(p).toString('utf8');
+  const before=cp.execFileSync('git',['show','7655695a3532c8578143966208ece4854846587e:'+p],{cwd:root,encoding:'utf8',maxBuffer:32*1024*1024});
   const oldLines="assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer));if(!['L044','L045'].includes(id))assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);}";
   const newLines=[
     '',
