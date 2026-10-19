@@ -16,6 +16,13 @@ for(const correct of [true,false]){
 // L044/L045 prompt/explanation fields; all remaining fields are byte-equivalent.
 const cp=require('node:child_process'),old={window:{}};
 vm.runInNewContext(cp.execFileSync('git',['show','37086c6ae6511a249218533375bf6f19dac231d1:data/questions.js'],{encoding:'utf8',maxBuffer:8*1024*1024}),old);
-const project=data=>{const result=JSON.parse(JSON.stringify(data));for(const id of ['L044','L045'])for(const key of ['question','explanation','explanationModel'])delete result[id][key];return result;};
+const project=data=>{
+ const result=JSON.parse(JSON.stringify(data));
+ for(const id of ['L044','L045'])for(const key of ['question','explanation','explanationModel'])delete result[id][key];
+ delete result.J148.story; // J148's approved story-only successor is tested independently.
+ return result;
+};
+assert.notStrictEqual(s.window.QuestionData.J148.story,old.window.QuestionData.J148.story,'J148 successor must differ from historical story');
+assert.match(s.window.QuestionData.J148.story,/商品販売.*約束手形/,'J148 story must align with the promissory-note sale');
 assert.deepStrictEqual(project(s.window.QuestionData),project(old.window.QuestionData),'298 questions including L039, and all other fields of L044/L045 unchanged');
 console.log('L039 period allocation, teaching and protected data: PASS');
