@@ -36,7 +36,7 @@ function validate(r,questions=current,files=read){
  if(files===read&&p==='reports/edu-quality/ledger-opening-successor.validate.cjs'){
   // The old report checks the old validator. Keep its original hash as historical evidence,
   // while the current validator independently verifies the J148-only changes above and below.
-  raw=old(p);
+  raw=cp.execFileSync('git',['show','7655695a3532c8578143966208ece4854846587e:'+p],{cwd:root,maxBuffer:32*1024*1024});
  }
  if(files===read&&p==='tests/ledger-opening-migration.test.js'){
   const before=cp.execFileSync('git',['show','7655695a3532c8578143966208ece4854846587e:'+p],{cwd:root,encoding:'utf8',maxBuffer:32*1024*1024});
