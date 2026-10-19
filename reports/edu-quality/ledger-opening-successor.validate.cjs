@@ -30,9 +30,31 @@ function validate(r,questions=current,files=read){
  assert.deepEqual(Object.keys(r.candidateFiles),requiredCandidate);assert.deepEqual(r.protectedFiles,requiredProtected);
  assert.equal(r.baseline,base);assert.deepEqual(r.ids,ids);assert.equal(r.learnerEvidence,'UNVERIFIED');
  for(const suffix of ['json','md','validate.cjs','evidence.json.gz']){const p=`reports/edu-quality/question-quality-ledger-20261015.${suffix}`;assert.equal(hash(files(p)),hash(old(p)),'historical bytes '+p);assert.equal(r.historicalFiles[p],hash(old(p)));}
- for(const[p,h]of Object.entries(r.candidateFiles))assert.equal(
- hash(p==='data/questions.js'&&files===read?unchangedBaselineSource():files(p)),h,p+' current source with J148 story-only successor'
-);
+ for(const[p,h]of Object.entries(r.candidateFiles)){
+ let raw=files(p);
+ if(files===read&&p==='data/questions.js')raw=unchangedBaselineSource();
+ if(files===read&&p==='tests/ledger-opening-migration.test.js'){
+  const before=old(p).toString('utf8');
+  const oldLines="assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer));if(!['L044','L045'].includes(id))assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);}";
+  const newLines=[
+    '',
+    '  assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer));',
+    "  if(id==='J148'){",
+    '    const current=clone(questions[id]),historical=clone(oldQuestions[id]);',
+    "    assert.notEqual(current.story,historical.story,'J148 story must have an explicit successor');",
+    '    delete current.story;delete historical.story;',
+    "    assert.deepEqual(current,historical,'J148 non-story fields must stay unchanged');",
+    "  }else if(!['L044','L045'].includes(id)){",
+    '    assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);',
+    '  }',
+    '}'
+  ].join('\\n');
+  assert.equal(before.split(oldLines).length,2,'old migration check must have one matching statement');
+  assert.equal(files(p).toString('utf8'),before.replace(oldLines,newLines.replaceAll('\\n','\\n')),'migration test must differ only in the J148 exception');
+  raw=Buffer.from(before);
+ }
+ assert.equal(hash(raw),h,p+' current source with the explicitly checked J148-only exception');
+}
  assert.deepEqual(Object.keys(questions),Object.keys(prior));assert.equal(Object.keys(questions).length,300);
  for(const id of Object.keys(prior)){assert.deepEqual(questions[id].answer,prior[id].answer,id+' answer');if(!ids.includes(id)){
   if(id==='J148'){
