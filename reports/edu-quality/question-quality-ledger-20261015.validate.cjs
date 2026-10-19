@@ -3,6 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),zlib=require('node:zlib'),vm=require('node:vm'),cp=require('node:child_process');
 const root=path.resolve(__dirname,'../..');
 const {loadQuestions,evidenceStamp}=require(path.join(root,'scripts/audit-matrix'));
+// This audit record is immutable: verify its original source separately from the current successor.
 const stable=x=>Array.isArray(x)?x.map(stable):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,stable(x[k])])):x;
 const hash=x=>'sha256:'+crypto.createHash('sha256').update(JSON.stringify(stable(x))).digest('hex');
 const bytesHash=x=>crypto.createHash('sha256').update(x).digest('hex');
@@ -18,8 +19,19 @@ const reviews={};
 for(const file of reviewFiles)for(const row of JSON.parse(bundle['audit300/'+file]).rows){assert(!reviews[row.id]);reviews[row.id]={file,row};}
 assert.equal(Object.keys(reviews).length,300);
 const sandbox={window:{}};vm.createContext(sandbox);
-for(const file of ['data/accounting-domain.js','data/questions.js','js/explanation-formulas.js','js/explanation-model.js'])vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file});
-const models=Object.fromEntries(Object.entries(sandbox.window.QuestionData).map(([id,q])=>[id,sandbox.window.ExplanationModel.build(q,q.answer,{correct:true})]));
+const historicQuestionsSource=cp.execFileSync('git',['show','7655695a3532c8578143966208ece4854846587e:data/questions.js'],{cwd:root,encoding:'utf8',maxBuffer:32*1024*1024});
+const currentQuestionsSource=fs.readFileSync(path.join(root,'data/questions.js'),'utf8');
+const historicStory='応用ケースとして、期首と期末の商品棚卸資料を照合します。あなたは、在庫の動きが当期の商品原価へどうつながるか確認します。';
+const successorStory='年度決算の予行演習中、得意先から商品販売の証憑と約束手形の記録が届きました。あなたは、販売の成立と代金を受け取る権利を分けて確認します。';
+assert.equal(historicQuestionsSource.split(historicStory).length,2,'historical J148 Before unique');
+assert.equal(currentQuestionsSource.split(successorStory).length,2,'current J148 successor unique');
+assert.equal(currentQuestionsSource.replace(successorStory,historicStory),historicQuestionsSource,'J148 story-only source successor');
+for(const file of ['data/accounting-domain.js','data/questions.js','js/explanation-formulas.js','js/explanation-model.js']){
+ const bytes=file==='data/questions.js'?historicQuestionsSource:fs.readFileSync(path.join(root,file),'utf8');
+ vm.runInContext(bytes,sandbox,{filename:file});
+}
+const historicalQuestions=sandbox.window.QuestionData;
+const models=Object.fromEntries(Object.entries(historicalQuestions).map(([id,q])=>[id,sandbox.window.ExplanationModel.build(q,q.answer,{correct:true})]));
 const taxonomy=Object.fromEntries(JSON.parse(fs.readFileSync(path.join(root,'reports/edu-quality/question-taxonomy-2026.json'),'utf8')).rows.map(r=>[r.id,r]));
 const criteria=['correctness','judgement_reason','calculation','beginner_explanation','ui_ux','learning_connection'];
 const statuses=['PASS','FAIL','IMPROVEMENT','UNVERIFIED','NOT APPLICABLE'];
@@ -51,14 +63,14 @@ function recalculationsFrom(questions){
  assert(months>0&&months<=12);const soldAnnual=depreciation*12/months,remaining=annual-soldAnnual,loss=cost-prior-depreciation-proceeds;
  return [{id:'L044',given:{receipts,payments},formula:`opening+${receipts}-${payments}`,counterexamples:[{hypotheticalOpening:0,closing:receipts-payments},{hypotheticalOpening:10000,closing:10000+receipts-payments}],conclusion:'opening unspecified; two source-compatible results',notProductCondition:'10000 is an isolated counterexample, not a new authored fact.'},{id:'L045',given:{deposits,withdrawals},formula:`opening+${deposits}-${withdrawals}`,counterexamples:[{hypotheticalOpening:0,closing:deposits-withdrawals},{hypotheticalOpening:10000,closing:10000+deposits-withdrawals}],conclusion:'opening unspecified; two source-compatible results',notProductCondition:'10000 is an isolated counterexample, not a new authored fact.'},{id:'C003',given:{soldAssetSixMonthDepreciation:depreciation,months,oldAssetsAnnualDepreciation:annual,cost,priorAccumulatedDepreciation:prior,proceeds},formulas:[`${depreciation}*12/${months}=${soldAnnual}`,`${annual}-${soldAnnual}=${remaining}`,`${cost}-${prior}-${depreciation}-${proceeds}=${loss}`],expected:{remainingOldDepreciation:remaining,disposalLoss:loss}}];
 }
-function validate(report,questions=loadQuestions(),artifact=visible){
+function validate(report,questions=historicalQuestions,artifact=visible){
  assert.equal(report.schemaVersion,1);assert.equal(report.rows.length,300);assert.equal(Object.keys(questions).length,300);
  assert.equal(hash(questions),report.baseline.runtimeHash);assert.equal(report.baseline.runtimeHash,structure.runtimeHash);assert.equal(report.baseline.modelHash,structure.modelHash);assert.equal(hash(models),report.baseline.modelHash);
  assert.match(report.baseline.head,/^[a-f0-9]{40}$/);assert.match(report.baseline.tree,/^[a-f0-9]{40}$/);assert.equal(report.baseline.head,structure.head);assert.equal(report.baseline.tree,structure.tree);
  assert.equal(git(['rev-parse',report.baseline.head+'^{tree}']).toString().trim(),report.baseline.tree,'actual audited Git tree');
  assert.equal(report.baseline.generation,158);assert.equal(report.baseline.release,'20261014-214');
  const codeKeys=[...Object.keys(visible.sourceSha256),'js/controller.js','js/app.js','js/model.js','js/rpg.js','index.html','reports/edu-quality/question-taxonomy-2026.json'];assert.deepEqual(Object.keys(report.baseline.codeHashes).sort(),codeKeys.sort());
- for(const[file,digest]of Object.entries(report.baseline.codeHashes)){assert.equal(bytesHash(fs.readFileSync(path.join(root,file))),digest,'current code drift '+file);assert.equal(bytesHash(git(['show',report.baseline.head+':'+file])),digest,'fixed Git content '+file);}
+ for(const[file,digest]of Object.entries(report.baseline.codeHashes)){assert.equal(bytesHash(file==='data/questions.js'?historicQuestionsSource:fs.readFileSync(path.join(root,file))),digest,'current code drift '+file);assert.equal(bytesHash(git(['show',report.baseline.head+':'+file])),digest,'fixed Git content '+file);}
  assert.equal(bytesHash(bundleBytes),report.evidenceBundle.sha256);assert.deepEqual(Object.keys(bundle).sort(),Object.keys(report.evidenceBundle.files).sort());for(const[name,text]of Object.entries(bundle)){assert(!path.isAbsolute(name)&&!name.split('/').includes('..'));assert.equal(bytesHash(Buffer.from(text)),report.evidenceBundle.files[name]);}
  const ids=new Set(report.rows.map(r=>r.id));assert.equal(ids.size,300);assert.deepEqual([...ids].sort(),Object.keys(questions).sort());assert.equal(hash([...ids].sort()),report.baseline.canonicalIdsHash);assert.equal(report.baseline.canonicalIdsHash,structure.canonicalIdsHash);
  for(const row of report.rows){const q=questions[row.id],review=reviews[row.id];assert(review);assert.equal(row.chapter,q.chapter);assert.equal(row.topic,q.category);assert.equal(row.type,q.type);assert.equal(row.identity.runtimeContentHash,hash(q));assert.equal(row.identity.answerHash,hash(q.answer));assert.equal(row.identity.authoredExplanationHash,hash(q.explanation));const stamp=evidenceStamp(q);assert.equal(row.identity.legacySourceHash,stamp.sourceHash);assert.equal(row.identity.legacyAnswerSchemaHash,stamp.answerSchemaHash);assert.equal(row.identity.structuredModelHash,hash(models[row.id]));assert.equal(row.identity.taxonomyRowHash,hash(taxonomy[row.id]));assert.equal(row.cognitiveLevel,taxonomy[row.id].cognitiveLevel);assert.equal(row.learningRole,q.learningRole);assert.equal(row.format,q.format||'default');
