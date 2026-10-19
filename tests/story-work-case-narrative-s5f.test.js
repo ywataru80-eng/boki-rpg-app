@@ -30,11 +30,12 @@ assert.deepStrictEqual(
   'S5F must extend WorkCaseNarratives from exactly 126 accepted entries to exactly 131 entries'
 );
 
+const j148SuccessorBefore='年度決算の予行演習中、得意先から商品販売の証憑と約束手形の記録が届きました。あなたは、販売の成立と代金を受け取る権利を分けて確認します。';
 for(const [id,before] of Object.entries(acceptedS5E)){
   assert.strictEqual(
     authority[id]?.before,
-    before,
-    `${id}: S5F must preserve accepted S5E Before text byte-for-byte`
+    id==='J148' ? j148SuccessorBefore : before,
+    `${id}: S5F must preserve S5E history except J148 successor`
   );
 }
 

@@ -97,7 +97,17 @@ test('malformed, unknown identity, future revision and altered seal never write'
 });
 test('other 298 complete runtime records, all answers, canonical IDs stay unchanged',()=>{
  assert.deepEqual(Object.keys(questions),Object.keys(oldQuestions));assert.equal(Object.keys(questions).length,300);
- for(const id of Object.keys(questions)){assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer));if(!['L044','L045'].includes(id))assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);}
+ for(const id of Object.keys(questions)){
+  assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer));
+  if(id==='J148'){
+    const current=clone(questions[id]),historical=clone(oldQuestions[id]);
+    assert.notEqual(current.story,historical.story,'J148 story must have an explicit successor');
+    delete current.story;delete historical.story;
+    assert.deepEqual(current,historical,'J148 non-story fields must stay unchanged');
+  }else if(!['L044','L045'].includes(id)){
+    assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);
+  }
+}
 });
 test('exam-only or last-review-only old exposure protects both IDs',()=>{
  const s={window:{}};vm.runInNewContext(old('data/questions.js'),s);const pool=s.window.ExamPoolDefinition;
