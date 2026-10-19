@@ -11,7 +11,8 @@ const cp=require('node:child_process'),vm=require('node:vm'),baseline='37086c6ae
 assert(fs.readFileSync('reports/question-audit-matrix.json').equals(cp.execFileSync('git',['show',baseline+':reports/question-audit-matrix.json'],{maxBuffer:8*1024*1024})),'historical matrix bytes unchanged');
 vm.runInNewContext(cp.execFileSync('git',['show',baseline+':data/questions.js'],{encoding:'utf8',maxBuffer:8*1024*1024}),old);
 assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'historical matrix matches its fixed source');
-assert.deepStrictEqual(verifyMatrix(matrix,questions).stale,[{id:'L044',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L045',status:'STALE',reasons:['SOURCE_CHANGED']}],'only explicitly superseded conditions differ');
+assert.deepStrictEqual(verifyMatrix(matrix,questions).stale,[{id:'J148',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L044',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L045',status:'STALE',reasons:['SOURCE_CHANGED']}],'only three explicitly superseded source texts differ');
+assert.deepStrictEqual(questions.J148.answer,old.window.QuestionData.J148.answer,'J148 accepted accounting answer is unchanged');
 cp.execFileSync(process.execPath,['reports/edu-quality/ledger-opening-successor.validate.cjs'],{stdio:'inherit'});
 
 const sourceMutation = structuredClone(questions);
