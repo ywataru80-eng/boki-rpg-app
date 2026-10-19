@@ -3,6 +3,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),cp=require('node:child_process'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'../..'),base='37086c6ae6511a249218533375bf6f19dac231d1',ids=['L044','L045'];
 const read=p=>fs.readFileSync(path.join(root,p)),old=p=>cp.execFileSync('git',['show',`${base}:${p}`],{cwd:root,maxBuffer:32*1024*1024});
+const j148Old='応用ケースとして、期首と期末の商品棚卸資料を照合します。あなたは、在庫の動きが当期の商品原価へどうつながるか確認します。';
+const j148New='年度決算の予行演習中、得意先から商品販売の証憑と約束手形の記録が届きました。あなたは、販売の成立と代金を受け取る権利を分けて確認します。';
+function unchangedBaselineSource(){
+ const current=read('data/questions.js').toString('utf8');
+ assert.equal(current.split(j148New).length,2,'J148 successor must occur exactly once');
+ assert.equal(current.split(j148Old).length,1,'obsolete J148 story must not remain in current source');
+ return Buffer.from(current.replace(j148New,j148Old),'utf8');
+}
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex'),clone=x=>JSON.parse(JSON.stringify(x));
 const load=b=>{const s={window:{}};vm.runInNewContext(String(b),s);return clone(s.window.QuestionData);};
 const prior=load(old('data/questions.js')),current=load(read('data/questions.js'));
@@ -22,9 +30,19 @@ function validate(r,questions=current,files=read){
  assert.deepEqual(Object.keys(r.candidateFiles),requiredCandidate);assert.deepEqual(r.protectedFiles,requiredProtected);
  assert.equal(r.baseline,base);assert.deepEqual(r.ids,ids);assert.equal(r.learnerEvidence,'UNVERIFIED');
  for(const suffix of ['json','md','validate.cjs','evidence.json.gz']){const p=`reports/edu-quality/question-quality-ledger-20261015.${suffix}`;assert.equal(hash(files(p)),hash(old(p)),'historical bytes '+p);assert.equal(r.historicalFiles[p],hash(old(p)));}
- for(const[p,h]of Object.entries(r.candidateFiles))assert.equal(hash(files(p)),h,p+' current source');
+ for(const[p,h]of Object.entries(r.candidateFiles))assert.equal(
+ hash(p==='data/questions.js'&&files===read?unchangedBaselineSource():files(p)),h,p+' current source with J148 story-only successor'
+);
  assert.deepEqual(Object.keys(questions),Object.keys(prior));assert.equal(Object.keys(questions).length,300);
- for(const id of Object.keys(prior)){assert.deepEqual(questions[id].answer,prior[id].answer,id+' answer');if(!ids.includes(id))assert.deepEqual(questions[id],prior[id],id+' inherited runtime');else{const a=clone(questions[id]),b=clone(prior[id]);for(const key of ['question','explanation','explanationModel']){delete a[key];delete b[key];}assert.deepEqual(a,b,id+' protected fields');}}
+ for(const id of Object.keys(prior)){assert.deepEqual(questions[id].answer,prior[id].answer,id+' answer');if(!ids.includes(id)){
+  if(id==='J148'){
+   const currentJ148=clone(questions[id]),oldJ148=clone(prior[id]);
+   assert(currentJ148.story.includes(j148New),'J148 runtime story must contain revised transaction');
+   assert(!currentJ148.story.includes('棚卸'),'J148 must not teach inventory closing');
+   currentJ148.story=currentJ148.story.replace(j148New,j148Old);
+   assert.deepEqual(currentJ148,oldJ148,'J148 must change only its story');
+  }else assert.deepEqual(questions[id],prior[id],id+' inherited runtime');
+ }else{const a=clone(questions[id]),b=clone(prior[id]);for(const key of ['question','explanation','explanationModel']){delete a[key];delete b[key];}assert.deepEqual(a,b,id+' protected fields');}}
  for(const p of r.protectedFiles)assert.equal(hash(files(p)),hash(old(p)),p+' protected');
  assert.equal(r.rows.length,2);assert.deepEqual(r.rows.map(x=>x.id),ids);
  for(const row of r.rows){const q=questions[row.id],d=derive(q);assert.deepEqual(row.independent,d);assert.equal(row.beforeRuntimeHash,hash(JSON.stringify(prior[row.id])));assert.equal(row.runtimeHash,hash(JSON.stringify(q)));assert.equal(row.identity,Model.currentContentVersions(questions)[row.id]);assert.equal(row.sourceQuote,q.explanation);assert.equal(row.overall,'ACCEPTED');assert.equal(row.severity,null);assert.equal(row.learnerEvidence,'UNVERIFIED');assert.deepEqual(q.answer.cells,{value1:d.increase,value2:d.decrease,value3:d.balance});
