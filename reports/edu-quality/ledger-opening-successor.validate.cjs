@@ -48,9 +48,9 @@ function validate(r,questions=current,files=read){
     '    assert.deepEqual(clone(questions[id]),clone(oldQuestions[id]),id);',
     '  }',
     '}'
-  ].join('\\n');
+  ].join('\n');
   assert.equal(before.split(oldLines).length,2,'old migration check must have one matching statement');
-  assert.equal(files(p).toString('utf8'),before.replace(oldLines,newLines.replaceAll('\\n','\\n')),'migration test must differ only in the J148 exception');
+  assert.equal(files(p).toString('utf8'),before.replace(oldLines,newLines),'migration test must differ only in the J148 exception');
   raw=Buffer.from(before);
  }
  assert.equal(hash(raw),h,p+' current source with the explicitly checked J148-only exception');
