@@ -34,12 +34,13 @@ assert.deepStrictEqual(
   allExpected,
   'S5E accepted snapshot must cover exactly the 126 locked entries'
 );
+const j148SuccessorBefore='年度決算の予行演習中、得意先から商品販売の証憑と約束手形の記録が届きました。あなたは、販売の成立と代金を受け取る権利を分けて確認します。';
 for(const [id,before] of Object.entries(acceptedS5E)){
   assert(authority[id], `${id}: accepted S5E authority entry must remain present during later S5 batches`);
   assert.strictEqual(
     authority[id].before,
-    before,
-    `${id}: later S5 batches must preserve accepted S5E Before text byte-for-byte`
+    id==='J148' ? j148SuccessorBefore : before,
+    `${id}: accepted S5E Before must preserve history except J148 successor`
   );
 }
 
@@ -111,10 +112,14 @@ assert.strictEqual(
 assert(/(?:家賃|期間|次期|繰延|契約)/u.test(authority.J043.before),'J043: must stay grounded in rent period allocation');
 assert(/(?:回収不能|債権|前期|回収)/u.test(authority.J046.before),'J046: must stay grounded in the bad-debt evidence');
 assert(/(?:備品|使用期間|耐用|償却)/u.test(authority.J047.before),'J047: must stay grounded in fixed-asset use/depreciation evidence');
-for(const id of ['J048','J148']){
-  assert(/(?:棚卸|商品|期首|期末|在庫|売上原価)/u.test(authority[id].before),`${id}: must stay grounded in inventory / cost-of-sales closing evidence`);
-}
-assert(!/受取手形/u.test(authority.J148.before),'J148: must not retain the erroneous receivable-note Story cue');
+assert(/(?:棚卸|商品|期首|期末|在庫|売上原価)/u.test(authority.J048.before),
+  'J048: must stay grounded in inventory / cost-of-sales closing evidence');
+assert(/商品販売/u.test(authority.J148.before) && /約束手形/u.test(authority.J148.before),
+  'J148: must describe a goods sale settled by promissory note');
+assert(!/(?:棚卸|売上原価|受取手形)/u.test(authority.J148.before),
+  'J148: must not describe inventory closing or disclose the correct account');
+assert(/約束手形/u.test(questions.J148.question) && /売り上げ/u.test(questions.J148.question),
+  'J148: story contract must match the actual question');
 
 for(const id of ['D001','D002','D003','D005','D006','D007','D008','D009','D010','D011']){
   assert(
