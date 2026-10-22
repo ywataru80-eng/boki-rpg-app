@@ -929,9 +929,10 @@
     }
     comparisonValue(question, cellId, value) {
       if (value == null || value === '' || (typeof value === 'number' && !Number.isFinite(value))) return '未入力';
-      const semanticType = question.table?.inputMetadata?.[cellId]?.semanticType;
-      if ((semanticType === 'amount' || semanticType === 'unitPrice') && Number.isFinite(Number(normalizeNumber(value).replace(/,/g, '')))) {
-        return `${yen(normalizeNumber(value).replace(/,/g, ''))}円`;
+      const semanticType = root.WrongAnswerFeedback?.cellSemanticType(question, cellId) || question.table?.inputMetadata?.[cellId]?.semanticType;
+      if (['amount','unitPrice','quantity','months','years','life'].includes(semanticType) && Number.isFinite(Number(normalizeNumber(value).replace(/,/g, '')))) {
+        const number = Number(normalizeNumber(value).replace(/,/g, ''));
+        return root.WrongAnswerFeedback?.formatValue(number, semanticType) ?? `${yen(number)}${({amount:'円',unitPrice:'円／個',quantity:'個',months:'か月',years:'年',life:'年'})[semanticType]}`;
       }
       return String(value);
     }
@@ -1086,6 +1087,18 @@
     explanationTeachingProfile(question) {
       const format = question.format || '', category = String(question.category || '');
       const profile = (summary, transfer, takeaway) => ({summary, transfer, takeaway});
+      if (format === 'adjusted-trial-balance') return profile('決算整理を残高へ反映する','整理後残高試算表に記入する',[
+        '決算整理事項を該当勘定へ反映し、各残高を借方・貸方の正しい側へ集計します。',
+        '間接法では備品の取得原価を維持し、減価償却累計額を貸方に計上します。'
+      ]);
+      if (format === 'closing-entries') return profile('収益と費用を締め切る','振替金額を記入する',[
+        '収益と費用を損益勘定へ集め、その差額で当期純損益を求めます。',
+        '当期純利益は損益勘定の借方から繰越利益剰余金の貸方へ振り替えます。'
+      ]);
+      if (question.type === 'worksheet' && /決算整理・計算問題/u.test(category)) return profile('期間と償却条件を整理する','各計算欄に記入する',[
+        '保険料の次期分は当期費用から除き、前払保険料へ振り替えます。',
+        '定額法の年額は（取得原価－残存価額）÷耐用年数です。帳簿価額は取得原価から減価償却累計額を差し引きます。'
+      ]);
       if (question.type === 'journal') return profile('どういう取引か考える','借方・貸方を決めて仕訳する',[
         '勘定科目は、取引で何が増え、何が減ったかを基準に選びます。',
         '借方・貸方は勘定の性質と増減で決め、最後に貸借一致で確認します。'
@@ -1157,7 +1170,7 @@
       const structuredAlways = question.teachingPresentation === 'structured-always';
       if ((score.correct && !structuredAlways) || !question.explanationModel || !root.ExplanationModel?.build) return null;
       const model = root.ExplanationModel.build(question, userAnswer || {}, score);
-      const valueText = value => typeof value === 'number' ? `${yen(value)}円` : value === true ? '確認' : String(value ?? '');
+      const valueText = (value, semanticType) => value === true ? '確認' : root.WrongAnswerFeedback.formatValue(value, semanticType);
       const flow = this.document.createElement('section'); flow.className = 'explanation-flow'; flow.setAttribute('aria-label', 'この問題をもう一度解く手順');
       const intro = this.document.createElement('h4'); intro.className = 'explanation-flow-title'; intro.textContent = score.correct ? 'この問題の解き方を確認' : 'この問題をもう一度解く手順'; flow.append(intro);
       const hasMeaningfulCalculation = (model.calculation || []).some(item => /[×÷＋+−\-＝=]/u.test(String(item.expression || '')));
@@ -1200,15 +1213,15 @@
             const list = element('ol', 'explanation-source-list'); item.list.forEach(value => list.append(element('li', '', String(value)))); card.append(list);
           } else {
             const list = element('dl', 'explanation-source-values');
-            (item.values || []).forEach(value => { const row = element('div', 'explanation-source-value'); row.append(element('dt', '', value.label), element('dd', '', valueText(value.value))); list.append(row); });
+            (item.values || []).forEach(value => { const row = element('div', 'explanation-source-value'); row.append(element('dt', '', value.label), element('dd', '', valueText(value.value, value.semanticType))); list.append(row); });
             card.append(list);
           }
           section.append(card);
         });
         if (key === 'summary') { const list = element('div', 'explanation-summary-list'); items.forEach(item => list.append(element('p', 'explanation-summary-item', item.text))); section.append(list); }
-        if (key === 'calculation') items.forEach(item => { const card = element('article', 'explanation-formula'); const shownFormula = item.derivation === 'direct' ? (item.note || `計算不要：${valueText(item.result)}を使用`) : (item.expression || `答え：${valueText(item.result)}`); card.append(element('div', 'explanation-formula-label', item.label), element('strong', '', shownFormula)); if (item.operands?.length) { const operands = element('div', 'explanation-operands'); item.operands.forEach(value => operands.append(element('span', 'explanation-operand', `${value.label} ${valueText(value.value)}`))); card.append(operands); } section.append(card); });
-        if (key === 'transfer') items.forEach(item => { const card = element('article', 'explanation-transfer-card'), from = element('div', 'explanation-transfer-from'), to = element('div', 'explanation-transfer-to'); from.append(element('strong', '', item.from), element('div', '', item.decision)); to.append(element('strong', '', item.to), element('div', '', valueText(item.value))); const arrow = element('div', 'explanation-transfer-arrow', '→'); arrow.setAttribute('aria-hidden', 'true'); card.append(from, arrow, to); section.append(card); });
-        if (key === 'checks') { const list = element('div', 'explanation-checks'); items.forEach(item => { const card = element('article', 'explanation-check-item'); card.append(element('div', 'explanation-check-mark', '✓')); const body = element('div', 'explanation-check-body'); body.append(element('strong', '', item.label), element('span', '', valueText(item.expected))); card.append(body); list.append(card); }); section.append(list); }
+        if (key === 'calculation') items.forEach(item => { const card = element('article', 'explanation-formula'); const shownFormula = item.derivation === 'direct' ? (item.note || `計算不要：${valueText(item.result, item.semanticType)}を使用`) : (item.expression || `答え：${valueText(item.result, item.semanticType)}`); card.append(element('div', 'explanation-formula-label', item.label), element('strong', '', shownFormula)); if (item.operands?.length) { const operands = element('div', 'explanation-operands'); item.operands.forEach(value => operands.append(element('span', 'explanation-operand', `${value.label} ${valueText(value.value, value.semanticType)}`))); card.append(operands); } section.append(card); });
+        if (key === 'transfer') items.forEach(item => { const card = element('article', 'explanation-transfer-card'), from = element('div', 'explanation-transfer-from'), to = element('div', 'explanation-transfer-to'); from.append(element('strong', '', item.from), element('div', '', item.decision)); to.append(element('strong', '', item.to), element('div', '', valueText(item.value, item.semanticType))); const arrow = element('div', 'explanation-transfer-arrow', '→'); arrow.setAttribute('aria-hidden', 'true'); card.append(from, arrow, to); section.append(card); });
+        if (key === 'checks') { const list = element('div', 'explanation-checks'); items.forEach(item => { const card = element('article', 'explanation-check-item'); card.append(element('div', 'explanation-check-mark', '✓')); const body = element('div', 'explanation-check-body'); body.append(element('strong', '', item.label), element('span', '', valueText(item.expected))); if (item.note) body.append(element('span', '', item.note)); card.append(body); list.append(card); }); section.append(list); }
         if (key === 'mistakes') items.forEach(item => { const card = element('article', 'explanation-mistake-card'); card.append(element('h6', '', item.title), element('p', '', item.reason), element('p', 'explanation-mistake-fix', `直し方：${item.correction}`)); section.append(card); });
         return section;
       };
@@ -1226,7 +1239,7 @@
           extra = items.slice(primary.length);
         }
         if (primary.length) flow.append(renderSection(key === 'mistakes' ? 'まず確認する点（原因の候補）' : label, key, primary, primaryIndex++));
-        if (extra.length) supplementary.append(renderSection(label, key, extra, null));
+        if (extra.length) supplementary.append(renderSection(key === 'summary' && primary.length ? '考え方の補足' : label, key, extra, null));
       });
       if (supplementary.children.length > 1) flow.append(supplementary);
       return flow;
@@ -1264,7 +1277,10 @@
         const routeModel = question.explanationModel && root.ExplanationModel?.build
           ? root.ExplanationModel.build(question, userAnswer || {}, score)
           : null;
-        const route = root.ExplanationDesignSystem.planFor(question, { model:routeModel, correct:score.correct });
+        const baseRoute = root.ExplanationDesignSystem.planFor(question, { model:routeModel, correct:score.correct });
+        const route = question.type === 'worksheet' && /決算整理・計算問題/u.test(question.category || '')
+          ? {...baseRoute, title:'決算整理の計算', path:['保険料の対象期間','当期分と次期分','償却条件','減価償却費と帳簿価額','元の金額へ戻して確認']}
+          : baseRoute;
         supplementary.append(root.ExplanationDesignSystem.render(this.document, route));
       }
       const structured = this.renderStructuredExplanation(question, userAnswer, score);

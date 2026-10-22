@@ -87,7 +87,8 @@ for(const [id,accounts] of Object.entries(specialAccounts))test('review special 
     const model=Model.build(q,correct?q.answer:{},{correct});
     const card=model.transfer.find(item=>item.decision.startsWith(account+'：'));
     assert(card&&card.decision.includes(definition),id+' '+account+' authored definition reaches transfer');
-    assert(card.decision.includes('この問題では'+card.to+'に'),'authored placement remains tied to side');
+    assert(card.decision.includes(card.to+'に'),'transaction reason remains tied to the correct side');
+    assert(!card.decision.includes('特殊勘定の増加・減少'),'an abstract special-account label is not a transaction reason');
     assert(!/円/u.test(card.decision),'金額は転記先に一度だけ表示する');
     assert(card.evidenceRefs.includes('explanation'));
   }

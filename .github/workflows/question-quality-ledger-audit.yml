@@ -2,9 +2,9 @@ name: Canonical300 quality ledger validation
 on:
   push:
     branches: [audit/canonical300-quality-ledger-20261015, main]
-    paths: ['reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
+    paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
   pull_request:
-    paths: ['reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
+    paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
 permissions:
   contents: read
 jobs:
@@ -25,5 +25,7 @@ jobs:
       - name: Validate immutable Release214 audit at its fixed source
         working-directory: historical-quality
         run: node reports/edu-quality/question-quality-ledger-20261015.validate.cjs
-      - name: Validate current 300 identities and L044 L045 successor evidence
-        run: node reports/edu-quality/ledger-opening-successor.validate.cjs
+      - name: Validate immutable Release217 evidence and explanation successor
+        run: node scripts/validate-explanation-successor.cjs
+      - name: Recalculate explanation arithmetic from source conditions
+        run: python3 scripts/check-explanation-accounting.py

@@ -54,7 +54,7 @@ const inventoryModel=ExplanationModel.build(sandbox.window.QuestionData.L029,{ce
 const inventorySource=inventoryModel.sources[0];
 assert.strictEqual(inventorySource.kind,'table','L029は表形式の資料として扱う');
 assert.strictEqual(inventorySource.focus,'日付ごとに「数量 → 単価 → 金額」の順で横に確認します。','L029は初学者が見る順番を明示する');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(inventorySource.table.columns.map(column=>column.label))),['日付','摘要','数量','単価（円）','金額（円）'],'L029の確認表は元の商品有高帳5列を保持する');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(inventorySource.table.columns.map(column=>column.label))),['日付','摘要','数量（個）','単価（円／個）','金額（円）'],'L029の確認表は元の商品有高帳5列と意味に合う単位を保持する');
 assert.strictEqual(inventorySource.table.rows.length,4,'L029の確認表は4行を保持する');
 assert.strictEqual(inventorySource.table.rows.flat().filter(cell=>cell.value==='入力').length,3,'L029の未回答3欄は正答値へ展開しない');
 const voucherModel=ExplanationModel.build(sandbox.window.QuestionData.L050,{cells:{}},{correct:false});

@@ -13,7 +13,7 @@ vm.runInNewContext(cp.execFileSync('git',['show',baseline+':data/questions.js'],
 assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'historical matrix matches its fixed source');
 assert.deepStrictEqual(verifyMatrix(matrix,questions).stale,[{id:'J148',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L044',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L045',status:'STALE',reasons:['SOURCE_CHANGED']}],'only three explicitly superseded source texts differ');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');
-cp.execFileSync(process.execPath,['reports/edu-quality/ledger-opening-successor.validate.cjs'],{stdio:'inherit'});
+cp.execFileSync(process.execPath,['scripts/validate-explanation-successor.cjs'],{stdio:'inherit'});
 
 const sourceMutation = structuredClone(questions);
 sourceMutation.L033.question += ' 改ざん';

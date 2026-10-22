@@ -70,6 +70,9 @@ for(const question of Object.values(q)) for(const correct of [false,true]) {
   instance.byId=()=>container;
   instance.renderExplanation(question,{correct},correct?question.answer:{});
   const nodes=descendants(container), details=nodes.filter(node=>node.tagName==='details');
+  if(question.type==='worksheet'&&/決算整理・計算問題/u.test(question.category))assert(!container.textContent.includes('精算表'),question.id+': supplementary route also follows the actual calculation format');
+  const headings=nodes.filter(node=>/^h[1-5]$/.test(node.tagName)).map(node=>node.textContent);
+  assert.strictEqual(new Set(headings).size,headings.length,question.id+': primary and supplementary section headings are distinct');
   assert(details.length>0,question.id+': supplements have native disclosure');
   assert(details.every(node=>!node.open&&node.children[0].tagName==='summary'),question.id+': disclosure starts closed and has native accessible summary');
   assert(!visible(container).includes('解答までの道筋'),question.id+': generic route is supplementary');
