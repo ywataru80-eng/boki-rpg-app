@@ -89,3 +89,9 @@ PRの最終HEAD・URL・CIはPR本文と最終作業報告へ記録する。main
 | `qa-test.log` | `ad2e4212f26629aab959dd68ca24b5c1bc12c2fe9992643785d981b9666d1d95` | PASS |
 | `qa-integrity-final.log` | `1288751f2b6fc03e769b7f22e75f873bed1ac6d52ec708efd7dbdd1aadb46497` | PASS |
 | `final-pipeline.log` | `891b9119a01cab957750c55f9fac2a42c5afc71f3fd8a48dc6da352e7d8f90be` | PASS |
+
+### CI専用ブラウザ検証の追補
+
+旧い「この問題では…に記録します」と単価「円」、D002の精算表見出しを固定したCI期待を、今回の具体的な処理理由・意味型単位・計算形式に更新。科目定義、貸借、金額、表構造のassertionを保持し、取引別の理由・旧抽象文の禁止・見出し重複禁止を追加した。製品コードと300問のDOM証拠は変更していない。
+
+追補のローカル確認：既存ハーネスを隔離worktreeでシステムChromiumに接続し、解説integration 100ケース、P1 285ケースがPASS。Form Aは16ケースとPWA更新・旧タブ・オフラインもPASS。WebKitはローカル配信先403のため、このローカル実行には含めていない。ハーネス変更後の `npm run verify` は終了コード0（`verify-ci-harness.log`）。CI初回のForm A失敗は別に追跡し、ローカルPASSをその解消証拠にはしていない。
