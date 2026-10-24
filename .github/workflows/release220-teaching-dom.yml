@@ -1,0 +1,88 @@
+name: Release220 teaching DOM gate (read-only)
+on:
+  push:
+    branches:
+      - audit/release220-account-nature-browser-20261025
+permissions:
+  contents: read
+jobs:
+  teaching-dom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ed9eadd90ae7cdf38c7a8256b3e7a45f4746df7a
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Pin browser test engine
+        run: npm install --no-save --package-lock=false playwright@1.64.1
+      - name: Verify real browser render for 170 source-backed accounting tasks
+        shell: bash
+        run: |
+          python3 -m http.server 8123 --bind 127.0.0.1 >/tmp/release220-http.log 2>&1 &
+          node - <<'NODE'
+          const assert=require('node:assert/strict');
+          const {chromium,webkit}=require('playwright');
+          (async()=>{
+            for(const [engine,launch] of [['chromium',chromium],['webkit',webkit]]){
+              const browser=await launch.launch({headless:true});
+              try{
+                for(const width of [390,1280]){
+                  const page=await browser.newPage({viewport:{width,height:844}});
+                  const errors=[];
+                  page.on('pageerror',e=>errors.push(String(e)));
+                  await page.goto('http://127.0.0.1:8123/',{waitUntil:'load',timeout:60000});
+                  await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,{timeout:25000});
+                  const evidence=await page.evaluate(()=>{
+                    const data=window.QuestionData;
+                    const v=new window.AppView(document);
+                    const target=document.getElementById('explanation');
+                    if(!target)throw Error('explanation target missing');
+                    const questions=Object.values(data).filter(q=>q.type==='journal'||q.type==='correction');
+                    let postings=0,journals=0,corrections=0,renders=0;
+                    for(const q of questions){
+                      if(q.type==='journal')journals++;else corrections++;
+                      const rows=q.type==='journal'?q.answer:v.correctionJournal(q.answer);
+                      const entries=[...(rows.debit||[]),...(rows.credit||[])].filter(r=>r.account);
+                      if(q.type==='journal')postings+=entries.length;
+                      for(const correct of [true,false]){
+                        v.renderExplanation(q,{correct},q.answer);
+                        const card=target.querySelector('.account-nature-explanation');
+                        if(!card)throw Error(q.id+' account nature missing');
+                        const li=[...card.querySelectorAll('li')];
+                        if(li.length!==entries.length)throw Error(q.id+' wrong visible entry count');
+                        for(let i=0;i<li.length;i++){
+                          const account=entries[i].account;
+                          const classification=window.AccountingDomain.accountType(account);
+                          const label=window.AccountingDomain.typeLabels[classification];
+                          if(!label)throw Error(q.id+': unsupported account '+account);
+                          if(!li[i].textContent.includes(account+'（'+label+'）'))
+                            throw Error(q.id+': missing category for '+account);
+                          if(!/借方に記入します|貸方に記入します/u.test(li[i].textContent))
+                            throw Error(q.id+': missing correct side for '+account);
+                        }
+                        renders++;
+                      }
+                    }
+                    for(const q of Object.values(data).filter(q=>!['journal','correction'].includes(q.type)).slice(0,3)){
+                      v.renderExplanation(q,{correct:true},q.answer);
+                      if(target.querySelector('.account-nature-explanation'))
+                        throw Error(q.id+' misleading journal section on nonjournal');
+                    }
+                    return {questions:questions.length,journals,corrections,postings,renders};
+                  });
+                  assert.deepEqual(evidence,{questions:170,journals:150,corrections:20,postings:349,renders:340});
+                  assert.equal(errors.length,0,engine+' page errors '+errors);
+                  console.log('PASS '+engine+' '+width+'px '+JSON.stringify(evidence));
+                  await page.close();
+                }
+              }finally{await browser.close();}
+            }
+            console.log('PASS Release220 teaching DOM: both browsers / both widths / postanswer all 170 tasks / 340 result states');
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          NODE
