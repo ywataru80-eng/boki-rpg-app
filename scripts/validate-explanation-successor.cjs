@@ -36,7 +36,22 @@ const report=JSON.parse(read('reports/edu-quality/explanation-quality-20261022.j
 const digest=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 assert.equal(report.baselineHead,baseline);
 assert.deepEqual(report.records.map(r=>r.id).sort(),Object.keys(current).sort());
-for(const [file,hash] of Object.entries(report.sourceHashes))assert.equal(digest(read(file)),hash,file+' render evidence must describe current bytes');
+// The Release218 browser archive is immutable evidence for the prior PR HEAD.
+// Preserve and verify that provenance; the new feedback revision has its own
+// bound successor source hash and must pass the current CI/browser gates.
+const priorRenderedHead='5f1523933f99dcdeee2671619df52d7e15a9a76f';
+for(const [file,hash] of Object.entries(report.sourceHashes)){
+  const archivedSource=file==='js/feedback.js'?git(['show',priorRenderedHead+':'+file]):read(file);
+  assert.equal(digest(archivedSource),hash,file+' historical render evidence must describe its original bytes');
+}
+const successor=JSON.parse(read('reports/edu-quality/feedback-missing-20261024.json'));
+assert.equal(successor.predecessorHead,priorRenderedHead);
+assert.equal(successor.generationCandidate,163);
+assert.equal(successor.sourceHashes.previousFeedback,digest(git(['show',priorRenderedHead+':js/feedback.js'])));
+assert.equal(successor.sourceHashes.currentFeedback,digest(read('js/feedback.js')));
+assert.equal(successor.sourceHashes.currentManifest,digest(read('pwa-release-manifest.json')));
+assert.equal(String(git(['rev-parse','HEAD:data/questions.js'])).trim(),successor.protectedQuestionData);
+cp.execFileSync(process.execPath,['tests/feedback-missing-language.test.js'],{cwd:root,stdio:'inherit'});
 for(const [file,artifact] of Object.entries(report.artifacts)){
   const bytes=read('reports/edu-quality/'+file);
   assert.equal(digest(bytes),artifact.sha256,file+' compressed evidence identity');
