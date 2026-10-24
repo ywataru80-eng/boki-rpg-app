@@ -11,9 +11,43 @@ const read=file=>fs.readFileSync(path.join(ROOT,file));
 const original=file=>git(['show',baseline+':'+file]);
 const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 const head=String(git(['rev-parse','HEAD'])).trim(),pending=head===baseline;
+const normalizeNames=args=>String(git(args)).trim().split(/\n/).filter(Boolean).sort();
+const workflowPath='.github/workflows/question-quality-ledger-audit.yml';
+const plannedOverlay=['scripts/validate-category-successor.cjs',workflowPath].sort();
+const trackedOverlay=normalizeNames(['diff','--name-only','HEAD']);
+const stagedOverlay=normalizeNames(['diff','--cached','--name-only']);
+const overlay= !pending && head==='5853853a4a2a88d7b2bb26959f6bca8551b8a4fe'
+  && JSON.stringify(trackedOverlay)===JSON.stringify(plannedOverlay)
+  && stagedOverlay.length===0;
 if(!pending){
-  assert.equal(String(git(['rev-parse','HEAD^'])).trim(),baseline,'single successor parent must be pinned Release218');
-  assert.equal(String(git(['status','--porcelain'])).trim(),'','committed successor checkout must be clean');
+  const parents=String(git(['rev-list','--parents','-n','1','HEAD'])).trim().split(' ').slice(1);
+  const count=Number(String(git(['rev-list','--count',baseline+'..HEAD'])).trim());
+  if(overlay){
+    assert(parents.length===1&&parents[0]===baseline&&count===1,'candidate overlay must build on exact first implementation commit');
+  }else if(parents.length===1&&count===1){
+    assert.equal(parents[0],baseline,'first successor commit must directly follow accepted Release218');
+  }else if(parents.length===1&&count===2){
+    assert.equal(String(git(['rev-parse','HEAD~2'])).trim(),baseline,'two implementation commits must follow accepted Release218');
+  }else if(parents.length===2&&count===3){
+    assert.equal(parents[0],baseline,'normal merge first parent must be Release218');
+    assert.equal(String(git(['rev-parse','HEAD^{tree}'])).trim(),String(git(['rev-parse','HEAD^2^{tree}'])).trim(),
+      'normal merge tree must match tested implementation branch tree');
+    assert.equal(String(git(['rev-parse','HEAD^2~2'])).trim(),baseline,'merge second parent must descend from accepted Release218');
+  }else throw new Error('Unexpected release successor ancestry: '+JSON.stringify({parents,count}));
+  if(overlay)assert.deepEqual(trackedOverlay,plannedOverlay,'only scoped workflow/validator edits may be uncommitted');
+  else assert.equal(String(git(['status','--porcelain','--untracked-files=no'])).trim(),'','committed successor tracked sources must be clean');
+  const untracked=normalizeNames(['ls-files','--others','--exclude-standard']);
+  const historical='historical-quality/';
+  if(untracked.some(file=>file===historical||file.startsWith(historical))){
+    const historicalDir=path.join(ROOT,'historical-quality');
+    const historicalHead=String(cp.execFileSync('git',['rev-parse','HEAD'],{cwd:historicalDir})).trim();
+    assert.equal(historicalHead,'37086c6ae6511a249218533375bf6f19dac231d1',
+      'untracked historical-quality/ must be the exact pinned Release214 test checkout');
+    assert.equal(String(cp.execFileSync('git',['status','--porcelain','--untracked-files=no'],
+      {cwd:historicalDir})).trim(),'','pinned historical checkout tracked sources must remain clean');
+  }
+  assert(untracked.every(file=>file.startsWith('artifacts/')||file===historical||file.startsWith(historical)),
+    'unexpected untracked files: '+untracked.join(','));
 }
 const snap=fs.mkdtempSync(path.join(os.tmpdir(),'release218-accepted-test-'));
 try{
@@ -23,8 +57,10 @@ try{
  });
  console.log('PASS original Release218 successor assertions on immutable historical checkout');
 }finally{fs.rmSync(snap,{recursive:true,force:true});}
-const tracked=String(git(pending?['diff','--name-only']:['diff','--name-only',baseline,'HEAD']))
-  .trim().split(/\n/).filter(Boolean).sort();
+const tracked=Array.from(new Set([
+  ...normalizeNames(pending?['diff','--name-only']:['diff','--name-only',baseline,'HEAD']),
+  ...(overlay?trackedOverlay:[])
+])).sort();
 const authorized=['js/view.js','js/explanation-model.js','package.json','tests/audit-matrix.test.js',
 'index.html','form-a.html','service-worker.js','pwa-release-manifest.json','tests/app.test.js'];
 const acceptedPaths=pending?authorized:[
@@ -32,9 +68,16 @@ const acceptedPaths=pending?authorized:[
   'tests/preanswer-category-leak.test.js',
   'tests/exam-points-visible.test.js',
   'scripts/validate-category-successor.cjs',
-  'reports/auto-gate/audit-locks/phase-b-generation-165.json'
+  'reports/auto-gate/audit-locks/phase-b-generation-165.json',
+  '.github/workflows/question-quality-ledger-audit.yml'
 ];
 assert.deepEqual(tracked,acceptedPaths.sort(),'no missing or unexpected Release219 files');
+const acceptedLedgerWorkflow=original(workflowPath).toString('utf8');
+const oldRoute="      - name: Validate immutable Release217 evidence and explanation successor\n        run: node scripts/validate-explanation-successor.cjs";
+const newRoute="      - name: Validate immutable evidence via strict release-specific successor\n        run: |\n          node - <<'NODE'\n          const assert = require('node:assert/strict');\n          const cp = require('node:child_process');\n          const manifest = require('./pwa-release-manifest.json');\n          const validators = Object.freeze({\n            '20261022-218': 'scripts/validate-explanation-successor.cjs',\n            '20261024-219': 'scripts/validate-category-successor.cjs'\n          });\n          const script = validators[manifest.release];\n          assert(script, 'unknown release: '+manifest.release);\n          cp.execFileSync(process.execPath, [script], {stdio:'inherit'});\n          NODE";
+assert.equal(acceptedLedgerWorkflow.split(oldRoute).length,2,'historical CI route has a unique replacement anchor');
+assert.equal(read(workflowPath).toString('utf8'),acceptedLedgerWorkflow.replace(oldRoute,newRoute),
+  'ledger CI must replace only the old-release routing with fail-closed release-aware validation');
 const core=require('./qa/audit-core'),production=core.productionFiles();
 const permitted=new Set(['js/view.js','js/explanation-model.js','index.html','form-a.html','service-worker.js','pwa-release-manifest.json']);
 for(const file of production){

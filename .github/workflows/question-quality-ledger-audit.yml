@@ -25,7 +25,19 @@ jobs:
       - name: Validate immutable Release214 audit at its fixed source
         working-directory: historical-quality
         run: node reports/edu-quality/question-quality-ledger-20261015.validate.cjs
-      - name: Validate immutable Release217 evidence and explanation successor
-        run: node scripts/validate-explanation-successor.cjs
+      - name: Validate immutable evidence via strict release-specific successor
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const cp = require('node:child_process');
+          const manifest = require('./pwa-release-manifest.json');
+          const validators = Object.freeze({
+            '20261022-218': 'scripts/validate-explanation-successor.cjs',
+            '20261024-219': 'scripts/validate-category-successor.cjs'
+          });
+          const script = validators[manifest.release];
+          assert(script, 'unknown release: '+manifest.release);
+          cp.execFileSync(process.execPath, [script], {stdio:'inherit'});
+          NODE
       - name: Recalculate explanation arithmetic from source conditions
         run: python3 scripts/check-explanation-accounting.py
