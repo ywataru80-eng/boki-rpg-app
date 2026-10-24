@@ -97,8 +97,16 @@ jobs:
                 await page.waitForFunction(async()=>navigator.serviceWorker.controller && (await caches.keys()).includes('boki-rpg-'+ '20261022-218'),null,{timeout:45000});
                 const key='__boki_release_218_live_audit__';
                 await page.evaluate(k=>localStorage.setItem(k,'persisted-across-offline-reload'),key);
+                await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                console.log('PASS '+engine+' online SW-controlled reload');
                 await context.setOffline(true);
-                await page.reload({waitUntil:'load',timeout:45000});
+                if(engine==='webkit'){
+                  const offlineNav=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
+                  assert.equal(offlineNav?.status(),200,engine+' SW-backed offline navigation');
+                } else {
+                  await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+                }
                 await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
                 assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),'persisted-across-offline-reload',engine+' offline local storage retained');
                 const form=await page.goto(site+'form-a.html',{waitUntil:'domcontentloaded',timeout:45000});
