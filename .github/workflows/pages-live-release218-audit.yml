@@ -67,3 +67,49 @@ jobs:
               assert digest((ROOT / rel).read_bytes()) == expected, f'manifest page mismatch {rel}'
           print(json.dumps({'status': 'PASS', 'sourceCommit': '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec', 'publicSite': BASE, 'release': EXPECTED_RELEASE, 'assets': len(manifest['assets']), 'pages': len(manifest.get('pages', {})), 'browserCacheOrExistingUserData': 'NOT TESTED'}, ensure_ascii=False))
           PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Check deployed HTTPS startup, worker ownership, cache, and offline persistence
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const {chromium,webkit} = require('playwright');
+          const site = 'https://ywataru80-eng.github.io/boki-rpg-app/';
+          const release = '20261022-218';
+          (async()=>{
+            for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
+              const browser = await launcher.launch({headless:true});
+              try {
+                const context = await browser.newContext({serviceWorkers:'allow'});
+                const page = await context.newPage();
+                const errors=[];
+                page.on('pageerror',err=>errors.push(String(err)));
+                const resp=await page.goto(site,{waitUntil:'load',timeout:60000});
+                assert.equal(resp?.status(),200,engine+' live homepage HTTP');
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                await page.evaluate(()=>navigator.serviceWorker.ready);
+                await page.waitForFunction(async()=>navigator.serviceWorker.controller && (await caches.keys()).includes('boki-rpg-'+ '20261022-218'),null,{timeout:45000});
+                const key='__boki_release_218_live_audit__';
+                await page.evaluate(k=>localStorage.setItem(k,'persisted-across-offline-reload'),key);
+                await context.setOffline(true);
+                await page.reload({waitUntil:'load',timeout:45000});
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),'persisted-across-offline-reload',engine+' offline local storage retained');
+                const form=await page.goto(site+'form-a.html',{waitUntil:'domcontentloaded',timeout:45000});
+                assert.equal(form?.status(),200,engine+' offline Form A navigation');
+                assert(!errors.length,engine+' browser exceptions: '+JSON.stringify(errors));
+                await context.setOffline(false);
+                await page.evaluate(k=>localStorage.removeItem(k),key);
+                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW218 cache, offline reload, persisted storage, Form A offline');
+                await context.close();
+              } finally { await browser.close(); }
+            }
+            console.log('PASS public live browser engines=2 release='+release+' (simulated storage only; not physical iPhone or migration from an actual user profile)');
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          NODE
