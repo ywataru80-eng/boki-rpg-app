@@ -1,0 +1,92 @@
+name: Strict Release219 historical nested-checkout acceptance
+on:
+  push:
+    branches: [audit/ledger-historical-check-20261024]
+permissions:
+  contents: read
+jobs:
+  ledger-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5853853a4a2a88d7b2bb26959f6bca8551b8a4fe
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Overlay independently identified strict successor and historic ledger route
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const cp=require('node:child_process'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path');
+          const expected=[
+            ['scripts/validate-category-successor.cjs','c29ea1a2e5021b734a1367ca315c2b9b7ee6a7cc'],
+            ['.github/workflows/question-quality-ledger-audit.yml','3a8c2d1a1e1911903263f6e87730a523e88fcfdf']
+          ];
+          (async()=>{
+            for(const [file,sha] of expected) {
+              const res=await fetch('https://api.github.com/repos/'+process.env.GITHUB_REPOSITORY+'/git/blobs/'+sha,{
+                headers:{Authorization:'Bearer '+process.env.GH_READ_TOKEN,Accept:'application/vnd.github+json'}
+              });
+              if(!res.ok)throw Error('Git blob unavailable '+file+' HTTP '+res.status);
+              const data=await res.json(),bytes=Buffer.from(data.content.replace(/\s/g,''),'base64');
+              const gitsha=crypto.createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');
+              if(gitsha!==sha||data.sha!==sha)throw Error('blob integrity mismatch '+file);
+              fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,bytes);
+              console.log('RESTORED '+file+' '+sha);
+            }
+            const head=String(cp.execFileSync('git',['rev-parse','HEAD'])).trim();
+            if(head!=='5853853a4a2a88d7b2bb26959f6bca8551b8a4fe')throw Error('baseline moved');
+            const changes=String(cp.execFileSync('git',['diff','--name-only'])).trim().split('\n').sort();
+            if(JSON.stringify(changes)!==JSON.stringify(expected.map(x=>x[0]).sort()))throw Error('overlay outside approved scope');
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          NODE
+      - name: Mandatory precommit verify on exact two-file overlay
+        run: npm run verify
+      - name: Explicitly re-run the real pinned historic ledger before the router
+        run: node scripts/validate-category-successor.cjs
+      - uses: actions/checkout@v4
+        with:
+          ref: 37086c6ae6511a249218533375bf6f19dac231d1
+          path: historical-quality
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove archived Release214 checkout remains intact
+        working-directory: historical-quality
+        run: |
+          test "$(git rev-parse HEAD)" = '37086c6ae6511a249218533375bf6f19dac231d1'
+          node reports/edu-quality/question-quality-ledger-20261015.validate.cjs
+      - name: Independent accounting source and Oracle
+        run: |
+          python3 scripts/check-explanation-accounting.py
+          npm run audit:oracle-source
+      - name: Independent successor integrity and historical CI release routing
+        shell: bash
+        run: |
+          npm run qa:integrity
+          node scripts/validate-category-successor.cjs
+          node - <<'NODE'
+          const assert=require('node:assert/strict'),cp=require('node:child_process'),manifest=require('./pwa-release-manifest.json');
+          const scripts={'20261022-218':'scripts/validate-explanation-successor.cjs','20261024-219':'scripts/validate-category-successor.cjs'};
+          const validator=scripts[manifest.release];assert(validator,'unknown release');
+          cp.execFileSync(process.execPath,[validator],{stdio:'inherit'});
+          NODE
+      - name: Assert exact overlay content and no unrelated mutation
+        shell: bash
+        run: |
+          git diff --check
+          test "$(git rev-parse HEAD)" = '5853853a4a2a88d7b2bb26959f6bca8551b8a4fe'
+          node - <<'NODE'
+          const cp=require('node:child_process');
+          const actual=cp.execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').sort();
+          const expected=['scripts/validate-category-successor.cjs','.github/workflows/question-quality-ledger-audit.yml'].sort();
+          if(JSON.stringify(actual)!==JSON.stringify(expected))throw Error('extra tracked modifications '+JSON.stringify(actual));
+          console.log('PASS only reviewed CI router and strict successor validator changed');
+          NODE
