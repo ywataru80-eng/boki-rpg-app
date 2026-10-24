@@ -16,6 +16,8 @@ jobs:
         with:
           ref: e0070f468eeb0d814f3cd1c3a032a22ead5c8c1d
           persist-credentials: false
+      - name: Trust the exact checkout in the root-owned Playwright container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Compare live HTTPS Pages to exact released source
         shell: bash
         run: |
