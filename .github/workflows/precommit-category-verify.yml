@@ -58,6 +58,22 @@ jobs:
           })().catch(e=>{console.error(e);process.exitCode=1});
           
           NODE
+      - name: Create uncommitted immutable Generation165 successor candidate
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const lifecycle=require('./scripts/qa/phase-b-lifecycle');
+          const successor=lifecycle.createCandidate();
+          if(successor.generation!==165||successor.predecessor.generation!==164)throw Error('Unexpected Generation lineage: '+JSON.stringify(successor.predecessor));
+          const destination='reports/auto-gate/audit-locks/phase-b-generation-165.json';
+          fs.mkdirSync(path.dirname(destination),{recursive:true});
+          fs.writeFileSync(destination,JSON.stringify(successor,null,2)+'\n',{flag:'wx'});
+          const validation=lifecycle.verifyCandidate(successor);
+          if(!validation.ok)throw Error('Invalid pending successor '+JSON.stringify(validation.errors));
+          if(require('./scripts/qa/audit-core').currentIntegrityCheck().ok!==true)throw Error('Pending generation is not accepted');
+          console.log('PASS uncommitted Generation165 predecessor164 successor identity='+successor.baselineIdentity);
+          NODE
       - name: Precommit mandatory verify
         run: npm run verify
       - name: Independent educational learning-case test
