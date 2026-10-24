@@ -1,0 +1,69 @@
+name: Release218 public HTTPS read-only audit
+on:
+  push:
+    branches:
+      - audit/release218-live-https-20261024
+permissions:
+  contents: read
+jobs:
+  verify-public-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec
+          persist-credentials: false
+      - name: Compare live HTTPS Pages to exact released source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, time, urllib.request, urllib.parse
+          BASE = 'https://ywataru80-eng.github.io/boki-rpg-app/'
+          EXPECTED_RELEASE = '20261022-218'
+          ROOT = pathlib.Path('.')
+          nonce = os.getenv('GITHUB_RUN_ID', 'audit')
+          def digest(b): return hashlib.sha256(b).hexdigest()
+          def get(rel, versioned=False):
+              q = [('audit_run', nonce)]
+              if versioned: q.insert(0, ('v', EXPECTED_RELEASE))
+              url = BASE + rel + '?' + urllib.parse.urlencode(q)
+              req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'User-Agent': 'boki-pages-release-audit/1'})
+              last = None
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req, timeout=25) as rsp:
+                          final = urllib.parse.urlparse(rsp.geturl())
+                          assert rsp.status == 200, f'HTTP {rsp.status}: {rel}'
+                          assert final.scheme == 'https' and final.hostname == 'ywataru80-eng.github.io', f'unexpected redirect: {rsp.geturl()}'
+                          return rsp.read()
+                  except Exception as exc:
+                      last = exc
+                      if attempt < 4: time.sleep(5)
+              raise RuntimeError(f'{rel}: {last}')
+          def check_local(rel, remote):
+              local = (ROOT / rel).read_bytes()
+              actual, expected = digest(remote), digest(local)
+              assert actual == expected, f'{rel}: live {actual} != checkout {expected}'
+              print(f'PASS {rel} bytes={len(remote)} sha256={actual}')
+              return actual
+          assert os.getenv('GITHUB_SHA'), 'GitHub run identity missing'
+          assert os.popen('git rev-parse HEAD').read().strip() == '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec', 'checkout must use exact accepted main SHA'
+          raw = get('pwa-release-manifest.json')
+          check_local('pwa-release-manifest.json', raw)
+          manifest = json.loads(raw)
+          assert manifest['release'] == EXPECTED_RELEASE, f'live release={manifest["release"]}'
+          assert manifest['previousRelease'] == '20261020-217'
+          for rel in ('', 'index.html', 'form-a.html', 'service-worker.js'):
+              remote = get(rel)
+              check_local(rel or 'index.html', remote)
+              if rel in ('','index.html','form-a.html','service-worker.js'):
+                  assert EXPECTED_RELEASE.encode() in remote, f'wrong version in {rel}'
+          for rel, expected in manifest['assets'].items():
+              remote = get(rel, True)
+              actual = check_local(rel, remote)
+              assert actual == expected, f'manifest asset mismatch {rel}: {actual} != {expected}'
+          for rel, expected in manifest.get('pages', {}).items():
+              assert digest((ROOT / rel).read_bytes()) == expected, f'manifest page mismatch {rel}'
+          print(json.dumps({'status': 'PASS', 'sourceCommit': '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec', 'publicSite': BASE, 'release': EXPECTED_RELEASE, 'assets': len(manifest['assets']), 'pages': len(manifest.get('pages', {})), 'browserCacheOrExistingUserData': 'NOT TESTED'}, ensure_ascii=False))
+          PY
