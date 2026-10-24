@@ -58,6 +58,32 @@ jobs:
           })().catch(e=>{console.error(e);process.exitCode=1});
           
           NODE
+      - name: Generate coherent uncommitted Release219 shell and asset hashes
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const old='20261022-218', next='20261024-219';
+          const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+          for(const file of ['index.html','form-a.html','service-worker.js']){
+            const text=fs.readFileSync(file,'utf8');
+            if(!text.includes(old))throw Error(file+' missing accepted old release');
+            if(text.includes(next))throw Error(file+' already updated unexpectedly');
+            fs.writeFileSync(file,text.replaceAll(old,next));
+          }
+          const manifestPath='pwa-release-manifest.json';
+          const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+          if(manifest.release!==old)throw Error('manifest baseline changed');
+          manifest.release=next;manifest.previousRelease=old;
+          manifest.assets['js/view.js']=hash('js/view.js');
+          manifest.pages['form-a.html']=hash('form-a.html');
+          fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
+          for(const [file,digest] of Object.entries(manifest.assets))
+            if(hash(file)!==digest)throw Error('bad manifest hash '+file);
+          for(const [file,digest] of Object.entries(manifest.pages))
+            if(hash(file)!==digest)throw Error('bad page hash '+file);
+          console.log('PASS precommit Release219 candidate 20/20 assets 1/1 extra page no historical change');
+          NODE
       - name: Create uncommitted immutable Generation165 successor candidate
         shell: bash
         run: |
@@ -92,3 +118,10 @@ jobs:
           git diff --check
           git status --short
           test "$(git rev-parse HEAD)" = '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec'
+          node - <<'NODE'
+          const cp=require('node:child_process');
+          const changed=cp.execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').sort();
+          const allowed=['js/view.js','package.json','index.html','form-a.html','service-worker.js','pwa-release-manifest.json'].sort();
+          if(JSON.stringify(changed)!==JSON.stringify(allowed))throw Error('invalid diff paths '+JSON.stringify(changed));
+          console.log('PASS scoped source modifications; no canonical question/oracle or historic Generation edits');
+          NODE
