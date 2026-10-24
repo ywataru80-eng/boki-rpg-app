@@ -30,9 +30,11 @@ jobs:
           const expected=[
             ['js/view.js','c4a84df26553967bb646d4f2ceaf54d77379e663'],
             ['tests/preanswer-category-leak.test.js','22974cf792cdb2e7b33bf15ef924226295eb059a'],
-            ['package.json','5c3252c9271298f2aa3b67dc2792292133d5e9f2'],
+            ['package.json','b75d49b2f8feb6fe09b306426c76c1093ee3ed5b'],
+            ['js/explanation-model.js','279b57c0facfb5d4ff5ba9d04c399663a9b996c7'],
+            ['tests/exam-points-visible.test.js','927798b51fafb84ed2fc2627607bb0451ed12292'],
             ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
-            ['scripts/validate-category-successor.cjs','a0f256b29f36fd0d8ce13b475573a22d8bed9d03']
+            ['scripts/validate-category-successor.cjs','caf5d4c1adcbc0055480966613d09cbb32cf8daa']
           ];
           (async()=>{
            const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
@@ -51,7 +53,7 @@ jobs:
              console.log('APPLIED_UNCOMMITTED '+file+' blob='+sha+' bytes='+buf.length);
            }
            const changed=require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
-           const expectedChanges=['js/view.js','package.json','tests/audit-matrix.test.js'].sort();
+           const expectedChanges=['js/view.js','js/explanation-model.js','package.json','tests/audit-matrix.test.js'].sort();
            if(JSON.stringify(changed)!==JSON.stringify(expectedChanges))throw new Error('unexpected tracked diff '+JSON.stringify(changed));
            if(!fs.existsSync('tests/preanswer-category-leak.test.js'))throw new Error('new test file missing');
           if(!fs.existsSync('scripts/validate-category-successor.cjs'))throw new Error('strict new successor validation script missing');
@@ -79,6 +81,7 @@ jobs:
           if(manifest.release!==old)throw Error('manifest baseline changed');
           manifest.release=next;manifest.previousRelease=old;
           manifest.assets['js/view.js']=hash('js/view.js');
+          manifest.assets['js/explanation-model.js']=hash('js/explanation-model.js');
           manifest.pages['form-a.html']=hash('form-a.html');
           fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
           for(const [file,digest] of Object.entries(manifest.assets))
@@ -115,3 +118,5 @@ jobs:
         run: node tests/preanswer-category-leak.test.js
       - name: Candidate immutable successor integrity
         run: npm run qa:integrity
+      - name: Independent 44-point textbook visibility and invariant test
+        run: node tests/exam-points-visible.test.js
