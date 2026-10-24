@@ -80,7 +80,36 @@ jobs:
           node - <<'NODE'
           const assert = require('node:assert/strict');
           const {chromium,webkit} = require('playwright');
+          const dns = require('node:dns/promises');
+          const {execFileSync} = require('node:child_process');
           const site = 'https://ywataru80-eng.github.io/boki-rpg-app/';
+          const blockedRules = [];
+          const unblock = () => {
+            while(blockedRules.length){
+              const [binary,args] = blockedRules.pop();
+              execFileSync('sudo',[binary,'-D',...args],{stdio:'pipe'});
+            }
+          };
+          const blockOrigin = async () => {
+            const addresses = await dns.lookup('ywataru80-eng.github.io',{all:true});
+            assert(addresses.length>0,'no Pages origin IP resolved');
+            for(const item of addresses){
+              const binary=item.family===6?'ip6tables':'iptables';
+              const rule=['OUTPUT','-p','tcp','-d',item.address,'--dport','443','-j','REJECT'];
+              execFileSync('sudo',[binary,'-I',...rule],{stdio:'pipe'});
+              execFileSync('sudo',[binary,'-C',...rule],{stdio:'pipe'});
+              blockedRules.push([binary,rule]);
+            }
+            let unreachable=false;
+            try {
+              await fetch(site+'pwa-release-manifest.json?forced-outage='+Date.now(),{signal:AbortSignal.timeout(7000)});
+            } catch(err) {
+              unreachable=true;
+              console.log('Confirmed Pages origin unreachable during simulated network loss: '+String(err.cause?.code||err.name));
+            }
+            assert(unreachable,'OS-level network block ineffective: origin still reachable');
+            console.log('PASS OS firewall blocked Pages origin on '+addresses.length+' resolved addresses');
+          };
           const release = '20261022-218';
           (async()=>{
             for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
@@ -100,15 +129,14 @@ jobs:
                 await page.reload({waitUntil:'domcontentloaded',timeout:45000});
                 await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
                 console.log('PASS '+engine+' online SW-controlled reload');
-                // Playwright WebKit's context.setOffline(true) causes an
-                // internal navigation error even after online SW reload PASS.
-                // Keep Chromium's real offline flag; also test WebKit with a
-                // network-route abort. Log the distinction; do not label it
-                // as proof of device-level offline capability.
+                // Playwright WebKit's setOffline flag is known to block SW
+                // responses too (microsoft/playwright#42775). Simulate a
+                // true origin outage at the ephemeral runner OS firewall.
+                // This is not a physical iPhone test.
                 if(engine==='webkit'){
-                  await context.route('**/*',route=>route.abort('internetdisconnected'));
+                  await blockOrigin();
                   const offlineNav=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
-                  assert.equal(offlineNav?.status(),200,engine+' SW-backed navigation with network routing blocked');
+                  assert.equal(offlineNav?.status(),200,engine+' SW-backed navigation while Pages origin unreachable');
                 } else {
                   await context.setOffline(true);
                   await page.reload({waitUntil:'domcontentloaded',timeout:45000});
@@ -118,12 +146,12 @@ jobs:
                 const form=await page.goto(site+'form-a.html',{waitUntil:'domcontentloaded',timeout:45000});
                 assert.equal(form?.status(),200,engine+' offline Form A navigation');
                 assert(!errors.length,engine+' browser exceptions: '+JSON.stringify(errors));
-                if(engine==='webkit') await context.unrouteAll();
+                if(engine==='webkit') unblock();
                 else await context.setOffline(false);
                 await page.evaluate(k=>localStorage.removeItem(k),key);
-                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW218 cache, '+(engine==='webkit'?'route-blocked':'offline')+' reload, persisted storage, Form A navigation');
+                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW218 cache, '+(engine==='webkit'?'OS-origin-blocked':'offline')+' reload, persisted storage, Form A navigation');
                 await context.close();
-              } finally { await browser.close(); }
+              } finally { if(engine==='webkit') unblock(); await browser.close(); }
             }
             console.log('PASS public live browser engines=2 release='+release+' (simulated storage only; not physical iPhone or migration from an actual user profile)');
           })().catch(e=>{console.error(e);process.exitCode=1;});
