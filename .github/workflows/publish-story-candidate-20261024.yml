@@ -179,6 +179,17 @@ jobs:
           echo 'DIAGNOSTIC_STATUS_AFTER_COMMIT:'
           git status --porcelain
           test "$(git rev-parse HEAD^)" = '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec'
+          node <<'NODE'
+          // npm verification leaves an untracked, ephemeral artifacts/ directory.
+          // Preserve every tracked file; fail closed if any OTHER file is untracked.
+          const cp=require('node:child_process'),fs=require('node:fs');
+          const paths=cp.execFileSync('git',['ls-files','--others','--exclude-standard'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          if(paths.some(p=>!p.startsWith('artifacts/')))throw Error('Unexpected untracked files '+JSON.stringify(paths));
+          if(paths.length){
+            console.log('CLEANUP only generated test artifacts',JSON.stringify(paths));
+            fs.rmSync('artifacts',{recursive:true,force:true});
+          }
+          NODE
           test -z "$(git status --porcelain)"
           node scripts/validate-category-successor.cjs
           git show --stat --oneline HEAD
