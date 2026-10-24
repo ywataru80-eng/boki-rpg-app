@@ -18,10 +18,11 @@ const expected=[
   '.github/workflows/question-quality-ledger-audit.yml',
   'data/accounting-domain.js','form-a.html','index.html','js/view.js','package.json',
   'pwa-release-manifest.json','reports/auto-gate/audit-locks/phase-b-generation-166.json',
+  'reports/auto-gate/audit-locks/phase-b-generation-167.json',
   'scripts/validate-account-nature-successor.cjs','service-worker.js',
   'tests/account-nature-teaching.test.js','tests/audit-matrix.test.js'
 ].sort();
-assert.deepEqual(changed,expected,'change scope must be exactly the 12 approved files');
+assert.deepEqual(changed,expected,'change scope must be exactly the 13 approved files');
 assert.equal(git('status','--porcelain','--untracked-files=no'),'','Release220 checked-out files must be clean');
 const forbidden=[
  'data/questions.js','data/accounting-oracle.js','js/engine.js','js/model.js','js/controller.js',
@@ -86,16 +87,19 @@ assert.equal(m.previousRelease,oldRelease);
 assert.equal(Object.keys(m.assets).length,20);
 assert.equal(Object.keys(m.pages).length,1);
 for(const [file,h] of Object.entries({...m.assets,...m.pages}))assert.equal(sha(file),h,file+' manifest SHA mismatch');
-const gen=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-166.json'));
-assert.equal(gen.generation,166);
-assert.equal(gen.predecessor.generation,165);
+const prior=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-166.json'));
+assert.equal(prior.generation,166);
+assert.equal(prior.predecessor.generation,165);
+const gen=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-167.json'));
+assert.equal(gen.generation,167);
+assert.equal(gen.predecessor.generation,166);
 const check=require('./qa/phase-b-lifecycle').verifyCurrent();
 assert(check.ok,'Generation166 current authority invalid: '+check.errors.join('; '));
-assert.equal(check.generation,166);
+assert.equal(check.generation,167);
 const workflow=read('.github/workflows/question-quality-ledger-audit.yml');
 const before=origin('.github/workflows/question-quality-ledger-audit.yml');
 const a="'20261024-219': 'scripts/validate-category-successor.cjs'";
 const w="'20261024-219': 'scripts/validate-category-successor.cjs',\n            '20261025-220': 'scripts/validate-account-nature-successor.cjs'";
 assert.equal(before.split(a).length,2,'unique historical release-specific CI route');
 assert.equal(workflow,before.replace(a,w),'old and new CI validator map exact');
-console.log('PASS Release220 successor: 12-file scope, canonical 300 immutable, account taxonomy, post-answer UI, manifest 20/20, Generation166 valid');
+console.log('PASS Release220 successor: 13-file scope, canonical 300 immutable, account taxonomy, post-answer UI, manifest 20/20, Generation166 valid');
