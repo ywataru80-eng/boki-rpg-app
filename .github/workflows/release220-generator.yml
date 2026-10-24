@@ -1,0 +1,45 @@
+name: Release220 candidate generation (diagnostic, no writes)
+on:
+  push:
+    branches:
+      - feature/account-types-teaching-20261025
+permissions:
+  contents: read
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Derive exact manifest and successor Generation166
+        shell: bash
+        run: |
+          node - <<'NODE'
+          'use strict';
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          const path='pwa-release-manifest.json';
+          const m=JSON.parse(fs.readFileSync(path,'utf8'));
+          if(m.release!=='20261024-219'||m.previousRelease!=='20261022-218')throw Error('unexpected baseline release');
+          m.previousRelease=m.release;
+          m.release='20261025-220';
+          for(const f of Object.keys(m.assets))m.assets[f]=hash(f);
+          for(const f of Object.keys(m.pages))m.pages[f]=hash(f);
+          const bytes=JSON.stringify(m,null,2)+'\n';
+          fs.writeFileSync(path,bytes);
+          const lc=require('./scripts/qa/phase-b-lifecycle');
+          const g=lc.createCandidate();
+          if(g.generation!==166||g.predecessor.generation!==165)throw Error('wrong successor');
+          const verified=lc.verifyCandidate(g);
+          if(!verified.ok)throw Error('generation candidate verification failed: '+verified.errors.join(', '));
+          console.log('MANIFEST220_PAYLOAD='+JSON.stringify(m));
+          console.log('GENERATION166_PAYLOAD='+JSON.stringify(g));
+          console.log('SUCCESS Release220 manifest + Generation166 exact source-hash candidate');
+          NODE
