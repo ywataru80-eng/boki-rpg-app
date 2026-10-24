@@ -30,7 +30,9 @@ jobs:
           const expected=[
             ['js/view.js','c4a84df26553967bb646d4f2ceaf54d77379e663'],
             ['tests/preanswer-category-leak.test.js','22974cf792cdb2e7b33bf15ef924226295eb059a'],
-            ['package.json','5c3252c9271298f2aa3b67dc2792292133d5e9f2']
+            ['package.json','5c3252c9271298f2aa3b67dc2792292133d5e9f2'],
+            ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
+            ['scripts/validate-category-successor.cjs','a0f256b29f36fd0d8ce13b475573a22d8bed9d03']
           ];
           (async()=>{
            const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
@@ -49,9 +51,10 @@ jobs:
              console.log('APPLIED_UNCOMMITTED '+file+' blob='+sha+' bytes='+buf.length);
            }
            const changed=require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
-           const expectedChanges=['js/view.js','package.json'].sort();
+           const expectedChanges=['js/view.js','package.json','tests/audit-matrix.test.js'].sort();
            if(JSON.stringify(changed)!==JSON.stringify(expectedChanges))throw new Error('unexpected tracked diff '+JSON.stringify(changed));
            if(!fs.existsSync('tests/preanswer-category-leak.test.js'))throw new Error('new test file missing');
+          if(!fs.existsSync('scripts/validate-category-successor.cjs'))throw new Error('strict new successor validation script missing');
            const p=JSON.parse(fs.readFileSync('package.json'));
            if(!p.scripts.test.startsWith('node tests/preanswer-category-leak.test.js && '))throw new Error('new test not in npm test');
            console.log('CANDIDATE_PRECOMMIT_CHECKOUT_OK tracked='+JSON.stringify(changed)+' added=test');
@@ -121,7 +124,7 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process');
           const changed=cp.execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').sort();
-          const allowed=['js/view.js','package.json','index.html','form-a.html','service-worker.js','pwa-release-manifest.json'].sort();
+          const allowed=['js/view.js','package.json','tests/audit-matrix.test.js','index.html','form-a.html','service-worker.js','pwa-release-manifest.json'].sort();
           if(JSON.stringify(changed)!==JSON.stringify(allowed))throw Error('invalid diff paths '+JSON.stringify(changed));
           console.log('PASS scoped source modifications; no canonical question/oracle or historic Generation edits');
           NODE
