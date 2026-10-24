@@ -31,10 +31,10 @@ jobs:
             ['js/view.js','c4a84df26553967bb646d4f2ceaf54d77379e663'],
             ['tests/preanswer-category-leak.test.js','22974cf792cdb2e7b33bf15ef924226295eb059a'],
             ['package.json','b75d49b2f8feb6fe09b306426c76c1093ee3ed5b'],
-            ['js/explanation-model.js','49b37fed5ad73b89cabe573b94c8694b70c43791'],
-            ['tests/exam-points-visible.test.js','b7529f2792e43f76e245df1a9a65467689410dbe'],
+            ['js/explanation-model.js','279b57c0facfb5d4ff5ba9d04c399663a9b996c7'],
+            ['tests/exam-points-visible.test.js','927798b51fafb84ed2fc2627607bb0451ed12292'],
             ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
-            ['scripts/validate-category-successor.cjs','d6386fb3866dc5356cf5425e25b6a6ac25d905f9']
+            ['scripts/validate-category-successor.cjs','caf5d4c1adcbc0055480966613d09cbb32cf8daa']
           ];
           (async()=>{
            const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
@@ -168,7 +168,7 @@ jobs:
               assert.equal(results.unmasked,244);
               assert(results.release.includes('20261024-219'),'Release219 scripts loaded');
               const teaching=await page.evaluate(()=>{
-                const testCases=Object.values(QuestionData).filter(q=>q.type==='journal'&&q.explanation.includes('【試験のポイント】'));
+                const testCases=Object.values(QuestionData).filter(q=>q.explanation.includes('【試験のポイント】'));
                 const problems=[];
                 for(const q of testCases){
                   const point=q.explanation.split('【試験のポイント】')[1].split('【')[0].trim();
@@ -181,9 +181,9 @@ jobs:
                 }
                 return {cases:testCases.length,failures:problems};
               });
-              assert.equal(teaching.cases,23,'all 23 authored exam points visibly tested');
+              assert.equal(teaching.cases,44,'all 44 authored exam points visibly tested');
               assert.deepEqual(teaching.failures,[],engine+' '+width+' '+teaching.failures.join(';'));
-              console.log('PASS '+engine+' '+width+'px: 23 authored exam-point lessons shown on both correct and wrong result');
+              console.log('PASS '+engine+' '+width+'px: 44 authored exam-point lessons shown on both correct and wrong result');
               assert.equal(errors.length,0,engine+' '+width+' pageerror '+JSON.stringify(errors));
               console.log('PASS '+engine+' '+width+'px: 1200 actual DOM render paths, 56 masked, 244 unchanged, 0 page exceptions');
               await context.close();
