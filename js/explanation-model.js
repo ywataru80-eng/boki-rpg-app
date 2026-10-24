@@ -21,7 +21,7 @@
   const cellLabel=(q,id,p)=>q?.table?.inputMetadata?.[id]?.label||(!p?id:`${rowName(q,p.r,p.ri)}／${labels[p.c]||p.c}`);
   const materialMetaKeys=new Set(['資料','資料区分','資料種別','title','name','type','document']);
   function sourceValues(m){if(!obj(m))return[{label:'内容',value:String(m??'')}];return Object.entries(m).filter(([k,v])=>!materialMetaKeys.has(k)&&shown(v)).map(([k,v])=>({label:labels[k]||String(k),value:num(v)}));}
-  const tableColumnLabel=k=>k==='unitPrice'?'単価（円）':k==='amount'?'金額（円）':labels[k]||String(k);
+  const tableColumnLabel=k=>k==='unitPrice'?'単価（円／個）':k==='quantity'?'数量（個）':k==='amount'?'金額（円）':labels[k]||String(k);
   const schemaOf=m=>obj(m)?Object.keys(m).sort().join('\u0001'):'';
   const sameMaterialSchema=ms=>ms.length>1&&ms.every(obj)&&ms.every(m=>schemaOf(m)===schemaOf(ms[0]));
   const materialTableKind=columns=>{
@@ -168,7 +168,7 @@
       if(match){
         const q1=Number(match[1]),p1=Number(match[2].replaceAll(',','')),q2=Number(match[3]),p2=Number(match[4].replaceAll(',','')),issued=Number(match[5]),avg=Number(cells.value1),issue=Number(cells.value2),remain=Number(cells.value3);
         return [
-          calcItem('移動平均単価',`(${q1} × ${comma(p1)} + ${q2} × ${comma(p2)}) ÷ (${q1} + ${q2}) = ${comma(avg)}`,avg,['question','answer.cells.value1']),
+          calcItem('移動平均単価（円／個）',`(${q1} × ${comma(p1)} + ${q2} × ${comma(p2)}) ÷ (${q1} + ${q2}) = ${comma(avg)}`,avg,['question','answer.cells.value1']),
           calcItem('払出額',`${issued} × ${comma(avg)} = ${comma(issue)}`,issue,['question','answer.cells.value2']),
           calcItem('残高額',`(${q1+q2} − ${issued}) × ${comma(avg)} = ${comma(remain)}`,remain,['question','answer.cells.value3'])
         ];
@@ -207,7 +207,7 @@
     }
     return null;
   }
-  function calculations(q){const formulaItems=FormulaEngine?.build?.(q);if(Array.isArray(formulaItems)&&formulaItems.length)return formulaItems;if(q.type==='journal')return [...(q.answer?.debit||[]),...(q.answer?.credit||[])].map(r=>({label:r.account,expression:null,result:r.amount,operands:[],evidenceRefs:['answer']}));if(q.type==='trial_balance'){const cells=q.answer?.cells||{},rows=q.table?.rows||[],debits=rows.map(r=>r?.debit).filter(v=>typeof v==='number'&&Number.isFinite(v)),credits=rows.map(r=>r?.credit).filter(v=>typeof v==='number'&&Number.isFinite(v)),out=[];if(debits.length&&Number.isFinite(cells.total_debit))out.push(calcItem('借方合計',debits.map(comma).join(' + ')+' = '+comma(cells.total_debit),cells.total_debit,['table.rows','answer.cells.total_debit']));if(credits.length&&Number.isFinite(cells.total_credit))out.push(calcItem('貸方合計',credits.map(comma).join(' + ')+' = '+comma(cells.total_credit),cells.total_credit,['table.rows','answer.cells.total_credit']));return out;}const special=ledgerCalculations(q);if(special)return special;const cells=q.answer?.cells||{},locs=locations(q);return Object.entries(cells).map(([id,expected])=>{const p=locs.get(id);if(typeof expected==='number'&&p?.c==='balance'&&p.ri>0){const prev=valueAt(q,cells,locs,p.ri-1,'balance'),d=valueAt(q,cells,locs,p.ri,'debit')||0,c=valueAt(q,cells,locs,p.ri,'credit')||0;if(Number.isFinite(prev)&&prev+d-c===expected){const parts=[num(prev)];if(d)parts.push('+',num(d));if(c)parts.push('−',num(c));parts.push('=',num(expected));return{label:cellLabel(q,id,p),expression:parts.join(' '),result:expected,operands:[{label:'直前残高',value:prev},...(d?[{label:'借方記入（増加）',value:d}]:[]),...(c?[{label:'貸方記入（減少）',value:c}]:[])],evidenceRefs:[`table.rows[${p.ri-1}]`,`table.rows[${p.ri}]`,`answer.cells.${id}`]};}}if(typeof expected==='number'&&p?.c==='amount'){const qty=valueAt(q,cells,locs,p.ri,'quantity'),unit=valueAt(q,cells,locs,p.ri,'unitPrice');if(Number.isFinite(qty)&&Number.isFinite(unit)&&qty*unit===expected)return{label:cellLabel(q,id,p),expression:`${num(qty)} × ${num(unit)} = ${num(expected)}`,result:expected,operands:[{label:'数量',value:qty},{label:'単価',value:unit}],evidenceRefs:[`table.rows[${p.ri}]`,`answer.cells.${id}`]};}return{label:cellLabel(q,id,p),expression:null,result:expected,operands:[],evidenceRefs:[p?`table.rows[${p.ri}]`:'answer.cells',`answer.cells.${id}`]};});}
+  function calculations(q){const formulaItems=FormulaEngine?.build?.(q);if(Array.isArray(formulaItems)&&formulaItems.length)return formulaItems;if(q.type==='journal')return [...(q.answer?.debit||[]),...(q.answer?.credit||[])].map(r=>({label:r.account,expression:null,result:r.amount,operands:[],evidenceRefs:['answer']}));if(q.type==='trial_balance'){const cells=q.answer?.cells||{},rows=q.table?.rows||[],debits=rows.map(r=>r?.debit).filter(v=>typeof v==='number'&&Number.isFinite(v)),credits=rows.map(r=>r?.credit).filter(v=>typeof v==='number'&&Number.isFinite(v)),out=[];if(debits.length&&Number.isFinite(cells.total_debit))out.push(calcItem('借方合計',debits.map(comma).join(' + ')+' = '+comma(cells.total_debit),cells.total_debit,['table.rows','answer.cells.total_debit']));if(credits.length&&Number.isFinite(cells.total_credit))out.push(calcItem('貸方合計',credits.map(comma).join(' + ')+' = '+comma(cells.total_credit),cells.total_credit,['table.rows','answer.cells.total_credit']));return out;}const special=ledgerCalculations(q);if(special)return special;const cells=q.answer?.cells||{},locs=locations(q);return Object.entries(cells).map(([id,expected])=>{const p=locs.get(id);if(typeof expected==='number'&&p?.c==='balance'&&p.ri>0){const prev=valueAt(q,cells,locs,p.ri-1,'balance'),d=valueAt(q,cells,locs,p.ri,'debit')||0,c=valueAt(q,cells,locs,p.ri,'credit')||0;if(Number.isFinite(prev)&&prev+d-c===expected){const parts=[num(prev)];if(d)parts.push('+',num(d));if(c)parts.push('−',num(c));parts.push('=',num(expected));return{label:cellLabel(q,id,p),expression:parts.join(' '),result:expected,operands:[{label:'直前残高',value:prev},...(d?[{label:'借方記入（増加）',value:d}]:[]),...(c?[{label:'貸方記入（減少）',value:c}]:[])],evidenceRefs:[`table.rows[${p.ri-1}]`,`table.rows[${p.ri}]`,`answer.cells.${id}`]};}}if(typeof expected==='number'&&p?.c==='amount'){const qty=valueAt(q,cells,locs,p.ri,'quantity'),unit=valueAt(q,cells,locs,p.ri,'unitPrice');if(Number.isFinite(qty)&&Number.isFinite(unit)&&qty*unit===expected)return{label:cellLabel(q,id,p),expression:`${num(qty)} × ${num(unit)} = ${num(expected)}`,result:expected,operands:[{label:'数量',value:qty,semanticType:'quantity'},{label:'単価',value:unit,semanticType:'unitPrice'}],evidenceRefs:[`table.rows[${p.ri}]`,`answer.cells.${id}`]};}return{label:cellLabel(q,id,p),expression:null,result:expected,semanticType:Feedback.cellSemanticType(q,id),operands:[],evidenceRefs:[p?`table.rows[${p.ri}]`:'answer.cells',`answer.cells.${id}`]};});}
   function transfer(q){
     if(q.type==='journal')return['debit','credit'].flatMap(side=>(q.answer?.[side]||[]).map(r=>({from:'問題文・証憑',decision:r.account,to:side==='debit'?'借方':'貸方',debitCredit:side,value:r.amount,evidenceRefs:['answer.'+side]})));
     if(q.type==='correction'){
@@ -224,18 +224,20 @@
       const p=locs.get(id),meta=metadata[id];
       const destination=p?(labels[p.c]||p.c||cellLabel(q,id,p)):(meta?.label||labels[id]||id);
       const decision=p?cellLabel(q,id,p):(meta?.label?meta.label+'を記入':'該当欄へ記入');
-      return{from:p?rowName(q,p.r,p.ri):(q.category||'問題資料'),decision,to:destination,debitCredit:null,value,evidenceRefs:[p?`table.rows[${p.ri}]`:'table',`answer.cells.${id}`]};
+      const semanticType=Feedback.cellSemanticType(q,id);
+      const to=semanticType==='unitPrice'?'単価':semanticType!=='amount'&&p?.c==='amount'?(meta?.label||destination):destination;
+      return{from:p?rowName(q,p.r,p.ri):(q.category||'問題資料'),decision:semanticType==='unitPrice'?decision.replace(/の金額/u,''):decision,to,debitCredit:null,value,semanticType,evidenceRefs:[p?`table.rows[${p.ri}]`:'table',`answer.cells.${id}`]};
     });
   }
   function checks(q){
     if(q.type==='journal'){
       const d=(q.answer?.debit||[]).reduce((s,r)=>s+(Number(r.amount)||0),0),c=(q.answer?.credit||[]).reduce((s,r)=>s+(Number(r.amount)||0),0);
-      return[{label:'借方合計と貸方合計が合っているか確認する',expected:d===c?num(d)+' = '+num(c):'不一致',evidenceRefs:['answer.debit','answer.credit'],checkKind:'independent-balance'}];
+      return[{label:'借方合計と貸方合計が合っているか確認する',expected:(d===c?num(d)+' = '+num(c):'不一致')+'。貸借一致だけでは科目や金額の正しさは保証されないため、取引条件とも照合します。',evidenceRefs:['answer.debit','answer.credit'],checkKind:'balance-consistency'}];
     }
     const cells=q.answer?.cells||{};
     if(q.type==='trial_balance'){
-      const d=cells.total_debit,c=cells.total_credit;
-      return[{label:'借方合計と貸方合計が一致しているか確認する',expected:Number.isFinite(d)&&Number.isFinite(c)?num(d)+' = '+num(c):'合計欄を確認',evidenceRefs:['answer.cells.total_debit','answer.cells.total_credit'],checkKind:'independent-balance'}];
+      const sum=column=>arr(q.table?.rows).reduce((total,row)=>total+(Number.isFinite(row[column])?row[column]:0),0),d=sum('debit'),c=sum('credit');
+      return[{label:'借方合計と貸方合計が一致しているか確認する',expected:num(d)+' = '+num(c),note:'資料の借方列と貸方列を別々に集計した結果です。貸借が一致しても、科目や転記漏れは別に確認します。',evidenceRefs:['table.rows'],checkKind:'independent-balance'}];
     }
     if(q.type==='correction'){
       const d=cells.debitAmount,c=cells.creditAmount;
@@ -245,6 +247,18 @@
       ];
     }
     const format=q.format||'',category=String(q.category||'');
+    if(q.type==='ledger'&&!format&&/総勘定元帳|売掛金元帳|買掛金元帳/u.test(category)){
+      const rows=arr(q.table?.rows),opening=rows[0]?.balance,liability=/買掛金/u.test(category),increaseColumn=liability?'credit':'debit',decreaseColumn=liability?'debit':'credit';
+      const sum=column=>rows.slice(1).reduce((total,row)=>total+(Number.isFinite(row[column])?row[column]:0),0),increase=sum(increaseColumn),decrease=sum(decreaseColumn);
+      if(Number.isFinite(opening))return[{label:'期末残高から増減を戻し、期首残高と一致するか確認する',expected:`${num(opening+increase-decrease)} + ${num(decrease)} − ${num(increase)} = ${num(opening)}円。${liability?'買掛金は貸方で増え、借方で減ります。':'この資産勘定は借方で増え、貸方で減ります。'}`,evidenceRefs:['table.rows'],checkKind:'continuity'}];
+    }
+    if(q.type==='ledger'&&!format&&/商品有高帳/u.test(category)){
+      const rows=arr(q.table?.rows),[opening,purchase,issue]=rows;
+      if([opening?.quantity,opening?.unitPrice,purchase?.quantity,purchase?.unitPrice,issue?.quantity].every(Number.isFinite)){
+        const first=Math.min(issue.quantity,opening.quantity),second=issue.quantity-first,issued=first*opening.unitPrice+second*purchase.unitPrice,remaining=(opening.quantity-first)*opening.unitPrice+(purchase.quantity-second)*purchase.unitPrice;
+        return[{label:'数量と金額を、受入合計と払出後の内訳で照合する',expected:`数量：${opening.quantity} + ${purchase.quantity} − ${issue.quantity} = ${opening.quantity+purchase.quantity-issue.quantity}個。金額：${num(opening.quantity*opening.unitPrice)} + ${num(purchase.quantity*purchase.unitPrice)} = ${num(issued)} + ${num(remaining)}円。残りは古い仕入分からの払出後に残った数量と、後の仕入分に分けます。`,evidenceRefs:['table.rows'],checkKind:'inventory-reconciliation'}];
+      }
+    }
     if(q.type==='comprehensive'){
       if(Number.isFinite(cells.totalAssets)&&Number.isFinite(cells.totalEquityLiabilities)){
         return[{label:'貸借対照表の左右が一致しているか確認する',expected:num(cells.totalAssets)+' = '+num(cells.totalEquityLiabilities),evidenceRefs:['answer.cells.totalAssets','answer.cells.totalEquityLiabilities'],checkKind:'independent-balance'}];
@@ -258,6 +272,13 @@
       return[];
     }
     if(q.type==='worksheet'){
+      if(format==='eight-column-worksheet'){
+        const locs=locations(q),rows=arr(q.table?.rows),sum=column=>rows.reduce((total,row,index)=>total+(valueAt(q,cells,locs,index,column)||0),0);
+        return[{label:'純利益を記入した後の損益計算書・貸借対照表の列合計を確認する',expected:`損益計算書：借方 ${num(sum('plDebit'))}円＝貸方 ${num(sum('plCredit'))}円。貸借対照表：借方 ${num(sum('bsDebit'))}円＝貸方 ${num(sum('bsCredit'))}円。利益は損益計算書の借方と貸借対照表の貸方に記入します。貸借一致に加え、整理事項と各勘定の分類も照合します。`,evidenceRefs:['table.rows','answer.cells'],checkKind:'column-reconciliation'}];
+      }
+      if(format==='adjusted-trial-balance')return[{label:'整理事項を反映した後、借方列と貸方列を別々に合計する',expected:'前払保険料への振替は借方合計を変えません。間接法の減価償却は、借方の費用と貸方の累計額を同額増やします。',evidenceRefs:['materials'],checkKind:'adjustment-reconciliation'}];
+      if(format==='closing-entries')return[{label:'損益勘定を締め切る向きを確認する',expected:'収益は借方、費用は貸方へ振り替えて元の勘定をゼロにします。残った損益の貸方残高を借方で取り消し、繰越利益剰余金の貸方へ移します。',evidenceRefs:['question'],checkKind:'closing-reconciliation'}];
+      if(/決算整理・計算問題/u.test(category))return[{label:'期間配分と帳簿価額を元の金額へ戻して確認する',expected:`当期保険料 ${num(cells.insurance_expense_after)} + 次期分 ${num(cells.insurance_adjustment)} = ${num(cells.insurance_expense_after+cells.insurance_adjustment)}円。帳簿価額 ${num(cells.equipment_book_value_after)} + 減価償却費 ${num(cells.depreciation_expense)} = ${num(cells.equipment_book_value_after+cells.depreciation_expense)}円。それぞれ問題文の保険料・取得原価と照合します。`,evidenceRefs:['question','answer.cells'],checkKind:'allocation-reconciliation'}];
       return[{label:'整理後残高を重複なく振り分けたか確認する',expected:'各残高は損益計算書または貸借対照表の所定欄へ一度だけ',evidenceRefs:['answer.cells'],checkKind:'classification'}];
     }
     if(q.type==='financial_statement'){
@@ -298,6 +319,12 @@
       return[{label:'総売上高から売上返品を引くと純売上高になるか確認する',expected:num(cells.value1)+' − '+num(cells.value2)+' = '+num(cells.value3),evidenceRefs:['answer.cells'],checkKind:'reconciliation'}];
     }
     if(format==='bookkeeping-voucher-entry')return[{label:'現金の動きに合った伝票を選べているか確認する',expected:'増える → 入金伝票 / 減る → 出金伝票 / 動かない → 振替伝票',evidenceRefs:['table.rows'],checkKind:'classification'}];
+    if(format==='bookkeeping-inventory-ledger'){
+      const m=/期首(\d+)個@([\d,]+)円、仕入(\d+)個@([\d,]+)円.*?(\d+)個を払い出/u.exec(q.question||'');
+      if(m){const [q1,p1,q2,p2,issued]=m.slice(1).map(v=>Number(v.replaceAll(',',''))),total=q1*p1+q2*p2,average=total/(q1+q2),remaining=q1+q2-issued;
+        return[{label:'数量と金額を受入合計へ戻して確認する',expected:`数量：${issued} + ${remaining} = ${q1+q2}個。金額：${num(issued*average)} + ${num(remaining*average)} = ${num(total)}円（期首 ${num(q1*p1)}円＋仕入 ${num(q2*p2)}円）。払出分と残りには同じ移動平均単価を用います。`,evidenceRefs:['question'],checkKind:'inventory-reconciliation'}];
+      }
+    }
     if(format==='bookkeeping-inventory-ledger'||/商品有高帳/u.test(category))return[{label:'数量・単価・金額の流れを確認する',expected:'払出後の残りを次の行へつなげる',evidenceRefs:['table.rows'],checkKind:'continuity'}];
     if(format==='bookkeeping-account-rule')return[{label:'勘定記入法則と貸借平均を別々に確認する',expected:'資産：増加＝借方・減少＝貸方／負債：増加＝貸方・減少＝借方／借方合計＝貸方合計',evidenceRefs:['question','answer.cells'],checkKind:'concept-reconciliation'}];
     if(['bookkeeping-general-ledger','bookkeeping-account-ledger','bookkeeping-cash-book','bookkeeping-checking-book'].includes(format)||/元帳/u.test(category))return[{label:'残高を上から順に確認する',expected:'前の残高に増減を反映して次の残高へつなげる',evidenceRefs:['table.rows'],checkKind:'continuity'}];
@@ -314,7 +341,7 @@
   };
   function requestedOutputLabels(q){
     const labelsOut=[],metadata=q?.table?.inputMetadata||{},cells=arr(q?.table?.inputCells);
-    cells.forEach(id=>{const label=metadata?.[id]?.label;if(label&&!labelsOut.includes(label))labelsOut.push(label);});
+    cells.forEach(id=>{const label=Feedback.cellSemanticType(q,id)==='unitPrice'?metadata?.[id]?.label?.replace(/の金額/u,''):metadata?.[id]?.label;if(label&&!labelsOut.includes(label))labelsOut.push(label);});
     if(labelsOut.length)return labelsOut.slice(0,4);
     for(const row of arr(q?.table?.rows)){
       if(!obj(row)||!Object.values(row).includes('入力'))continue;
@@ -338,6 +365,9 @@
       'この問題で求めるのは、誤った記録を正しい残高へ直すための訂正仕訳です。',
       '帳簿の記録と本来の正しい処理を比べ、違っている部分だけを仕訳します。'
     ];
+    if(format==='adjusted-trial-balance')return['この問題で求めるのは、決算整理後の各勘定残高と試算表の貸借合計です。','整理事項を該当勘定へ反映し、残高の側に従って借方・貸方へ一度ずつ集計します。'];
+    if(format==='closing-entries')return['この問題で求めるのは、収益・費用を損益勘定へ振り替え、当期純利益を繰越利益剰余金へ移す金額です。','収益と費用をそれぞれ締め切り、損益勘定の残高から当期純利益を求めます。'];
+    if(q.type==='worksheet'&&/決算整理・計算問題/u.test(category))return[`この問題で求めるのは、前払振替額・当期保険料・当期減価償却費・期末帳簿価額です。`,'保険料は当期分と次期分に分けます。備品は指定の耐用年数で償却し、間接法なので取得原価から累計額を差し引いて帳簿価額を求めます。'];
     if(q.type==='worksheet')return[
       `この問題で求めるのは、決算整理後の${goalSuffix}です。`,
       '整理前残高に決算整理を反映してから、損益計算書と貸借対照表のどちらへ入るかを判断します。'
@@ -378,6 +408,10 @@
       `この問題で求めるのは、${category||'手形記入帳'}の記入内容です。`,
       'まず記入対象になる手形だけを選び、その後に日付・相手先・満期日・金額を資料から拾います。'
     ];
+    if(['bookkeeping-cash-book','bookkeeping-checking-book','bookkeeping-petty-cash-book','bookkeeping-purchase-book','bookkeeping-sales-book'].includes(format))return[
+      `この問題で求めるのは、${category||'帳簿'}の${goalSuffix}です。`,
+      Feedback.ledgerGuidance(q).join('')
+    ];
     if(q.type==='ledger')return[
       `この問題で求めるのは、${category||'元帳'}の${goalSuffix}です。`,
       'その勘定がどちら側で増えるかを決め、取引を上から順に反映して残高をつなげます。'
@@ -412,7 +446,9 @@
       const index=sentences.findIndex(text=>text.startsWith(row.account+'という特殊勘定')&&text.endsWith(specialEnding));
       const definition=sentences[index-1];
       if(index<1||!definition.startsWith(row.account+'は'))return item;
-      why=definition+'。'+sentences[index].replace('に'+num(row.amount)+'円を記録します','に記録します');
+      const specific=Feedback.transactionReason(q,row.account,side);
+      if(!specific)return item;
+      why=definition+'。'+specific;
     }
     return {...item,decision:row.account+'：'+why,evidenceRefs:[...arr(item.evidenceRefs),'explanation']};
   }
@@ -420,17 +456,22 @@
     const out={...m};
     const strategy=learnerStrategy(q);
     out.summary=strategy.map(text=>({text,evidenceRef:'question'}));
-    if(q.type==='journal'){
+    if(q.type==='journal'||q.type==='correction'){
       const reason=journalReason(q);
       if(reason)out.summary.push({text:reason,evidenceRef:'explanation'});
-      out.transfer=arr(out.transfer).map(item=>journalDecision(q,item));
+      if(q.type==='journal')out.transfer=arr(out.transfer).map(item=>journalDecision(q,item));
+    }
+    if(q.type==='comprehensive'&&!q.format){
+      const contrast=String(q.explanation||'').split('【')[0].split('。').find(text=>/現金/u.test(text)&&/収益|費用|売上|前受金/u.test(text)&&!/^期末現金残高|^現金が動くか/u.test(text));
+      if(contrast)out.summary.push({text:contrast+'。',evidenceRef:'explanation'});
     }
     const placementCritical=['journal','correction','worksheet'].includes(q.type);
     const calculatedValues=new Set(arr(out.calculation).filter(item=>/[×÷＋+−\-＝=]/u.test(String(item?.expression||''))).map(item=>comparableValue(item?.result)).filter(Boolean));
     if(!placementCritical&&calculatedValues.size){
       out.transfer=arr(out.transfer).flatMap(item=>{
         const key=comparableValue(item?.value);
-        if(!key||!calculatedValues.has(key))return[item];
+        if(item.semanticType==='unitPrice'&&arr(out.calculation).some(calculation=>/単価/u.test(calculation.label)&&comparableValue(calculation.result)===key))return[{...item,value:'上で求めた単価（円／個）'}];
+        if(!key||!calculatedValues.has(key)||(item.semanticType&&item.semanticType!=='amount'))return[item];
         if(!['ledger','trial_balance','financial_statement'].includes(q.type))return[];
         const base=String(item.decision||'').trim();
         const decision=/記入/u.test(base)?base:(base?base+'を該当欄へ記入':'計算結果を該当欄へ記入');

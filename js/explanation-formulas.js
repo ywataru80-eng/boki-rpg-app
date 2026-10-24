@@ -22,10 +22,45 @@ function authored(q){
     if(!/[0-9]/u.test(segment)||!/[×÷＋+−－-]/u.test(segment)||!/[＝=]/u.test(segment)||seen.has(segment))continue;
     seen.add(segment);
     const ms=[...segment.matchAll(/[＝=][^0-9△▲-]*([△▲-]?[0-9][0-9,]*(?:\.[0-9]+)?)/g)],last=ms.at(-1);
-    const result=last?(/^[△▲-]/u.test(last[1])?-1:1)*Number(last[1].replace(/[△▲,-]/g,'')):null;
+    // 「帳簿価額＝300,000－180,000」has not stated its result yet.
+    // Never treat the first operand after '=' as a computed result.
+    const unresolved=last&&/^[\s円）)]*[×÷＋+−－-]/u.test(segment.slice(last.index+last[0].length));
+    const result=last&&!unresolved?(/^[△▲-]/u.test(last[1])?-1:1)*Number(last[1].replace(/[△▲,-]/g,'')):null;
     out.push(calc('金額の計算',segment,Number.isFinite(result)?result:null,['explanation']));
   }
   return out;
+}
+
+function journal(q){
+  if(q?.type!=='journal')return null;
+  const text=String(q.question||''),amounts=[...text.matchAll(/([0-9][0-9,]*)円/gu)].map(match=>Number(match[1].replaceAll(',','')));
+  const formula=(label,expression,result)=>calc(label,expression+' = '+comma(result),result,['question']);
+  if(/取得原価/u.test(text)&&/売却/u.test(text)&&amounts.length>=3){
+    const [cost,accumulated,proceeds]=amounts,book=cost-accumulated,loss=book-proceeds;
+    return [formula('売却時帳簿価額',comma(cost)+' − '+comma(accumulated),book),formula(loss>=0?'固定資産売却損':'固定資産売却益',loss>=0?comma(book)+' − '+comma(proceeds):comma(proceeds)+' − '+comma(book),Math.abs(loss))];
+  }
+  if(/給与総額/u.test(text)&&amounts.length>=3){
+    const [gross,tax,insurance]=amounts;
+    return [formula('差引支給額（普通預金から支払う額）',comma(gross)+' − '+comma(tax)+' − '+comma(insurance),gross-tax-insurance)];
+  }
+  if(amounts.length>=2){
+    const [a,b]=amounts;
+    if(/引取運賃/u.test(text))return [formula('仕入原価（商品代金＋当店負担の引取運賃）',comma(a)+' + '+comma(b),a+b)];
+    if(/仮払金/u.test(text)&&/返却/u.test(text))return [formula('取り消す仮払金（確定旅費＋返金）',comma(a)+' + '+comma(b),a+b)];
+    if(/元本/u.test(text)&&/利息/u.test(text))return [formula('普通預金からの支払額（元本＋利息）',comma(a)+' + '+comma(b),a+b)];
+    if(/会社負担分/u.test(text))return [formula('社会保険料の納付額（従業員分＋会社負担分）',comma(a)+' + '+comma(b),a+b)];
+    if(/買掛金/u.test(text)&&/記帳していた/u.test(text))return [formula('追加する不足額（正しい支払額－記帳済額）',comma(a)+' − '+comma(b),a-b)];
+  }
+  return null;
+}
+
+function correction(q){
+  if(q?.type!=='correction')return null;
+  const material=arr(q.materials)[0]||{},recorded=String(material.recorded||'').match(/([0-9][0-9,]*)/u),correct=String(material.evidence||'').match(/([0-9][0-9,]*)円/u);
+  if(!recorded||!correct)return null;
+  const before=Number(recorded[1].replaceAll(',','')),after=Number(correct[1].replaceAll(',',''));
+  if(before===after)return null;
+  return[calc(before<after?'追加する不足額':'取り消す過大額',comma(Math.max(before,after))+' − '+comma(Math.min(before,after))+' = '+comma(Math.abs(before-after)),Math.abs(before-after),['materials'])];
 }
 
 function exam3(q){
@@ -63,6 +98,7 @@ function exam3(q){
     const salesTax=extraSales*taxRate,cashReceipt=extraSales+salesTax,bookCash=base['現金実査前帳簿']+cashReceipt,shortage=bookCash-actual,sales=base['売上']+extraSales,purchases=base['仕入']+extraPurch,cost=base['期首商品']+purchases-endInv,dep=equip*depRate,inputTax=extraPurch*taxRate,vat=(base['仮受消費税']+salesTax)-(base['仮払消費税']+inputTax),fees=base['受取手数料']+accruedIncome,wages=base['給料']+wagesAcc,profit=sales+fees-cost-ad-dep-wages-shortage-tax;
     return[
       direct('決算後現金',actual,'計算不要：現金実査額 '+comma(actual)+'円を使用します。',['materials'],'cashAfter'),
+      calc('未記帳売上の現金受取額（税込）',comma(extraSales)+' × (1 + '+(taxRate*100)+'%) = '+comma(cashReceipt),cashReceipt,['question','materials']),
       calc('現金不足（雑損）',comma(base['現金実査前帳簿'])+' + '+comma(cashReceipt)+' − '+comma(actual)+' = '+comma(shortage),shortage,['materials'],'cashShortage'),
       calc('売上高',comma(base['売上'])+' + '+comma(extraSales)+' = '+comma(sales),sales,['materials'],'sales'),
       calc('仕入勘定（未処理反映後）',comma(base['仕入'])+' + '+comma(extraPurch)+' = '+comma(purchases),purchases,['materials'],'purchases'),
@@ -151,6 +187,6 @@ function financial(q){
   }
   return null;
 }
-function build(q){const special=exam3(q)||simpleComprehensive(q)||worksheet(q)||financial(q);if(special&&special.length)return special;const ledgerMatch=/^L(\d{3})$/u.exec(String(q?.id||''));if(q?.type==='ledger'&&ledgerMatch&&Number(ledgerMatch[1])>=26&&Number(ledgerMatch[1])<=50)return null;const x=authored(q);return x.length?x:null;}
+function build(q){const special=journal(q)||correction(q)||exam3(q)||simpleComprehensive(q)||worksheet(q)||financial(q);if(special&&special.length)return special;const ledgerMatch=/^L(\d{3})$/u.exec(String(q?.id||''));if(q?.type==='ledger'&&ledgerMatch&&Number(ledgerMatch[1])>=26&&Number(ledgerMatch[1])<=50)return null;const x=authored(q);return x.length?x:null;}
 return Object.freeze({build});
 });

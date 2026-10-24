@@ -17,7 +17,8 @@ const diagnostic=r.sections.filter(x=>x.section==='mistakes').map(x=>x.text).joi
 const reviewedGuidance={L001:/期首残高.*増加.*減少/,L002:/期首残高.*増加.*減少/,L003:/期首残高.*増加.*減少/,L037:/相手勘定[\s\S]*残高方向/,L038:/相手勘定[\s\S]*残高方向/,L039:/再振替[\s\S]*月数[\s\S]*損益[\s\S]*次期繰越/,L046:/支払.*費用.*分類[\s\S]*補給/,L047:/総仕入高.*返品.*差し引.*純仕入高/,L048:/総売上高.*返品.*差し引.*純売上高/}[r.id];
 if(r.state!=='correct'&&reviewedGuidance&&!reviewedGuidance.test(diagnostic))issue('REVIEW_FORMAT_GUIDANCE');
 const special={J017:[['現金過不足','原因判明まで記録する仮勘定','借方','5,000']],J050:[['損益','一時的な決算勘定','借方','420,000'],['繰越利益剰余金','会社内に留保された純資産','貸方','420,000']],J100:[['損益','一時的な決算勘定','借方','430,000'],['繰越利益剰余金','会社内に留保された純資産','貸方','430,000']],J145:[['貸倒引当金','資産の評価勘定','貸方','10,400']]}[r.id]||[];
-for(const [account,definition,side,amount] of special)if(!r.transfers.some(card=>card.from.includes(account+'：')&&card.from.includes(definition)&&card.from.includes('この問題では'+side+'に記録します')&&!card.from.includes(amount+'円')&&card.to===side&&card.value.includes(amount)))issue('REVIEW_SPECIAL_ACCOUNT_REASON');
+const transactionReason={現金過不足:/実際有高[\s\S]*不足額[\s\S]*借方に仮記入/,損益:/貸方残高[\s\S]*当期純利益[\s\S]*締め切る[\s\S]*借方に記入/,繰越利益剰余金:/当期純利益[\s\S]*蓄積した利益[\s\S]*純資産[\s\S]*貸方に記入/,貸倒引当金:/必要額[\s\S]*整理前[\s\S]*不足する差額[\s\S]*貸方に追加/};
+for(const [account,definition,side,amount] of special)if(!r.transfers.some(card=>card.from.includes(account+'：')&&card.from.includes(definition)&&card.from.includes(side+'に')&&transactionReason[account].test(card.from)&&!card.from.includes('特殊勘定の増加・減少')&&!card.from.includes(amount+'円')&&card.to===side&&card.value.includes(amount)))issue('REVIEW_SPECIAL_ACCOUNT_REASON');
 
 if(/取り違えています|勘違いしています/.test(diagnostic))issue('UNSUPPORTED_CAUSE_DIAGNOSIS');
 if(r.state!=='correct'){

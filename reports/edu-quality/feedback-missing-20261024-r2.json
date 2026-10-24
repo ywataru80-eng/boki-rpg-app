@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "scope": "PR #228 cash-over-short precedence regression successor",
+  "predecessorHead": "b40fa8c405648b3981b404415123edba68e6836e",
+  "previousEvidence": "reports/edu-quality/feedback-missing-20261024.json",
+  "generationCandidate": 164,
+  "releaseCandidate": "20261022-218",
+  "sourceHashes": {
+    "previousFeedback": "d6b5326f59fd9922446b308f69f6241185ee39581064d61b059411b956ea9858",
+    "currentFeedback": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
+    "currentManifest": "eaba010180da7b82ff796c45a4000b51119f38e1c8010a16f8b3cbaac93069d4"
+  },
+  "protectedQuestionData": "eed582618854c4a4616bd804102584ec7164e9c3",
+  "fix": "Preserve specialised cash-over-short side explanation before authored generic account reasoning",
+  "newRegression": "tests/feedback-missing-language.test.js (WAF-CASH)",
+  "limitations": [
+    "Full npm run verify and browser CI must be repeated for the new HEAD."
+  ]
+}

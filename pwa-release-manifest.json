@@ -1,6 +1,6 @@
 {
-  "release": "20261020-217",
-  "previousRelease": "20261015-216",
+  "release": "20261022-218",
+  "previousRelease": "20261020-217",
   "assets": {
     "css/style.css": "ba07e1886efc5ff5e8cafe1ede4df01bd97db414aa00d974e7e528555a85cb3b",
     "data/accounting-domain.js": "16f07804022f6ad69800f84f3af06653e5cdc25a52ae0232254e101425ec1e00",
@@ -10,11 +10,11 @@
     "js/model.js": "9fafb92960072a204fc86e489bf88dfa9cec65151c4f807654d4e93f360094ff",
     "js/rpg.js": "0ac9ab4a9a1dc0488c6d03306d12eb005cfc085c70e15e9f62d45dcefcd0c97e",
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
-    "js/feedback.js": "2584b046e43bba66670b3703ecbc265809a405538433fd486fe850d821547a0b",
-    "js/explanation-formulas.js": "3b96bc7ddbe21a3094200b30b0e2d3b1de899b555a88724c02b3f7c8f4db47c5",
-    "js/explanation-model.js": "37fbcc76065a3e9925353e9715002b5f7122d0920c50ce573ea0c9e825fcf7e0",
+    "js/feedback.js": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
+    "js/explanation-formulas.js": "1ccc51c1c67a9f5058ba4626b4622edc6ed32fd3dc77b4651554d2a3562d9416",
+    "js/explanation-model.js": "16137b661c791318ede7fb89c45cc509363a444e111f81e00ae9c48e30f4ec4f",
     "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
-    "js/view.js": "536f061757f381aa73d69f140bb9111c00ac60576468203f825b645df930c4f2",
+    "js/view.js": "3f1f4ebe81e32df6a7a1f87f43d2213cf51133475ee61669c7fa7cb28d43efe8",
     "js/controller.js": "a3412379a2b30e649613676cae1f665b232f892eb9b6a0da9070e0c2b6ac9635",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",
     "data/form-a.json": "8d980909e2dccd532bb9f23b6908bcd49fb8b9fdef7fc661afc72799d2a77bc1",
@@ -24,6 +24,6 @@
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "db3f7b2a9b35815772886e9f27582d8034981b5900c0589d67af488bcc0ba4c0"
+    "form-a.html": "26bcccafc2cb6f3c72ed0e81752d110a419c74b3fbbf635888f6f802e5cc2451"
   }
 }

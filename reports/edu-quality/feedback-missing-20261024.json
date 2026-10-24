@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "scope": "PR #228 missing journal diagnostic successor",
+  "predecessorHead": "5f1523933f99dcdeee2671619df52d7e15a9a76f",
+  "previousReleaseEvidence": "reports/edu-quality/explanation-quality-20261022.json",
+  "releaseCandidate": "20261022-218",
+  "generationCandidate": 163,
+  "sourceHashes": {
+    "previousFeedback": "2438ab14e315b61ae29c21060da394bbee23db68a4e0d9f53f68ba823fa079e1",
+    "currentFeedback": "d6b5326f59fd9922446b308f69f6241185ee39581064d61b059411b956ea9858",
+    "currentManifest": "0141b2eff61fbada1e5991ca98af91064501e189f38c7d6a4844606f11d1584e"
+  },
+  "protectedQuestionData": "eed582618854c4a4616bd804102584ec7164e9c3",
+  "evidence": {
+    "journalQuestions": 150,
+    "accountSideEntries": 349,
+    "contextualReasons": 349,
+    "inputVariants": 600,
+    "missingDiagnostics": 649,
+    "checksFromPortableHarness": 4965
+  },
+  "limitations": [
+    "The portable harness is not npm run verify or independent human educational review.",
+    "Historical 300-question browser evidence is retained for its original source; new browser CI is required for current feedback bytes."
+  ]
+}
