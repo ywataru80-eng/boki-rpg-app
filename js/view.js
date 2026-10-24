@@ -1288,7 +1288,7 @@
         ...(answer?.credit || []).map(item => ({...item, side:'credit'}))].filter(item => item.account);
       if (!lines.length) return;
       const section = this.document.createElement('section');
-      section.className = 'explanation-card account-nature-explanation';
+      section.className = 'account-nature-explanation';
       const heading = this.document.createElement('h4');
       heading.textContent = '勘定科目の区分と借方・貸方の理由';
       const list = this.document.createElement('ul');
