@@ -34,7 +34,7 @@ jobs:
             ['js/explanation-model.js','279b57c0facfb5d4ff5ba9d04c399663a9b996c7'],
             ['tests/exam-points-visible.test.js','927798b51fafb84ed2fc2627607bb0451ed12292'],
             ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
-            ['scripts/validate-category-successor.cjs','fe8a1916f115c5316df351f0ec67782fdf7a65d1']
+            ['scripts/validate-category-successor.cjs','bbb0a46d647e926a3b47c829096b5d24fbefe795']
           ];
           (async()=>{
            const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
@@ -87,6 +87,18 @@ jobs:
           console.log('PASS third Story preanswer surface guarded without changing canonical question data');
           NODE
           node tests/preanswer-category-leak.test.js
+      - name: Update obsolete Story source-only assertion with behavior-preserving contract
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),file='tests/app.test.js';
+          const oldClaim="assert(viewSource.includes(\"this.byId('q-context').textContent = question.story\"), 'ストーリーモードで問題の場面と物語を表示する');";
+          const newClaim="assert(viewSource.includes(\"this.byId('q-context').textContent = visibleStory\") && viewSource.includes(\"this.byId('q-scene').textContent = question.scene\"), '通常の場面と物語を表示し、正答科目に一致する物語ラベルは保護する');";
+          const contents=fs.readFileSync(file,'utf8');
+          if(contents.split(oldClaim).length!==2)throw Error('old assertion not uniquely identified');
+          fs.writeFileSync(file,contents.replace(oldClaim,newClaim));
+          console.log('PASS narrowed assertion; narrative semantics covered by full renderer test');
+          NODE
       - name: Generate coherent uncommitted Release219 shell and asset hashes
         shell: bash
         run: |
@@ -153,7 +165,7 @@ jobs:
           node - <<'NODE'
           const cp=require('node:child_process');
           const changed=cp.execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').sort();
-          const allowed=['js/view.js','js/explanation-model.js','package.json','tests/audit-matrix.test.js','index.html','form-a.html','service-worker.js','pwa-release-manifest.json'].sort();
+          const allowed=['js/view.js','js/explanation-model.js','package.json','tests/audit-matrix.test.js','index.html','form-a.html','service-worker.js','pwa-release-manifest.json','tests/app.test.js'].sort();
           if(JSON.stringify(changed)!==JSON.stringify(allowed))throw Error('invalid diff paths '+JSON.stringify(changed));
           console.log('PASS scoped source modifications; no canonical question/oracle or historic Generation edits');
           NODE
