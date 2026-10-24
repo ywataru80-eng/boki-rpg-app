@@ -1,0 +1,78 @@
+name: Candidate precommit quality and accounting gate
+on:
+  push:
+    branches:
+      - audit/precommit-category-verify-20261024
+permissions:
+  contents: read
+jobs:
+  precommit-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Apply detached candidate blobs to uncommitted worktree
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const expected=[
+            ['js/view.js','c4a84df26553967bb646d4f2ceaf54d77379e663'],
+            ['tests/preanswer-category-leak.test.js','22974cf792cdb2e7b33bf15ef924226295eb059a'],
+            ['package.json','5c3252c9271298f2aa3b67dc2792292133d5e9f2']
+          ];
+          (async()=>{
+           const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
+           if(!repo || !token) throw new Error('GitHub authentication unavailable');
+           for(const [file,sha] of expected) {
+             const res=await fetch('https://api.github.com/repos/'+repo+'/git/blobs/'+sha,{
+               headers:{Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28',Accept:'application/vnd.github+json'}
+             });
+             if(!res.ok)throw new Error(file+' blob fetch HTTP '+res.status+' '+(await res.text()).slice(0,200));
+             const data=await res.json();
+             const buf=Buffer.from(data.content.replace(/\s/g,''),'base64');
+             const actual=crypto.createHash('sha1').update('blob '+buf.length+'\0').update(buf).digest('hex');
+             if(actual!==sha||data.sha!==sha)throw new Error(file+' SHA-1 mismatch '+actual);
+             fs.mkdirSync(require('node:path').dirname(file),{recursive:true});
+             fs.writeFileSync(file,buf);
+             console.log('APPLIED_UNCOMMITTED '+file+' blob='+sha+' bytes='+buf.length);
+           }
+           const changed=require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+           const expectedChanges=['js/view.js','package.json'].sort();
+           if(JSON.stringify(changed)!==JSON.stringify(expectedChanges))throw new Error('unexpected tracked diff '+JSON.stringify(changed));
+           if(!fs.existsSync('tests/preanswer-category-leak.test.js'))throw new Error('new test file missing');
+           const p=JSON.parse(fs.readFileSync('package.json'));
+           if(!p.scripts.test.startsWith('node tests/preanswer-category-leak.test.js && '))throw new Error('new test not in npm test');
+           console.log('CANDIDATE_PRECOMMIT_CHECKOUT_OK tracked='+JSON.stringify(changed)+' added=test');
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          
+          NODE
+      - name: Precommit mandatory verify
+        run: npm run verify
+      - name: Independent educational learning-case test
+        run: python3 tests/learning-effectiveness-independent.py
+      - name: Comprehensive qa:test
+        run: npm run qa:test
+      - name: Independent accounting recomputation
+        run: python3 scripts/check-explanation-accounting.py
+      - name: Independent source accounting oracle
+        run: npm run audit:oracle-source
+      - name: Audit candidate integrity, without rewriting accepted ledger
+        run: npm run qa:integrity
+      - name: Assert only approved candidate diff
+        shell: bash
+        run: |
+          git diff --check
+          git status --short
+          test "$(git rev-parse HEAD)" = '8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec'
