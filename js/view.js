@@ -1279,6 +1279,49 @@
       this.explanationSections(explanation).forEach(section => { const card = this.document.createElement('section'); card.className = `explanation-card explanation-card-${section.kind}`; const title = this.document.createElement('h4'); title.textContent = section.label; const text = this.document.createElement('p'); text.className = 'explanation-text'; text.textContent = section.text; card.append(title, text); container.append(card); });
       this.renderKnowledgeLinks(question, container);
     }
+    renderAccountNature(question, container) {
+      // Explain the five elements only AFTER the answer is submitted.
+      // The correction entry is the net adjustment, not the original transaction.
+      if (question.type !== 'journal' && question.type !== 'correction') return;
+      const answer = question.type === 'journal' ? question.answer : this.correctionJournal(question.answer);
+      const lines = [...(answer?.debit || []).map(item => ({...item, side:'debit'})),
+        ...(answer?.credit || []).map(item => ({...item, side:'credit'}))].filter(item => item.account);
+      if (!lines.length) return;
+      const section = this.document.createElement('section');
+      section.className = 'explanation-card account-nature-explanation';
+      const heading = this.document.createElement('h4');
+      heading.textContent = '勘定科目の区分と借方・貸方の理由';
+      const list = this.document.createElement('ul');
+      for (const item of lines) {
+        const type = this.accountType(item.account);
+        const label = DOMAIN.typeLabels[type] || '未分類';
+        const side = item.side === 'debit' ? '借方' : '貸方';
+        const normalDebit = type === 'asset' || type === 'expense';
+        const normalCredit = type === 'liability' || type === 'equity' || type === 'revenue';
+        const contra = type === 'contraAsset';
+        let movement;
+        if (contra) movement = item.side === 'credit' ? '資産を減額する控除額が増加' : '資産を減額する控除額が減少';
+        else if (normalDebit || normalCredit) {
+          const increasing = (normalDebit && item.side === 'debit') || (normalCredit && item.side === 'credit');
+          movement = increasing ? '増加' : '減少';
+        }
+        const li = this.document.createElement('li');
+        const strong = this.document.createElement('strong');
+        strong.textContent = item.account + '（' + label + '）';
+        const reason = this.document.createElement('span');
+        reason.textContent = movement
+          ? '：' + movement + 'するため' + side + 'に記入します。'
+          : '：通常の五要素の増減則だけでは判断せず、この問題の仮勘定・決算振替の処理に従って' + side + 'に記入します。';
+        li.append(strong, reason);
+        list.append(li);
+      }
+      const note = this.document.createElement('p');
+      note.textContent = question.type === 'correction'
+        ? 'ここに示すのは訂正仕訳の増減です。もとの誤仕訳と本来の正しい仕訳の差を、以下の解説で確認してください。'
+        : '科目を選ぶ取引固有の理由と金額の求め方は、続く解説で確認してください。';
+      section.append(heading, list, note);
+      container.append(section);
+    }
     renderExplanation(question, score, userAnswer) {
       const container = this.byId('explanation'); container.replaceChildren();
       const heading = this.document.createElement('h3'); heading.textContent = '今回の解説'; container.append(heading);
@@ -1287,6 +1330,7 @@
         ? '正解です。この問題の処理と答えの根拠を確認しましょう。'
         : 'この問題の処理と答えの根拠を確認しましょう。回答との差だけで、間違えた原因は断定できません。';
       container.append(lead);
+      this.renderAccountNature(question, container);
       const supplementary = this.explanationDisclosure('解答の道筋・学習のポイントを確認');
       if (root.ExplanationDesignSystem?.planFor && root.ExplanationDesignSystem?.render) {
         const routeModel = question.explanationModel && root.ExplanationModel?.build
@@ -1359,7 +1403,7 @@
       this.byId('answer-comparison').hidden = true; this.byId('correct-journal').replaceChildren();
       const container = this.byId('explanation'); container.replaceChildren();
       const heading = this.document.createElement('h3'); heading.textContent = '問題別レビュー'; container.append(heading);
-      review.items.forEach((item, index) => { const question = questions[item.id]; const details = this.document.createElement('details'); const summary = this.document.createElement('summary'); summary.textContent = `第${index + 1}問｜${item.earned}/${item.points}点｜${item.correct ? '正解' : item.answer ? '不正解' : '未回答'}｜${item.topic}`; details.append(summary, this.answerReviewBlock('自分の回答', question, item.answer), this.answerReviewBlock('正解', question, question.answer)); const diagnostics = this.renderDiagnostics(question, item.answer, { correct: item.correct }); if (diagnostics) details.append(diagnostics); const explanation = this.document.createElement('p'); explanation.className = 'exam-review-explanation'; explanation.textContent = question.explanation; details.append(explanation); container.append(details); });
+      review.items.forEach((item, index) => { const question = questions[item.id]; const details = this.document.createElement('details'); const summary = this.document.createElement('summary'); summary.textContent = `第${index + 1}問｜${item.earned}/${item.points}点｜${item.correct ? '正解' : item.answer ? '不正解' : '未回答'}｜${item.topic}`; details.append(summary, this.answerReviewBlock('自分の回答', question, item.answer), this.answerReviewBlock('正解', question, question.answer)); const diagnostics = this.renderDiagnostics(question, item.answer, { correct: item.correct }); if (diagnostics) details.append(diagnostics); const explanation = this.document.createElement('p'); explanation.className = 'exam-review-explanation'; explanation.textContent = question.explanation; details.append(explanation); this.renderAccountNature(question, details); container.append(details); });
       const historyHeading = this.document.createElement('h3'); historyHeading.textContent = '直近の成績'; container.append(historyHeading);
       const list = this.document.createElement('ol'); history.slice(-5).reverse().forEach(item => { const row = this.document.createElement('li'); row.textContent = `${new Date(item.finishedAt).toLocaleString('ja-JP')}｜${item.points}点${item.unverified ? '（旧記録・未検証）' : ''}｜${item.passed ? '合格圏' : '要復習'}｜所要${Math.ceil(item.durationMs / 60000)}分｜未回答${item.unansweredCount}問`; list.append(row); }); container.append(list);
     }
