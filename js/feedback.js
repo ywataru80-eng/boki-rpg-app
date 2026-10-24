@@ -83,6 +83,43 @@
       if (!debit && /当期純利益/.test(text)) return '当期純利益を会社に蓄積した利益へ加えるため、純資産である繰越利益剰余金の貸方に記入します。';
       if (debit && /配当/.test(text)) return '配当の決議により会社に蓄積した利益を減らすため、繰越利益剰余金の借方に記入します。まだ支払っていない配当は、未払配当金の貸方に計上します。';
     }
+    // Interpret both halves of compound entries separately; the same account can
+    // legitimately appear on opposite sides for different amounts.
+    if (question.category === '売上原価' && /期首商品棚卸高.*期末商品棚卸高/.test(text)) {
+      if (account === '仕入' && debit) return '期首の在庫を当期の売上原価に含めるため、資産である繰越商品から費用である仕入へ振り替えます。仕入の増加なので借方です。';
+      if (account === '繰越商品' && !debit) return '期首に繰り越した商品を当期の売上原価へ振り替えます。期首在庫の資産を減らすので、繰越商品の貸方です。';
+      if (account === '繰越商品' && debit) return '期末に売れ残った商品は翌期に繰り越す資産です。期末在庫を資産として計上するため、繰越商品の借方です。';
+      if (account === '仕入' && !debit) return '期末に売れ残った商品は当期の売上原価に含めません。仕入から期末在庫を控除するため、仕入の貸方へ振り替えます。';
+    }
+    if (question.category === '手形の取立と支払' && /受取手形.*満期.*支払手形.*満期/.test(text)) {
+      if (account === '当座預金' && debit) return '受取手形の満期取立てにより当座預金が増えます。預金は資産なので、増加を借方に記録します。';
+      if (account === '受取手形' && !debit) return '受取手形は取立てが終わると債権が消滅します。資産である受取手形の減少を貸方に記録します。';
+      if (account === '支払手形' && debit) return '支払手形を満期に決済したため、手形債務が消滅します。負債の減少なので借方に記録します。';
+      if (account === '当座預金' && !debit) return '支払手形の満期決済で当座預金から代金が支払われます。資産である預金の減少を貸方に記録します。';
+    }
+    if (account === '未払配当金' && !debit && /配当/.test(text)) return '配当決議により株主に支払う債務が発生します。未払配当金は負債なので、増加を貸方に記録します。';
+    // Use the already-authored, question-specific explanation only when the
+    // account, exact amount, account class, change direction and side agree.
+    // Reject unexpected formats rather than inventing an accounting rationale.
+    const entries = (question.answer?.[side] || []).filter(row => row.account === account);
+    if (entries.length === 1) {
+      const amount = Number(entries[0].amount);
+      const section = String(question.explanation || '').split('【この問題への当てはめ】')[1]?.split('【この問題の仕訳】')[0] || '';
+      const sideLabel = debit ? '借方' : '貸方';
+      const marker = sideLabel + 'を' + account + yen(amount) + '円とします。';
+      const index = section.indexOf(marker);
+      if (index >= 0 && section.indexOf(marker, index + marker.length) === -1) {
+        const previous = section.lastIndexOf('。', index - 1);
+        const beginning = section.lastIndexOf('。', previous - 1) + 1;
+        const passage = section.slice(beginning, index + marker.length).trim();
+        const match = passage.match(/^(.+?)は(資産|負債|純資産|費用|収益)で、この取引では([0-9,]+)円の(増加|減少)です。/u);
+        if (match && match[1] === account && Number(match[3].replace(/,/g, '')) === amount) {
+          const growsOnDebit = match[2] === '資産' || match[2] === '費用';
+          const correctSide = growsOnDebit === (match[4] === '増加') ? 'debit' : 'credit';
+          if (correctSide === side) return passage;
+        }
+      }
+    }
     return '';
   }
   const directionReason = (account, side, question) => {
@@ -109,7 +146,7 @@
       const oppositeEntry = !(expected[opposite] || []).some(row => row.account === item.account) && (answer?.[opposite] || []).some(row => row.account === item.account);
       if (!same && oppositeEntry) result.push(entry('side', `${item.account}の貸借が逆です`, directionReason(item.account, side, question), context(question), cashOverShort(question) ? '現金過不足の仮処理と、原因判明後の振替を区別し、今回記入する側を確認します。' : `勘定の性質と増減を分けて判断し、${item.account}を${side === 'debit' ? '借方' : '貸方'}へ記入します。`, `side:${item.account}`));
       if (same && Number(same.amount) !== item.amount) result.push(entry('amount', `${rowLabel}の金額が違います`, `入力した${Number.isFinite(Number(same.amount)) ? yen(same.amount)+'円' : '未入力または不正な金額'}ではなく${yen(item.amount)}円です。問題文の金額と入力値を照合し、計算が必要な場合は総額・控除額・差額の役割を確認します。`, context(question), '問題文の数値へ役割を書き添え、必要な加減算を式にしてから転記します。', `amount:${item.account}`));
-      if (!same && !oppositeEntry && !(answer?.[side] || []).some(row => row.account && !(expected[side] || []).some(value => value.account === row.account))) result.push(entry('missing', `${rowLabel}が未記入です`, `${side === 'debit' ? '借方' : '貸方'}の${item.account} ${yen(item.amount)}円が必要です。この要素を省くと取引の一部が記録されません。`, context(question), '取引を構成する資産・負債・純資産・収益・費用の変化を列挙し、合計の貸借一致まで確認します。', `missing:${item.account}`));
+      if (!same && !oppositeEntry && !(answer?.[side] || []).some(row => row.account && !(expected[side] || []).some(value => value.account === row.account))) result.push(entry('missing', `${rowLabel}が未記入です`, `${side === 'debit' ? '借方' : '貸方'}に「${item.account}」${yen(item.amount)}円を記入します。`, context(question), transactionReason(question, item.account, side) || `問題文で「${item.account}」に該当する取引を確認し、${side === 'debit' ? '借方' : '貸方'}に記入する根拠と金額を確かめましょう。`, `missing:${item.account}`));
     }
     const remainingExpected = [...correct]; const wrongRows = [];
     for (const row of entered.filter(row => row.account)) { const match = remainingExpected.findIndex(expectedRow => expectedRow.account === row.account); if (match >= 0) remainingExpected.splice(match, 1); else wrongRows.push(row); }
