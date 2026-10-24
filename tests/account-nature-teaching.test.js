@@ -6,7 +6,11 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..');
 const sources=['data/accounting-domain.js','data/questions.js','js/view.js'];
 const sandbox={window:{},console};
-for(const file of sources)vm.runInNewContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file,timeout:15000});
+for(const file of sources){
+  vm.runInNewContext(fs.readFileSync(path.join(root,file),'utf8'),sandbox,{filename:file,timeout:15000});
+  // In browsers globalThis === window; vm's host and window are distinct objects.
+  if(file==='data/accounting-domain.js')sandbox.AccountingDomain=sandbox.window.AccountingDomain;
+}
 const data=sandbox.window.QuestionData,domain=sandbox.window.AccountingDomain;
 assert.equal(Object.keys(data).length,300,'all canonical 300 loaded');
 const before=JSON.stringify(data);
@@ -38,7 +42,7 @@ for(const q of Object.values(data)){
   assert.equal(card.children[1].children.length,entries.length,q.id+' all answer accounts annotated');
   entries.forEach((entry,index)=>{
     const type=domain.accountType(entry.account);
-    if(type==='unknown')unclassified.push({id:q.id,account:entry.account,codepoints:[...entry.account].map(c=>c.codePointAt(0)),known:domain.accountTypes.liability.has('未払配当金'),listed:[...domain.accountTypes.liability]});
+    if(type==='unknown')unclassified.push(q.id+':'+entry.account);
     const row=readText(card.children[1].children[index]);
     const side=entry.side==='debit'?'借方':'貸方';
     assert(row.includes(entry.account+'（'+(expectedType[type]||'未分類')+'）'),q.id+' '+entry.account+' category');
@@ -50,7 +54,7 @@ for(const q of Object.values(data)){
     if(type==='contraAsset')assert(row.includes('資産を減額する控除額が'),q.id+' contra-asset distinction');
     if(type==='temporary'||type==='closing')assert(row.includes('通常の五要素の増減則だけでは判断せず'),q.id+' special account distinction');
   });
-  assert(!readText(card).includes('未分類'),q.id+' no fabricated category: '+JSON.stringify(unclassified));
+  assert(!readText(card).includes('未分類'),q.id+' no fabricated category');
 }
 assert.deepEqual(unclassified,[],'no unsupported canonical answer account');
 assert.equal(journalEntries,349,'349 journal account postings explicitly explained');
