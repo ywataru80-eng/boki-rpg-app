@@ -100,11 +100,17 @@ jobs:
                 await page.reload({waitUntil:'domcontentloaded',timeout:45000});
                 await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
                 console.log('PASS '+engine+' online SW-controlled reload');
-                await context.setOffline(true);
+                // Playwright WebKit's context.setOffline(true) causes an
+                // internal navigation error even after online SW reload PASS.
+                // Keep Chromium's real offline flag; also test WebKit with a
+                // network-route abort. Log the distinction; do not label it
+                // as proof of device-level offline capability.
                 if(engine==='webkit'){
+                  await context.route('**/*',route=>route.abort('internetdisconnected'));
                   const offlineNav=await page.goto(site,{waitUntil:'domcontentloaded',timeout:45000});
-                  assert.equal(offlineNav?.status(),200,engine+' SW-backed offline navigation');
+                  assert.equal(offlineNav?.status(),200,engine+' SW-backed navigation with network routing blocked');
                 } else {
+                  await context.setOffline(true);
                   await page.reload({waitUntil:'domcontentloaded',timeout:45000});
                 }
                 await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
@@ -112,9 +118,10 @@ jobs:
                 const form=await page.goto(site+'form-a.html',{waitUntil:'domcontentloaded',timeout:45000});
                 assert.equal(form?.status(),200,engine+' offline Form A navigation');
                 assert(!errors.length,engine+' browser exceptions: '+JSON.stringify(errors));
-                await context.setOffline(false);
+                if(engine==='webkit') await context.unrouteAll();
+                else await context.setOffline(false);
                 await page.evaluate(k=>localStorage.removeItem(k),key);
-                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW218 cache, offline reload, persisted storage, Form A offline');
+                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW218 cache, '+(engine==='webkit'?'route-blocked':'offline')+' reload, persisted storage, Form A navigation');
                 await context.close();
               } finally { await browser.close(); }
             }
