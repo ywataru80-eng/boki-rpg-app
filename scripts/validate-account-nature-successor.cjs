@@ -19,9 +19,9 @@ const expected=[
   'data/accounting-domain.js','form-a.html','index.html','js/view.js','package.json',
   'pwa-release-manifest.json','reports/auto-gate/audit-locks/phase-b-generation-166.json',
   'scripts/validate-account-nature-successor.cjs','service-worker.js',
-  'tests/account-nature-teaching.test.js'
+  'tests/account-nature-teaching.test.js','tests/audit-matrix.test.js'
 ].sort();
-assert.deepEqual(changed,expected,'change scope must be exactly the 11 approved files');
+assert.deepEqual(changed,expected,'change scope must be exactly the 12 approved files');
 assert.equal(git('status','--porcelain','--untracked-files=no'),'','Release220 checked-out files must be clean');
 const forbidden=[
  'data/questions.js','data/accounting-oracle.js','js/engine.js','js/model.js','js/controller.js',
@@ -41,6 +41,18 @@ const newExp="'保険料','広告宣伝費','支払家賃','法人税、住民�
 assert.equal(baselineDomain.split(oldExp).length,2,'account-domain single insertion anchor');
 assert.equal(read('data/accounting-domain.js'),baselineDomain.replace(oldExp,newExp),
  'extend only verified correction-only expense classes; no taxonomy changes elsewhere');
+const baselineAuditTest=origin('tests/audit-matrix.test.js');
+const legacyAuditCall="cp.execFileSync(process.execPath,['scripts/validate-category-successor.cjs'],{stdio:'inherit'});";
+const routedAuditCall=`const approvedValidators=Object.freeze({
+  '20261024-219':'scripts/validate-category-successor.cjs',
+  '20261025-220':'scripts/validate-account-nature-successor.cjs'
+});
+const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
+assert(approvedValidators[release],'unsupported release validator: '+release);
+cp.execFileSync(process.execPath,[approvedValidators[release]],{stdio:'inherit'});`;
+assert.equal(baselineAuditTest.split(legacyAuditCall).length,2,'unique historical matrix validator anchor');
+assert.equal(read('tests/audit-matrix.test.js'),baselineAuditTest.replace(legacyAuditCall,routedAuditCall),
+  'retain historical matrix assertions, change only successor routing');
 const oldTest=JSON.parse(origin('package.json'));
 const newTest=JSON.parse(read('package.json'));
 assert.equal(newTest.scripts.test,'node tests/account-nature-teaching.test.js && '+oldTest.scripts.test,
@@ -86,4 +98,4 @@ const a="'20261024-219': 'scripts/validate-category-successor.cjs'";
 const w="'20261024-219': 'scripts/validate-category-successor.cjs',\n            '20261025-220': 'scripts/validate-account-nature-successor.cjs'";
 assert.equal(before.split(a).length,2,'unique historical release-specific CI route');
 assert.equal(workflow,before.replace(a,w),'old and new CI validator map exact');
-console.log('PASS Release220 successor: 11-file scope, canonical 300 immutable, account taxonomy, post-answer UI, manifest 20/20, Generation166 valid');
+console.log('PASS Release220 successor: 12-file scope, canonical 300 immutable, account taxonomy, post-answer UI, manifest 20/20, Generation166 valid');
