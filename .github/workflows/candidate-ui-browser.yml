@@ -1,0 +1,176 @@
+name: Candidate Release219 browser display gate
+on:
+  push:
+    branches:
+      - audit/candidate-browser-20261024
+permissions:
+  contents: read
+jobs:
+  ui-browser-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Apply detached candidate blobs to uncommitted worktree
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const expected=[
+            ['js/view.js','c4a84df26553967bb646d4f2ceaf54d77379e663'],
+            ['tests/preanswer-category-leak.test.js','22974cf792cdb2e7b33bf15ef924226295eb059a'],
+            ['package.json','5c3252c9271298f2aa3b67dc2792292133d5e9f2'],
+            ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
+            ['scripts/validate-category-successor.cjs','a0f256b29f36fd0d8ce13b475573a22d8bed9d03']
+          ];
+          (async()=>{
+           const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
+           if(!repo || !token) throw new Error('GitHub authentication unavailable');
+           for(const [file,sha] of expected) {
+             const res=await fetch('https://api.github.com/repos/'+repo+'/git/blobs/'+sha,{
+               headers:{Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28',Accept:'application/vnd.github+json'}
+             });
+             if(!res.ok)throw new Error(file+' blob fetch HTTP '+res.status+' '+(await res.text()).slice(0,200));
+             const data=await res.json();
+             const buf=Buffer.from(data.content.replace(/\s/g,''),'base64');
+             const actual=crypto.createHash('sha1').update('blob '+buf.length+'\0').update(buf).digest('hex');
+             if(actual!==sha||data.sha!==sha)throw new Error(file+' SHA-1 mismatch '+actual);
+             fs.mkdirSync(require('node:path').dirname(file),{recursive:true});
+             fs.writeFileSync(file,buf);
+             console.log('APPLIED_UNCOMMITTED '+file+' blob='+sha+' bytes='+buf.length);
+           }
+           const changed=require('node:child_process').execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean).sort();
+           const expectedChanges=['js/view.js','package.json','tests/audit-matrix.test.js'].sort();
+           if(JSON.stringify(changed)!==JSON.stringify(expectedChanges))throw new Error('unexpected tracked diff '+JSON.stringify(changed));
+           if(!fs.existsSync('tests/preanswer-category-leak.test.js'))throw new Error('new test file missing');
+          if(!fs.existsSync('scripts/validate-category-successor.cjs'))throw new Error('strict new successor validation script missing');
+           const p=JSON.parse(fs.readFileSync('package.json'));
+           if(!p.scripts.test.startsWith('node tests/preanswer-category-leak.test.js && '))throw new Error('new test not in npm test');
+           console.log('CANDIDATE_PRECOMMIT_CHECKOUT_OK tracked='+JSON.stringify(changed)+' added=test');
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          
+          NODE
+      - name: Generate coherent uncommitted Release219 shell and asset hashes
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const old='20261022-218', next='20261024-219';
+          const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+          for(const file of ['index.html','form-a.html','service-worker.js']){
+            const text=fs.readFileSync(file,'utf8');
+            if(!text.includes(old))throw Error(file+' missing accepted old release');
+            if(text.includes(next))throw Error(file+' already updated unexpectedly');
+            fs.writeFileSync(file,text.replaceAll(old,next));
+          }
+          const manifestPath='pwa-release-manifest.json';
+          const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+          if(manifest.release!==old)throw Error('manifest baseline changed');
+          manifest.release=next;manifest.previousRelease=old;
+          manifest.assets['js/view.js']=hash('js/view.js');
+          manifest.pages['form-a.html']=hash('form-a.html');
+          fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
+          for(const [file,digest] of Object.entries(manifest.assets))
+            if(hash(file)!==digest)throw Error('bad manifest hash '+file);
+          for(const [file,digest] of Object.entries(manifest.pages))
+            if(hash(file)!==digest)throw Error('bad page hash '+file);
+          console.log('PASS precommit Release219 candidate 20/20 assets 1/1 extra page no historical change');
+          NODE
+      - name: Create uncommitted immutable Generation165 successor candidate
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const lifecycle=require('./scripts/qa/phase-b-lifecycle');
+          const successor=lifecycle.createCandidate();
+          if(successor.generation!==165||successor.predecessor.generation!==164)throw Error('Unexpected Generation lineage: '+JSON.stringify(successor.predecessor));
+          const destination='reports/auto-gate/audit-locks/phase-b-generation-165.json';
+          fs.mkdirSync(path.dirname(destination),{recursive:true});
+          fs.writeFileSync(destination,JSON.stringify(successor,null,2)+'\n',{flag:'wx'});
+          const validation=lifecycle.verifyCandidate(successor);
+          if(!validation.ok)throw Error('Invalid pending successor '+JSON.stringify(validation.errors));
+          if(require('./scripts/qa/audit-core').currentIntegrityCheck().ok!==true)throw Error('Pending generation is not accepted');
+          console.log('PASS uncommitted Generation165 predecessor164 successor identity='+successor.baselineIdentity);
+          NODE
+      - name: Install browser runner dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.64.1
+          npx playwright install --with-deps chromium webkit
+      - name: Actual candidate DOM Chrome and WebKit 320px 390px
+        shell: bash
+        run: |
+          node <<'NODE'
+          const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+          const {chromium,webkit}=require('playwright');
+          const root=process.cwd(),types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml'};
+          const server=http.createServer((req,res)=>{
+           const pathname=decodeURIComponent(new URL(req.url,'http://127.0.0.1/').pathname);
+           const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+           if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||fs.statSync(file).isDirectory()) {res.statusCode=404;res.end('missing');return;}
+           res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.end(fs.readFileSync(file));
+          });
+          (async()=>{
+           await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+           const url='http://127.0.0.1:'+server.address().port+'/';
+           try{
+           for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
+            const browser=await launcher.launch({headless:true});
+            try{
+             for(const width of [320,390]){
+              const context=await browser.newContext({viewport:{width,height:844},isMobile:true,hasTouch:true});
+              const page=await context.newPage(),errors=[];
+              page.on('pageerror',error=>errors.push(String(error)));
+              const response=await page.goto(url,{waitUntil:'load',timeout:60000});
+              assert.equal(response?.status(),200,'local candidate HTTP');
+              await page.waitForFunction(()=>!!(window.App?.controller?.view&&window.QuestionData&&Object.keys(window.QuestionData).length===300),null,{timeout:45000});
+              const results=await page.evaluate(()=>{
+                const questions=Object.values(window.QuestionData);
+                const hash=JSON.stringify(window.QuestionData);
+                let count=0,masked=0,unmasked=0;
+                const failures=[];
+                for(const q of questions){
+                  const spoiler=q.type==='journal'&&[...(q.answer?.debit||[]),...(q.answer?.credit||[])].some(item=>item.account===q.category);
+                  if(spoiler)masked++;else unmasked++;
+                  const visible=spoiler?'仕訳問題':q.category;
+                  for(const mode of ['story','training','exam','review']){
+                    try{window.App.controller.view.renderQuestion(q,{},mode);}
+                    catch(error){failures.push(q.id+' '+mode+' render exception '+String(error));continue;}
+                    const category=document.querySelector('#q-category')?.textContent;
+                    if(category!=='第'+q.chapter+'章｜'+visible)failures.push(q.id+' '+mode+' category='+category);
+                    if(mode==='story'){
+                      const task=document.querySelector('#q-task')?.textContent;
+                      if(task!=='今回の仕事：'+visible)failures.push(q.id+' Story task='+task);
+                    }
+                    if(document.querySelector('#q-text')?.textContent!==q.question)failures.push(q.id+' '+mode+' prompt mismatch');
+                    count++;
+                  }
+                }
+                if(JSON.stringify(window.QuestionData)!==hash)failures.push('Canonical QuestionData mutated');
+                return {count,masked,unmasked,failures:failures.slice(0,30),totalFailures:failures.length,release:document.querySelector('script[src*="js/view.js"]')?.src||''};
+              });
+              assert.equal(results.totalFailures,0,engine+' '+width+' '+JSON.stringify(results.failures));
+              assert.equal(results.count,1200,engine+' '+width+' expected paths');
+              assert.equal(results.masked,56);
+              assert.equal(results.unmasked,244);
+              assert(results.release.includes('20261024-219'),'Release219 scripts loaded');
+              assert.equal(errors.length,0,engine+' '+width+' pageerror '+JSON.stringify(errors));
+              console.log('PASS '+engine+' '+width+'px: 1200 actual DOM render paths, 56 masked, 244 unchanged, 0 page exceptions');
+              await context.close();
+             }
+            }finally{await browser.close();}
+           }
+           console.log('PASS RELEASE219_BROWSERS 4800 DOM paths Chromium/WebKit at 320/390');
+           }finally{await new Promise(resolve=>server.close(resolve));}
+          })().catch(err=>{console.error(err);process.exitCode=1;server.close();});
+          NODE
