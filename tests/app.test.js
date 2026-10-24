@@ -1073,7 +1073,7 @@ assert.strictEqual(browserSandbox.window.AppView.prototype.tableLabel('現金'),
 assert(viewSource.includes('row.append(this.journalAccountControl(select), amount)'), 'iPhoneでも4列構造を保ったまま科目セルだけ表示ラッパー化する');
 assert(viewSource.includes("display.textContent = text") && viewSource.includes("display.dataset.empty = select.value ? 'false' : 'true'"), '選択変更時に科目名オーバーレイを同期する');
 assert(viewSource.includes("inputType === 'amount'") && viewSource.includes("this.makeText('table-input'"), '表セルの明示型に応じて金額入力と日本語文字入力を分ける');
-assert(viewSource.includes("this.byId('q-context').textContent = question.story"), 'ストーリーモードで問題の場面と物語を表示する');
+assert(viewSource.includes("this.byId('q-context').textContent = visibleStory") && viewSource.includes("this.byId('q-scene').textContent = question.scene"), '通常の場面と物語を表示し、正答科目に一致する物語ラベルは保護する');
 assert(!cssSource.includes('display: contents'), 'iPhoneの仕訳配置をdisplay: contentsに依存させない');
 assert(/button\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s.test(cssSource), 'hidden指定されたbuttonをauthor displayルールより優先して非表示にする');
 assert(html.includes(`css/style.css?v=${release}`) && html.includes(`js/view.js?v=${release}`), 'iPhone Chromeに改修後のCSSとJSを再読み込みさせる');
