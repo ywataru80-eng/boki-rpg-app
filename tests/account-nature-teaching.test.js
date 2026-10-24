@@ -50,7 +50,7 @@ for(const q of Object.values(data)){
     if(type==='contraAsset')assert(row.includes('資産を減額する控除額が'),q.id+' contra-asset distinction');
     if(type==='temporary'||type==='closing')assert(row.includes('通常の五要素の増減則だけでは判断せず'),q.id+' special account distinction');
   });
-  assert(!readText(card).includes('未分類'),q.id+' no fabricated category');
+  assert(!readText(card).includes('未分類'),q.id+' no fabricated category: '+JSON.stringify(entries.map(e=>({account:e.account,type:domain.accountType(e.account)}))));
 }
 assert.deepEqual(unclassified,[],'no unsupported canonical answer account');
 assert.equal(journalEntries,349,'349 journal account postings explicitly explained');
