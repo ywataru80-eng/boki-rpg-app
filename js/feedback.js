@@ -124,13 +124,13 @@
   }
   const directionReason = (account, side, question) => {
     const specific = transactionReason(question, account, side);
-    if (specific) return specific;
     if (cashOverShort(question) && !/記帳漏れ|仮処理していた|処理済み/.test(question.question)) {
       const shortage = (question.answer?.debit || []).some(row => row.account === '現金過不足');
       return shortage
         ? '帳簿上の現金が実際有高より多いため、実際有高へ合わせて現金を減らし貸方へ記入します。原因不明の不足額は一時的に「現金過不足」の借方へ記録します。'
         : '帳簿上の現金が実際有高より少ないため、実際有高へ合わせて現金を増やし借方へ記入します。原因不明の過剰額は一時的に「現金過不足」の貸方へ記録します。';
     }
+    if (specific) return specific;
     if (account === '損益') return `損益は決算時に収益・費用を集合する勘定です。通常の資産・負債の増減ではなく、収益・費用を締め切る振替の相手側として${side === 'debit' ? '借方' : '貸方'}へ記入します。`;
     if (/^(貸倒引当金|減価償却累計額)$/.test(account)) return `${account}は資産そのものではなく資産の控除項目です。設定・増加は貸方、取崩し・減少は借方なので、この取引では${side === 'debit' ? '借方' : '貸方'}です。`;
     return `${account}の定義（${genericConcept(account)}）と、この取引による増減を照合すると${side === 'debit' ? '借方' : '貸方'}です。資産・費用の増加は借方、負債・純資産・収益の増加は貸方、減少は反対側です。`;

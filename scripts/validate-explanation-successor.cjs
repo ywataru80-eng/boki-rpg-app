@@ -48,8 +48,17 @@ const successor=JSON.parse(read('reports/edu-quality/feedback-missing-20261024.j
 assert.equal(successor.predecessorHead,priorRenderedHead);
 assert.equal(successor.generationCandidate,163);
 assert.equal(successor.sourceHashes.previousFeedback,digest(git(['show',priorRenderedHead+':js/feedback.js'])));
-assert.equal(successor.sourceHashes.currentFeedback,digest(read('js/feedback.js')));
-assert.equal(successor.sourceHashes.currentManifest,digest(read('pwa-release-manifest.json')));
+// Keep the previous successor evidence immutable at the exact revision it tested.
+const previousSuccessorHead='b40fa8c405648b3981b404415123edba68e6836e';
+assert.equal(successor.sourceHashes.currentFeedback,digest(git(['show',previousSuccessorHead+':js/feedback.js'])));
+assert.equal(successor.sourceHashes.currentManifest,digest(git(['show',previousSuccessorHead+':pwa-release-manifest.json'])));
+const corrected=JSON.parse(read('reports/edu-quality/feedback-missing-20261024-r2.json'));
+assert.equal(corrected.predecessorHead,previousSuccessorHead);
+assert.equal(corrected.generationCandidate,164);
+assert.equal(corrected.sourceHashes.previousFeedback,successor.sourceHashes.currentFeedback);
+assert.equal(corrected.sourceHashes.currentFeedback,digest(read('js/feedback.js')));
+assert.equal(corrected.sourceHashes.currentManifest,digest(read('pwa-release-manifest.json')));
+assert.equal(String(git(['rev-parse','HEAD:data/questions.js'])).trim(),corrected.protectedQuestionData);
 assert.equal(String(git(['rev-parse','HEAD:data/questions.js'])).trim(),successor.protectedQuestionData);
 cp.execFileSync(process.execPath,['tests/feedback-missing-language.test.js'],{cwd:root,stdio:'inherit'});
 for(const [file,artifact] of Object.entries(report.artifacts)){

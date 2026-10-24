@@ -66,4 +66,9 @@ check('J150','受取手形','credit','債権');
 check('J150','支払手形','debit','負債');
 check('J150','当座預金','credit','支払手形');
 
+const cashReversal=Feedback.diagnoseWrongAnswer(sandbox.window.QuestionData.J017,
+  {debit:[{account:'現金',amount:5000}],credit:[{account:'現金過不足',amount:5000}]},
+  {correct:false});
+assert(cashReversal.some(d=>d.kind==='side'&&/帳簿上の現金/.test(d.reason)&&/実際有高/.test(d.reason)&&/一時的/.test(d.reason)),
+  'cash-over-short rationale must take precedence over generic asset interpretation');
 console.log('PASS missing feedback regression',JSON.stringify({questions,cases,missing}));
