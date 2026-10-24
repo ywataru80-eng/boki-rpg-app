@@ -138,9 +138,24 @@
     renderQuestion(question, draft, mode = 'story') {
       this.questionMode = mode;
       const hintSupport = this.byId('protected-learning'); if (hintSupport) hintSupport.hidden = mode === 'exam';
-      this.byId('q-category').textContent = `第${question.chapter}章｜${question.category}`;
+      const accountCategorySpoiler = question.type === 'journal'
+        && [...(question.answer?.debit || []), ...(question.answer?.credit || [])]
+          .some(item => item.account === question.category);
+      const visibleCategory = accountCategorySpoiler ? '仕訳問題' : question.category;
+      this.byId('q-category').textContent = `第${question.chapter}章｜${visibleCategory}`;
       const story = this.byId('q-story'); story.hidden = mode !== 'story';
-      if (!story.hidden) { this.byId('q-scene').textContent = question.scene; this.byId('q-context').textContent = question.story; this.byId('q-task').textContent = `今回の仕事：${question.category}`; }
+      if (!story.hidden) {
+        // Keep the story meaningful without exposing the exact answer account
+        // through a category label embedded in the narrative.
+        let visibleStory = String(question.story || '');
+        if (accountCategorySpoiler) {
+          visibleStory = visibleStory.replaceAll(`「${question.category}」に関する`, '今回の取引に関する');
+          visibleStory = visibleStory.split('。').filter(sentence => !sentence.includes(question.category)).join('。');
+        }
+        this.byId('q-scene').textContent = question.scene;
+        this.byId('q-context').textContent = visibleStory;
+        this.byId('q-task').textContent = `今回の仕事：${visibleCategory}`;
+      }
       this.byId('q-text').textContent = question.question;
       this.renderMaterials(question);
       const journalContainer = this.byId('journal-container');

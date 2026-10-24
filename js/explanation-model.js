@@ -461,6 +461,10 @@
       if(reason)out.summary.push({text:reason,evidenceRef:'explanation'});
       if(q.type==='journal')out.transfer=arr(out.transfer).map(item=>journalDecision(q,item));
     }
+    const point=authoredSection(q,'試験のポイント');
+    if(point && !out.summary.some(item=>String(item.text||'').includes(point))){
+      out.summary.push({text:'試験のポイント：'+point,evidenceRef:'explanation'});
+    }
     if(q.type==='comprehensive'&&!q.format){
       const contrast=String(q.explanation||'').split('【')[0].split('。').find(text=>/現金/u.test(text)&&/収益|費用|売上|前受金/u.test(text)&&!/^期末現金残高|^現金が動くか/u.test(text));
       if(contrast)out.summary.push({text:contrast+'。',evidenceRef:'explanation'});
