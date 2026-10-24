@@ -34,7 +34,7 @@ jobs:
             ['js/explanation-model.js','49b37fed5ad73b89cabe573b94c8694b70c43791'],
             ['tests/exam-points-visible.test.js','b7529f2792e43f76e245df1a9a65467689410dbe'],
             ['tests/audit-matrix.test.js','944472a075e3e3bb2844bc19db4c5144233f06fd'],
-            ['scripts/validate-category-successor.cjs','dd7cf611c7f681cb93df83e5ee42c986f99d017d']
+            ['scripts/validate-category-successor.cjs','dc0ffb0606daac53bb6901614c3e55c71939fbcf']
           ];
           (async()=>{
            const repo=process.env.GITHUB_REPOSITORY,token=process.env.GH_READ_TOKEN;
