@@ -38,7 +38,7 @@ for(const q of Object.values(data)){
   assert.equal(card.children[1].children.length,entries.length,q.id+' all answer accounts annotated');
   entries.forEach((entry,index)=>{
     const type=domain.accountType(entry.account);
-    if(type==='unknown')unclassified.push(q.id+':'+entry.account);
+    if(type==='unknown')unclassified.push({id:q.id,account:entry.account,codepoints:[...entry.account].map(c=>c.codePointAt(0)),known:domain.accountTypes.liability.has('未払配当金'),listed:[...domain.accountTypes.liability]});
     const row=readText(card.children[1].children[index]);
     const side=entry.side==='debit'?'借方':'貸方';
     assert(row.includes(entry.account+'（'+(expectedType[type]||'未分類')+'）'),q.id+' '+entry.account+' category');
