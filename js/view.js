@@ -784,6 +784,10 @@
     // Chapter cases are reflections, not authoritative answers to the current transaction.
     renderStoryCaseDecision(question, score) {
       if (this.questionMode !== 'story' || !question || !score || typeof score.correct !== 'boolean') return false;
+      // This is a chapter climax, not a question-by-question repeated quiz.
+      // The only authority is the authored BOSS anchor and the existing answer history.
+      const climax = (root.AnchorScenes || []).find(scene => scene.chapter === question.chapter && scene.beat === 'BOSS');
+      if (!this.storyDecisionEligible || !climax || climax.referenceQuestionId !== question.id) return false;
       const target = this.byId('explanation');
       if (!target) return false;
       const cases = [
@@ -827,6 +831,14 @@
         button.addEventListener('click', () => {
           feedback.textContent = option.valid ? '根拠を優先した判断です。' + task.why + ' ' + task.next
             : 'その判断はまだ根拠が不足しています。' + task.why + ' ' + task.next;
+          // A visible record of the decision, not a fictional ledger mutation.
+          const outcome = this.document.createElement('p');
+          outcome.className = 'story-case-outcome';
+          const ready = option.valid && score.correct;
+          outcome.textContent = ready
+            ? '仕事の成果：根拠のある確認方針を整理しました。次の報告に進む準備ができました。' + task.next
+            : '仕事の状態：報告は保留です。証憑と仕訳を確認し、判断の根拠を整えましょう。' + task.next;
+          feedback.append(outcome);
           for (const sibling of choices.children) {
             sibling.disabled = true;
             sibling.setAttribute('aria-pressed', sibling === button ? 'true' : 'false');
