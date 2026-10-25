@@ -1325,17 +1325,23 @@
       definitions.forEach(([label, key]) => {
         const items = model[key] || [];
         let primary = items, extra = [];
-        if (key === 'sources' || key === 'checks') { primary = []; extra = items; }
+        if (key === 'sources' || key === 'checks') {
+          // For the final-report exercises, a concise consistency check must be
+          // visible without asking a novice to find a second disclosure.
+          if (key === 'checks' && (question.type === 'comprehensive' || question.id === 'F001')) {
+            primary = items.slice(0, 1); extra = items.slice(1);
+          } else { primary = []; extra = items; }
+        }
         if (key === 'summary' && items.some(item => item.evidenceRef === 'explanation')) {
-          primary = items.filter(item => item.evidenceRef === 'explanation');
-          extra = items.filter(item => item.evidenceRef !== 'explanation');
+          primary = items.filter(item => item.evidenceRef === 'explanation' || item.role === 'report-intent');
+          extra = items.filter(item => item.evidenceRef !== 'explanation' && item.role !== 'report-intent');
         }
         if (key === 'mistakes') {
           primary = score.correct ? [] : items.slice(0, 1);
           extra = items.slice(primary.length);
         }
         if (primary.length) flow.append(renderSection(key === 'mistakes' ? 'まず確認する点（原因の候補）' : label, key, primary, primaryIndex++));
-        if (extra.length) supplementary.append(renderSection(key === 'summary' && primary.length ? '考え方の補足' : label, key, extra, null));
+        if (extra.length) supplementary.append(renderSection(key === 'summary' && primary.length ? '考え方の補足' : key === 'checks' && primary.length ? '追加の検算' : label, key, extra, null));
       });
       if (supplementary.children.length > 1) flow.append(supplementary);
       return flow;
