@@ -1179,7 +1179,7 @@
           : verified ? '章の報告課題に正答した記録あり'
           : '章の報告課題は回答済み・正答を再確認';
         card.append(add('p', state));
-        if (recorded && climax?.hook) card.append(add('small', '次の仕事：' + climax.hook));
+        if (verified && climax?.hook) card.append(add('small', '次の仕事：' + climax.hook));
         panel.append(card);
       }
       return true;
