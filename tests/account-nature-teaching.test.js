@@ -46,13 +46,21 @@ for(const q of Object.values(data)){
     const row=readText(card.children[1].children[index]);
     const side=entry.side==='debit'?'借方':'貸方';
     assert(row.includes(entry.account+'（'+(expectedType[type]||'未分類')+'）'),q.id+' '+entry.account+' category');
-    assert(row.includes(side+'に記入します'),q.id+' '+entry.account+' posting side');
+    // A closing entry can continue as 「借方に記入し、…」 before the next
+    // posting; both complete-sentence and compound-sentence forms assert the
+    // actual debit/credit side rather than a punctuation-specific suffix.
+    assert(type==='closing'
+      ? (row.includes(side+'に記入し') || row.includes(side+'に記入します'))
+      : row.includes(side+'に記入します'),q.id+' '+entry.account+' posting side');
     if(normalDebit.has(type)||normalCredit.has(type)){
       const increase=(normalDebit.has(type)&&entry.side==='debit')||(normalCredit.has(type)&&entry.side==='credit');
       assert(row.includes(increase?'増加':'減少'),q.id+' '+entry.account+' movement direction');
     }
     if(type==='contraAsset')assert(row.includes('資産を減額する控除額が'),q.id+' contra-asset distinction');
-    if(type==='temporary'||type==='closing')assert(row.includes('通常の五要素の増減則だけでは判断せず'),q.id+' special account distinction');
+    if(type==='temporary'||type==='closing') {
+      assert(!row.includes('通常の五要素の増減則だけでは判断せず'),q.id+' not generic special account explanation');
+      assert(row.includes(type==='temporary'?'現金':'損益'),q.id+' special account purpose');
+    }
   });
   assert(!readText(card).includes('未分類'),q.id+' no fabricated category');
 }
@@ -75,4 +83,39 @@ check('J001','debit','現金',['資産','増加','借方']);
 check('J001','credit','資本金',['純資産','増加','貸方']);
 check('J149','credit','支払手形',['負債','増加','貸方']);
 check('J150','debit','支払手形',['負債','減少','借方']);
+
+for(const id of ['J017','J067','J117']){
+  check(id,'debit','現金過不足',['実際有高','少ない','貸方で減らし','原因未判明','借方に記入します']);
+}
+for(const id of ['J018','J068','J118']){
+  check(id,'credit','現金過不足',['先に借方へ仮記録','振り替え','貸方に記入します','重ねて増減させません']);
+}
+for(const id of ['J050','J100']){
+  check(id,'debit','損益',['収益が費用を上回り','当期純利益','ゼロ','借方に記入し','繰越利益剰余金']);
+}
+// Negative/transfer cases: the same side cannot imply the same event in every
+// context. Exercise surplus, clearing, loss, expense and revenue transfers.
+const checkSynthetic=(name,answer,side,account,required,forbidden=[])=>{
+  const surface=createElement('div');
+  view.renderAccountNature({type:'journal',answer},surface);
+  const entries=['debit','credit'].flatMap(s=>answer[s].map(item=>({...item,side:s})));
+  const i=entries.findIndex(item=>item.side===side&&item.account===account);
+  assert(i>=0,name+' selected synthetic account');
+  const line=readText(surface.children[0].children[1].children[i]);
+  for(const word of required)assert(line.includes(word),name+' must explain '+word);
+  for(const word of forbidden)assert(!line.includes(word),name+' must not claim '+word);
+};
+checkSynthetic('cash surplus', {debit:[{account:'現金',amount:300}],credit:[{account:'現金過不足',amount:300}]},
+  'credit','現金過不足',['多い','借方で増やし','過剰額','貸方に記入します'],['先に借方へ仮記録']);
+checkSynthetic('cash surplus clearing',{debit:[{account:'現金過不足',amount:300}],credit:[{account:'雑益',amount:300}]},
+  'debit','現金過不足',['先に貸方へ仮記録','仮記録を減らす','借方に記入します'],['原因未判明の不足額']);
+checkSynthetic('net loss',{debit:[{account:'繰越利益剰余金',amount:700}],credit:[{account:'損益',amount:700}]},
+  'credit','損益',['当期純損失','借方残高','貸方に記入し'],['当期純利益']);
+checkSynthetic('expense close',{debit:[{account:'損益',amount:800}],credit:[{account:'給料',amount:800}]},
+  'debit','損益',['費用勘定','損益の借方に記入します'],['当期純利益']);
+checkSynthetic('revenue close',{debit:[{account:'売上',amount:900}],credit:[{account:'損益',amount:900}]},
+  'credit','損益',['収益勘定','損益の貸方に記入します'],['当期純損失']);
+
+checkSynthetic('unknown noncanonical account',{debit:[{account:'未登録仮勘定',amount:100}],credit:[{account:'現金',amount:100}]},
+  'debit','未登録仮勘定',['区分は未登録','記入方向を断定できません'],['undefined','通常の五要素の増減則だけでは判断せず']);
 console.log('PASS account-nature explanations: 300 formats, 150 journals / '+journalEntries+' postings, '+corrections+' corrections, no unknowns or data mutation');

@@ -1309,9 +1309,41 @@
         const strong = this.document.createElement('strong');
         strong.textContent = item.account + '（' + label + '）';
         const reason = this.document.createElement('span');
-        reason.textContent = movement
-          ? '：' + movement + 'するため' + side + 'に記入します。'
-          : '：通常の五要素の増減則だけでは判断せず、この問題の仮勘定・決算振替の処理に従って' + side + 'に記入します。';
+        // Special accounts are not ordinary five-element balances. Determine
+        // the event from both sides of the completed journal, not the side alone.
+        const paired = (postingSide, account) => lines.some(entry =>
+          entry.side === postingSide && entry.account === account);
+        let specialReason = '';
+        if (type === 'temporary') {
+          if (question.type === 'correction') {
+            specialReason = '訂正仕訳では、現金の実査差額について誤って記録した部分を直すため、差額として' + side + 'に記入します。もとの仕訳と正しい仕訳の差を確認してください。';
+          } else if (item.side === 'debit' && paired('credit', '現金')) {
+            specialReason = '現金の実際有高が帳簿残高より少ないため、現金（資産）を貸方で減らし、帳簿を実際有高に合わせます。原因未判明の不足額を一時的に受ける相手科目として、現金過不足を借方に記入します。';
+          } else if (item.side === 'credit' && paired('debit', '現金')) {
+            specialReason = '現金の実際有高が帳簿残高より多いため、現金（資産）を借方で増やし、帳簿を実際有高に合わせます。原因未判明の過剰額を一時的に受ける相手科目として、現金過不足を貸方に記入します。';
+          } else if (item.side === 'credit') {
+            specialReason = '先に借方へ仮記録した現金不足を、原因判明または決算に伴って正しい科目へ振り替え、仮記録を減らすため現金過不足を貸方に記入します。現金は不足発見時に調整済みなので、ここでは重ねて増減させません。';
+          } else {
+            specialReason = '先に貸方へ仮記録した現金過剰を、原因判明または決算に伴って正しい科目へ振り替え、仮記録を減らすため現金過不足を借方に記入します。現金は過剰発見時に調整済みなので、ここでは重ねて増減させません。';
+          }
+        } else if (type === 'closing') {
+          if (question.type !== 'correction' && item.side === 'debit' && paired('credit', '繰越利益剰余金')) {
+            specialReason = '決算で収益が費用を上回り、損益に貸方残高（当期純利益）が残っています。これをゼロにするため損益を借方に記入し、利益を繰越利益剰余金（純資産）の貸方へ振り替えます。';
+          } else if (question.type !== 'correction' && item.side === 'credit' && paired('debit', '繰越利益剰余金')) {
+            specialReason = '決算で費用が収益を上回り、損益に借方残高（当期純損失）が残っています。これをゼロにするため損益を貸方に記入し、損失を繰越利益剰余金（純資産）の借方へ振り替えます。';
+          } else if (item.side === 'debit' && lines.some(entry => entry.side === 'credit' && this.accountType(entry.account) === 'expense')) {
+            specialReason = '費用勘定の借方残高を締め切り、決算勘定へ集めるため、費用を貸方に戻して同額を損益の借方に記入します。';
+          } else if (item.side === 'credit' && lines.some(entry => entry.side === 'debit' && this.accountType(entry.account) === 'revenue')) {
+            specialReason = '収益勘定の貸方残高を締め切り、決算勘定へ集めるため、収益を借方に戻して同額を損益の貸方に記入します。';
+          } else {
+            specialReason = '損益は収益を貸方、費用を借方へ集め、残った利益・損失を純資産へ振り替える決算勘定です。この仕訳の相手科目と振替目的を確認して' + side + 'に記入します。';
+          }
+        }
+        reason.textContent = specialReason
+          ? '：' + specialReason
+          : movement
+            ? '：' + movement + 'するため' + side + 'に記入します。'
+            : '：この科目の区分は未登録のため、通常の五要素だけでは記入方向を断定できません。元の取引と仕訳の根拠を確認してください。';
         li.append(strong, reason);
         list.append(li);
       }
