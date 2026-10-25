@@ -37,6 +37,12 @@ for(let chapter=1;chapter<=12;chapter++){
   const casePanel=explanation.children[0];
   assert(flat(casePanel).includes('第'+chapter+'章'),'chapter-scoped event');
   assert(flat(casePanel).includes('3分の振り返り目標'),'short opt-in reflection');
+  const bridges = {4:['小口現金を精算・補給','現金過不足'], 6:['収入印紙','預り金'], 7:['固定資産台帳','元帳'], 11:['支払手形','消費税']};
+  for (const phrase of bridges[chapter] || []) assert(flat(casePanel).includes(phrase), 'chapter '+chapter+' BOSS-to-story bridge: '+phrase);
+  if (chapter === 11) {
+    assert.equal(context.window.QuestionData.J149.category, '支払手形', 'use final runtime override, not initial literal');
+    assert(context.window.QuestionData.J149.question.includes('約束手形を振り出した'));
+  }
   assert(flat(casePanel).includes('採点や報酬に影響しません'),'explicit non-authority');
   const choices=casePanel.children[5];
   assert.equal(choices.children.length,2,'two post-answer decisions');

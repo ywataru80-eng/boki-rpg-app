@@ -18,3 +18,4 @@ jobs:
       - run: python3 tests/learning-effectiveness-independent.py
       - run: npm run qa:test
       - run: npm run qa:integrity
+      - run: npm run qa:story
