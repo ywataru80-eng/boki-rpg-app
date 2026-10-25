@@ -33,7 +33,8 @@ jobs:
           const manifest = require('./pwa-release-manifest.json');
           const validators = Object.freeze({
             '20261022-218': 'scripts/validate-explanation-successor.cjs',
-            '20261024-219': 'scripts/validate-category-successor.cjs'
+            '20261024-219': 'scripts/validate-category-successor.cjs',
+            '20261025-220': 'scripts/validate-account-nature-successor.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);
