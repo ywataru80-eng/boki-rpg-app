@@ -10,7 +10,7 @@
     "auditHash": "16ced615f2e21b485dc6b3ef8b8652015c91d955e6d0e0c18346cce242e8c9ca",
     "baselineIdentity": "1a6fabd46872512b62f150df8e7a2a2a66825d41275a96f2aa729847ff47055d"
   },
-  "baselineIdentity": "6ed501584cec566f0c493b1f1214ca1dc29afc2e9460f7a26a134788b8b9f7a7",
+  "baselineIdentity": "8e756729c22d86c991af66e7407da6d5487f04d9ce851bb335a5c25ef4c0630b",
   "productionHashes": {
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369",
     "css/style.css": "b5ed930c5074972c96c84c1494319071fc207e768afeb3f29a39b910521f030d",
@@ -33,9 +33,9 @@
     "js/form-a.js": "9d139b47bd895fd21a30a08d61f2c3e5355642cbadc574b329891bba3fdab430",
     "js/model.js": "9fafb92960072a204fc86e489bf88dfa9cec65151c4f807654d4e93f360094ff",
     "js/rpg.js": "0ac9ab4a9a1dc0488c6d03306d12eb005cfc085c70e15e9f62d45dcefcd0c97e",
-    "js/view.js": "29716cf1e8bac61486ca4337cca743879c7ee927496ad8a317d9732a37160955",
+    "js/view.js": "780c78ea22d36404c5255d62a5529ae64e792d1cd40d48443c1f5b4c6e1e5666",
     "manifest.webmanifest": "fcde227f0593c3fc7fd5e8adc89be13201f9a35f74d9ad6a4212b23d2a75bd72",
-    "pwa-release-manifest.json": "a16f0c746f82bb8511bfdf87b01a474efa888bc492d9f2648635c0cc465e7299",
+    "pwa-release-manifest.json": "241ddba856f7dc5f387f07e34b41f625c72ce570331dbf2d8a9b4e17deabed21",
     "service-worker.js": "96b778c42c619619ee41a0c6844931ba1bd63fe9cf8a91acab6bb33a03ed1158",
     "types/domain.d.ts": "94f1affd9e89eb139e968940e7a8ce64ca1e3b4728c5f59d9b6de0d97a96e3ec"
   },
