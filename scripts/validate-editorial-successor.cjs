@@ -12,7 +12,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex');
 const listed=args=>git(...args).split('\n').filter(Boolean);
 const approved=[
- '.github/workflows/question-quality-ledger-audit.yml','form-a.html','index.html',
+ '.github/visual/run-explanation-integration.js','.github/workflows/question-quality-ledger-audit.yml','form-a.html','index.html',
  'js/view.js','pwa-release-manifest.json',
  intermediateLock,lockPath,'scripts/validate-editorial-successor.cjs','service-worker.js',
  'tests/audit-matrix.test.js','tests/explanation-integration.test.js'
@@ -35,7 +35,7 @@ const changed=[...new Set([
  ...listed(['diff','--cached','--name-only']),
  ...untracked.filter(p=>p!=='artifacts/form-a-grade-results.json'&&p!==fixture)
 ])].sort();
-assert.deepEqual(changed,approved,'Release225 must change exactly 11 approved files');
+assert.deepEqual(changed,approved,'Release225 must change exactly 12 approved files');
 for(const p of [
  'data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','data/form-a.json',
  'js/model.js','js/rpg.js','js/engine.js','js/feedback.js','js/controller.js','js/app.js',
@@ -53,6 +53,7 @@ for(const p of ['index.html','form-a.html','service-worker.js']){
  assert.equal(read(p),source.replaceAll(older,release),p+' only cache version may advance');
 }
 assert.equal(hash('js/view.js'),'f6801f6cb86da6a4ba8a9f2b27158e65714b02815a643fea2f8ea9d0b5db78ec','reviewed view required');
+assert.equal(git('hash-object','.github/visual/run-explanation-integration.js'),'206ef2f74e8cf6b850106e73516bb54ca091d2bc','precise browser order contract required');
 assert.equal(hash('tests/explanation-integration.test.js'),'d1186683701634bd57551e79ac0ad03758f390da8906091aadb7724c3ee96ea7','focused rendered prose and placement test required');
 for(const [p,anchor,addition] of [
  ['tests/audit-matrix.test.js',"  '20261025-224':'scripts/validate-story-bridge-successor.cjs'",",\n  '20261026-225':'scripts/validate-editorial-successor.cjs'"],
@@ -86,4 +87,4 @@ if(committed){
  const r=phase.verifyCandidate(lock);
  assert(r.ok,'Generation177 precommit candidate failed: '+r.errors.join('; '));
 }
-console.log('PASS Release225 '+(committed?'committed':'precommit')+': 11 scoped files, 300 immutable, Generation176→177 continuity');
+console.log('PASS Release225 '+(committed?'committed':'precommit')+': 12 scoped files, 300 immutable, Generation176→177 continuity');
