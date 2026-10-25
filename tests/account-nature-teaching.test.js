@@ -46,7 +46,12 @@ for(const q of Object.values(data)){
     const row=readText(card.children[1].children[index]);
     const side=entry.side==='debit'?'借方':'貸方';
     assert(row.includes(entry.account+'（'+(expectedType[type]||'未分類')+'）'),q.id+' '+entry.account+' category');
-    assert(row.includes(side+'に記入します'),q.id+' '+entry.account+' posting side');
+    // A closing entry can continue as 「借方に記入し、…」 before the next
+    // posting; both complete-sentence and compound-sentence forms assert the
+    // actual debit/credit side rather than a punctuation-specific suffix.
+    assert(type==='closing'
+      ? (row.includes(side+'に記入し') || row.includes(side+'に記入します'))
+      : row.includes(side+'に記入します'),q.id+' '+entry.account+' posting side');
     if(normalDebit.has(type)||normalCredit.has(type)){
       const increase=(normalDebit.has(type)&&entry.side==='debit')||(normalCredit.has(type)&&entry.side==='credit');
       assert(row.includes(increase?'増加':'減少'),q.id+' '+entry.account+' movement direction');
