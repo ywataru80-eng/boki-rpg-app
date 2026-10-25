@@ -10,10 +10,11 @@ const changes=git('diff','--name-only',base,'HEAD').split('\n').filter(Boolean).
 const expected=[
   '.github/workflows/question-quality-ledger-audit.yml','form-a.html','index.html','js/view.js',
   'pwa-release-manifest.json','reports/auto-gate/audit-locks/phase-b-generation-168.json',
+  'reports/auto-gate/audit-locks/phase-b-generation-169.json',
   'scripts/validate-special-account-reason-successor.cjs','service-worker.js',
   'tests/account-nature-teaching.test.js','tests/audit-matrix.test.js'
 ].sort();
-assert.deepEqual(changes,expected,'Release221 scope must remain the ten reviewed files');
+assert.deepEqual(changes,expected,'Release221 scope must remain the eleven reviewed files');
 assert.equal(git('status','--porcelain','--untracked-files=no'),'','tracked tree must be clean');
 for(const file of ['data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','js/engine.js',
   'js/model.js','js/controller.js','js/rpg.js','js/app.js','js/feedback.js',
@@ -56,5 +57,8 @@ assert.equal(prev.generation,167);assert.equal(g.generation,168);
 assert.deepEqual(g.predecessor,lifecycle.identity(prev),'immutable Generation167 linked');
 const validity=lifecycle.verifyCurrent();
 assert(validity.ok,'Generation168 authority invalid: '+validity.errors.join('; '));
-assert.equal(validity.generation,168);
-console.log('PASS Release221 successor: fixed 10-file scope; historical evidence; 20 assets; Generation168');
+const g169=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-169.json'));
+assert.equal(g169.generation,169,'supplemental immutable candidate generation');
+assert.deepEqual(g169.predecessor,lifecycle.identity(g),'Generation168 predecessor link');
+assert.equal(validity.generation,169);
+console.log('PASS Release221 successor: fixed 11-file scope; historical evidence; 20 assets; Generation169');

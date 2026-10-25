@@ -116,4 +116,6 @@ checkSynthetic('expense close',{debit:[{account:'損益',amount:800}],credit:[{a
 checkSynthetic('revenue close',{debit:[{account:'売上',amount:900}],credit:[{account:'損益',amount:900}]},
   'credit','損益',['収益勘定','損益の貸方に記入します'],['当期純損失']);
 
+checkSynthetic('unknown noncanonical account',{debit:[{account:'未登録仮勘定',amount:100}],credit:[{account:'現金',amount:100}]},
+  'debit','未登録仮勘定',['区分は未登録','記入方向を断定できません'],['undefined','通常の五要素の増減則だけでは判断せず']);
 console.log('PASS account-nature explanations: 300 formats, 150 journals / '+journalEntries+' postings, '+corrections+' corrections, no unknowns or data mutation');

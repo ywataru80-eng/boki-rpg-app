@@ -1341,7 +1341,9 @@
         }
         reason.textContent = specialReason
           ? '：' + specialReason
-          : '：' + movement + 'するため' + side + 'に記入します。';
+          : movement
+            ? '：' + movement + 'するため' + side + 'に記入します。'
+            : '：この科目の区分は未登録のため、通常の五要素だけでは記入方向を断定できません。元の取引と仕訳の根拠を確認してください。';
         li.append(strong, reason);
         list.append(li);
       }
