@@ -16,7 +16,7 @@ const original=p=>cp.execFileSync('git',['show',`${baseline}:${p}`],{cwd:root,en
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const digest=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex');
 const expected=[
-  '.github/workflows/question-quality-ledger-audit.yml','form-a.html','index.html','js/view.js',
+  '.github/workflows/question-quality-ledger-audit.yml','.github/workflows/verify.yml','form-a.html','index.html','js/view.js',
   'pwa-release-manifest.json',generationPath,'scripts/validate-story-bridge-successor.cjs',
   'service-worker.js','tests/audit-matrix.test.js','tests/story-business-decision.test.js'
 ].sort();
@@ -50,7 +50,7 @@ const changed=[...new Set([
  ...listed(['diff','--cached','--name-only']),
  ...untracked.filter(p=>p!==generatedReport && p!==historicalCheckout)
 ])].sort();
-assert.deepEqual(changed,expected,'Release224 requires exactly ten approved files, no unrelated product edits');
+assert.deepEqual(changed,expected,'Release224 requires exactly eleven approved files, no unrelated product edits');
 for(const p of [
  'data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','data/form-a.json',
  'js/model.js','js/rpg.js','js/engine.js','js/feedback.js','js/controller.js','js/app.js',
@@ -102,6 +102,13 @@ const matrixAnchor="  '20261025-223':'scripts/validate-story-milestone-successor
 assert.equal(oldMatrix.split(matrixAnchor).length-1,1,'historical test validator anchor must be unique');
 assert.equal(read('tests/audit-matrix.test.js'),oldMatrix.replace(matrixAnchor,matrixAnchor+",\n  '20261025-224':'scripts/validate-story-bridge-successor.cjs'"),
  'Release224 must only add one approved test validator route');
+const previousVerify=original('.github/workflows/verify.yml').toString('utf8');
+const storyGateAnchor='      - run: npm run qa:integrity\n';
+assert.equal(previousVerify.split(storyGateAnchor).length-1,1,
+  'baseline verify workflow must contain exactly one integrity gate');
+assert.equal(read('.github/workflows/verify.yml'),
+  previousVerify.replace(storyGateAnchor,storyGateAnchor+'      - run: npm run qa:story\n'),
+  'always-triggered verify job must execute all four mandatory npm gates');
 const oldWorkflow=original('.github/workflows/question-quality-ledger-audit.yml').toString('utf8');
 const workflowAnchor="            '20261025-223': 'scripts/validate-story-milestone-successor.cjs'";
 assert.equal(oldWorkflow.split(workflowAnchor).length-1,1,'CI validator anchor must be unique');
@@ -129,4 +136,4 @@ if(committed){
 }else{
  const result=phase.verifyCandidate(candidate);assert(result.ok,'Generation175 precommit candidate failed: '+result.errors.join('; '));
 }
-console.log(`PASS Release224 ${committed?'committed':'precommit'}: 10 scoped files, 4 story bridges, 300 immutable, 20 PWA hashes, Generation175 continuity`);
+console.log(`PASS Release224 ${committed?'committed':'precommit'}: 11 scoped files, 4 story bridges, 300 immutable, 20 PWA hashes, Generation175 continuity`);
