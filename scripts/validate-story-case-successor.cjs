@@ -13,11 +13,12 @@ const expected=[
   '.github/workflows/question-quality-ledger-audit.yml','css/style.css','form-a.html','index.html',
   'js/view.js','package.json','pwa-release-manifest.json',
   'reports/auto-gate/audit-locks/phase-b-generation-170.json',
+  'reports/auto-gate/audit-locks/phase-b-generation-171.json',
   'scripts/validate-story-case-successor.cjs','service-worker.js',
   'tests/audit-matrix.test.js','tests/story-business-decision.test.js'
 ].sort();
 const changed=git('diff','--name-only',baseline,'HEAD').split('\n').filter(Boolean).sort();
-assert.deepEqual(changed,expected,'Release222 must change only 12 approved files');
+assert.deepEqual(changed,expected,'Release222 must change only 13 approved files');
 for(const filename of [
   'data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','js/controller.js',
   'js/model.js','js/rpg.js','js/engine.js','js/app.js','js/feedback.js',
@@ -58,11 +59,12 @@ assert.deepEqual(Object.keys(manifest.pages),['form-a.html']);
 assert.equal(Object.keys(manifest.assets).length,20);
 for(const [file,sha] of Object.entries({...manifest.assets,...manifest.pages})) assert.equal(digest(file),sha,file+' release SHA256');
 const phase=require('./qa/phase-b-lifecycle');
-const gen=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-170.json'));
-const prev=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-169.json'));
-assert.equal(gen.generation,170);
-assert.deepEqual(gen.predecessor,phase.identity(prev),'Generation169 historical continuity');
+const gen=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-171.json'));
+const prev=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-170.json'));
+assert.equal(prev.generation,170);
+assert.equal(gen.generation,171);
+assert.deepEqual(gen.predecessor,phase.identity(prev),'Generation170 immutable predecessor continuity');
 const validated=phase.verifyCurrent();
-assert(validated.ok,'Generation170 invalid: '+validated.errors.join('; '));
-assert.equal(validated.generation,170);
-console.log('PASS Release222: 12 scoped paths, immutable 300 canonical data, 20 PWA hashes, Generation170, existing grades/history untouched');
+assert(validated.ok,'Generation171 invalid: '+validated.errors.join('; '));
+assert.equal(validated.generation,171);
+console.log('PASS Release222: 12 scoped paths, immutable 300 canonical data, 20 PWA hashes, Generation171, existing grades/history untouched');
