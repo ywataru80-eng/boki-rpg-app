@@ -723,6 +723,7 @@
       this.renderCorrectJournal(question);
       this.renderExplanation(question, score, userAnswer);
       this.renderAchievement(this.byId('explanation'), achievement);
+      if (typeof this.renderStoryCaseDecision === 'function') this.renderStoryCaseDecision(question, score);
     }
     renderErrorSummary(question, score, userAnswer) {
       const panel = this.byId('result-error-summary');
@@ -778,6 +779,66 @@
         const rest = this.document.createElement('p'); rest.textContent = `ほか${items.length - 3}件は下の解答比較で確認できます。`; panel.append(rest);
       }
       panel.hidden = false;
+    }
+    // Optional post-answer business judgement. This never grades, rewards or stores data.
+    // Chapter cases are reflections, not authoritative answers to the current transaction.
+    renderStoryCaseDecision(question, score) {
+      if (this.questionMode !== 'story' || !question || !score || typeof score.correct !== 'boolean') return false;
+      const target = this.byId('explanation');
+      if (!target) return false;
+      const cases = [
+        {case:'追加出資の資金はどこへ動いた？', objective:'資金の増加と資金の置き場所を分けて追う', valid:'出資の証憑と現金・預金の移動記録を別々に照合する', trap:'入金があればすべて売上だと報告する', why:'出資は収益ではありません。資金の入手理由と資産内部の移動は別の事象です。', next:'水野先輩へ、出資と預け替えの違いを説明しよう。'},
+        {case:'営業の売上報告と伝票が食い違う？', objective:'納品・返品・付随費用を取引単位で確認する', valid:'納品書・返品票・配送伝票を突き合わせる', trap:'営業担当の売上見込みを、そのまま確定した会計数値にする', why:'納品、返品、負担する運賃は資料に基づいて区別します。売上見込みだけでは確定できません。', next:'高橋へ、資料を照合した結果を根拠付きで説明しよう。'},
+        {case:'売れたはずの代金が口座にない？', objective:'売掛・買掛と現金・預金の違いを確認する', valid:'債権債務の成立と入出金の時点を分けて照合する', trap:'入金前の売上を現金残高に含める', why:'掛取引の成立と現金の受払いは別です。現金残高に入金前の債権を足しません。', next:'社長へ、回収予定と現在の資金を分けて報告しよう。'},
+        {case:'金庫と帳簿の数字が合わない？', objective:'実査の差額と原因の証拠を区別する', valid:'実際有高へ帳簿を合わせ、原因未判明分は仮勘定で調査する', trap:'理由が分からなくても適当な費用科目へ振り替える', why:'原因未判明なら現金過不足で一時処理し、根拠なく雑損などへ断定しません。', next:'森へ、調査で確定した事実と未確定の差額を伝えよう。'},
+        {case:'同じ支払いでも意味が違う？', objective:'設備・仮払・立替・借入を区分する', valid:'証憑から資産取得、費用発生、債権債務を区別する', trap:'支出した金額をすべて当期の費用にする', why:'現金の支出だけで費用は決まりません。資産や前渡金となる取引もあります。', next:'水野先輩へ、支払いの中身を勘定別に整理して伝えよう。'},
+        {case:'給与から預かったお金は誰のもの？', objective:'給与・控除・会社負担・納付義務を区別する', valid:'本人控除と会社負担の証憑を分けて確認する', trap:'給与から引いた額を会社の収益として処理する', why:'従業員から預かった控除額は会社の利益ではなく、納付までの義務です。', next:'担当者へ、控除と会社負担の違いを説明しよう。'},
+        {case:'伝票はあるのに月次報告が出せない？', objective:'仕訳から転記・残高までつながるか確認する', valid:'仕訳帳と元帳の転記を照合し、勘定残高を確かめる', trap:'伝票がそろえば元帳の残高確認は不要とする', why:'記帳された取引が元帳と残高へ反映されて初めて報告の根拠になります。', next:'月次報告前に、転記と残高の照合状況を伝えよう。'},
+        {case:'試算表が合わない原因は？', objective:'差異を仕訳・転記・集計の順に追跡する', valid:'元資料と帳簿を照合し、誤りの場所を特定して訂正する', trap:'帳尻が合うように根拠のない仕訳を足す', why:'貸借を合わせることだけが目的ではありません。原因と正しい仕訳の根拠を確認します。', next:'どこに差異が生じたかを根拠付きで報告しよう。'},
+        {case:'支払日と当期の費用は同じ？', objective:'前払・未払・前受・未収の期間帰属を確認する', valid:'役務の提供期間と決算日を確認して当期分を計上する', trap:'現金が出入りした日だけで全額を当期損益にする', why:'現金収支と費用・収益の期間帰属は同じではありません。', next:'当期に属する金額を決算整理へ引き継ごう。'},
+        {case:'整理前の利益を報告してよい？', objective:'見積り・減価償却・決算整理を反映する', valid:'決算整理事項を確認し精算表へ反映してから利益を求める', trap:'整理前試算表の収支差を確定利益として報告する', why:'償却や見越し・繰延べなどの処理後に当期利益を判断します。', next:'社長へ、整理後の数字を用いて利益を説明しよう。'},
+        {case:'税の仮勘定を残したまま閉じてよい？', objective:'消費税の仮受・仮払と納付義務を確認する', valid:'仮受と仮払を照合し、差額の納付義務を確認する', trap:'仮受消費税をそのまま会社の売上利益にする', why:'仮受消費税は売上利益ではありません。決算時に対応する仮払額と照合します。', next:'役員へ、税の納付義務を資料とともに説明しよう。'},
+        {case:'会社の一年を数字で説明できる？', objective:'当期純利益と財務諸表をつなげる', valid:'損益と貸借対照表を照合し、利益・財政状態を分けて報告する', trap:'現金が多いかどうかだけで利益を決める', why:'利益は収益と費用から求め、財政状態は資産・負債・純資産で示します。', next:'最終報告では数字の根拠を自分の言葉で説明しよう。'}
+      ];
+      const chapter = Number(question.chapter);
+      if (!Number.isSafeInteger(chapter) || chapter < 1 || chapter > cases.length) return false;
+      const task = cases[chapter - 1];
+      const box = this.document.createElement('section');
+      box.className = 'story-case-decision';
+      box.setAttribute('aria-label', '章の事件と実務判断');
+      const heading = this.document.createElement('h3'); heading.textContent = '第' + chapter + '章｜いま起きている経理事件';
+      const mystery = this.document.createElement('p'); mystery.className = 'story-case-mystery'; mystery.textContent = task.case;
+      const status = this.document.createElement('p'); status.className = 'story-case-status';
+      status.textContent = score.correct
+        ? '今回の解答は確認できました。ただし、この章の業務全体が完了したという意味ではありません。'
+        : '今回の解答には相違点があります。報告を確定せず、根拠の確認を続けましょう。';
+      const goal = this.document.createElement('p'); goal.textContent = '3分の振り返り目標：' + task.objective;
+      const prompt = this.document.createElement('p'); prompt.className = 'story-case-prompt';
+      prompt.textContent = '社内報告へ進むなら、どちらの確認方法を選びますか？（任意・採点や報酬に影響しません）';
+      const choices = this.document.createElement('div'); choices.className = 'story-case-choices';
+      const feedback = this.document.createElement('p'); feedback.className = 'story-case-choice-feedback';
+      feedback.setAttribute('role', 'status');
+      const options = chapter % 2
+        ? [{valid:false,label:task.trap},{valid:true,label:task.valid}]
+        : [{valid:true,label:task.valid},{valid:false,label:task.trap}];
+      for (const option of options) {
+        const button = this.document.createElement('button');
+        button.type = 'button'; button.className = 'story-case-choice'; button.textContent = option.label;
+        button.addEventListener('click', () => {
+          feedback.textContent = option.valid ? '根拠を優先した判断です。' + task.why + ' ' + task.next
+            : 'その判断はまだ根拠が不足しています。' + task.why + ' ' + task.next;
+          for (const sibling of choices.children) {
+            sibling.disabled = true;
+            sibling.setAttribute('aria-pressed', sibling === button ? 'true' : 'false');
+          }
+        });
+        choices.append(button);
+      }
+      const foot = this.document.createElement('p'); foot.className = 'story-case-footnote';
+      foot.textContent = 'この振り返りは章全体の判断練習です。今回の仕訳・金額の正答根拠は上の解説で確認してください。';
+      box.append(heading, mystery, status, goal, prompt, choices, feedback, foot);
+      target.append(box);
+      return true;
     }
     renderNarrativeResult(scenes = [], { mode = 'story', resolved = false, epilogueFacts = [] } = {}) {
       if (typeof this.document?.getElementById !== 'function') return false;

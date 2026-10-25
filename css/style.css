@@ -1540,3 +1540,18 @@ input:focus-visible { outline: 3px solid rgba(52, 152, 219, .45); outline-offset
 .explanation-supplement > summary { cursor:pointer; font-weight:700; padding:8px 0; min-height:44px; box-sizing:border-box; }
 .explanation-supplement > summary:focus-visible { outline:3px solid var(--accent-color, #005a70); outline-offset:3px; }
 .explanation-supplement[open] > summary { margin-bottom:12px; }
+
+/* Optional post-answer chapter cases: no impact on grade, rewards or saved progress. */
+.story-case-decision { margin-block: 1.2rem; padding: 1rem; border: 1px solid var(--border-color, #b8c7cc); border-radius: 12px; background: var(--surface, #f7fafb); overflow-wrap: anywhere; }
+.story-case-decision h3 { margin: 0 0 .65rem; font-size: 1.06rem; line-height: 1.5; }
+.story-case-mystery { font-weight: 700; margin-bottom: .6rem; }
+.story-case-status { padding: .65rem .8rem; border-inline-start: 4px solid #466783; background: #edf3f8; color: #172b3a; }
+.story-case-prompt { margin-block: 1rem .6rem; font-weight: 600; }
+.story-case-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: .65rem; }
+.story-case-choice { width: 100%; min-height: 44px; padding: .75rem .9rem; text-align: left; white-space: normal; }
+.story-case-choice:focus-visible { outline: 3px solid #1c6093; outline-offset: 3px; }
+.story-case-choice[aria-pressed="true"] { border: 2px solid #1c6093; }
+.story-case-choice:disabled { opacity: 1; cursor: default; }
+.story-case-choice-feedback { font-weight: 600; min-height: 1.4em; }
+.story-case-footnote { font-size: .88rem; opacity: .85; }
+@media (max-width: 420px) { .story-case-decision { padding: .8rem; } .story-case-choices { grid-template-columns: 1fr; } }

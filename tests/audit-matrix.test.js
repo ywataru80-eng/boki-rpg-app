@@ -16,7 +16,8 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.pa
 const approvedValidators=Object.freeze({
   '20261024-219':'scripts/validate-category-successor.cjs',
   '20261025-220':'scripts/validate-account-nature-successor.cjs',
-  '20261025-221':'scripts/validate-special-account-reason-successor.cjs'
+  '20261025-221':'scripts/validate-special-account-reason-successor.cjs',
+  '20261025-222':'scripts/validate-story-case-successor.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);
