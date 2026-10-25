@@ -1555,3 +1555,14 @@ input:focus-visible { outline: 3px solid rgba(52, 152, 219, .45); outline-offset
 .story-case-choice-feedback { font-weight: 600; min-height: 1.4em; }
 .story-case-footnote { font-size: .88rem; opacity: .85; }
 @media (max-width: 420px) { .story-case-decision { padding: .8rem; } .story-case-choices { grid-template-columns: 1fr; } }
+
+/* Release 223: evidence-derived chapter milestones, not fictional ledger state. */
+.story-work-outcomes { margin-block: 1rem; display: grid; gap: .65rem; }
+.story-work-outcomes h3 { margin: 0; font-size: 1.05rem; }
+.story-work-outcomes-note { margin: 0; font-size: .83rem; color: var(--muted,#536173); }
+.story-work-outcome-card { border: 1px solid #c7d0d9; border-radius: .7rem; padding: .8rem 1rem; background: var(--surface,#fff); }
+.story-work-outcome-card h4 { font-size: .95rem; margin: 0 0 .35rem; }
+.story-work-outcome-card p { margin: .3rem 0; }
+.story-work-outcome-card progress { width: 100%; height: .75rem; accent-color: #287b64; }
+.story-case-outcome { border-left: 3px solid #287b64; padding: .6rem .75rem; background: #f2f9f5; color: #184a37; }
+@media (max-width: 450px) { .story-work-outcome-card { padding: .65rem .75rem; } }

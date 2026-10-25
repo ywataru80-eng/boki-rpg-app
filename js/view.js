@@ -784,8 +784,18 @@
     // Chapter cases are reflections, not authoritative answers to the current transaction.
     renderStoryCaseDecision(question, score) {
       if (this.questionMode !== 'story' || !question || !score || typeof score.correct !== 'boolean') return false;
+      // This is a chapter climax, not a question-by-question repeated quiz.
+      // The only authority is the authored BOSS anchor and the existing answer history.
+      const climax = (root.AnchorScenes || []).find(scene => scene.chapter === question.chapter && scene.beat === 'BOSS');
+      if (!this.storyDecisionEligible || !climax || climax.referenceQuestionId !== question.id) return false;
       const target = this.byId('explanation');
       if (!target) return false;
+      // An incorrect first answer can be followed by the same result on reveal.
+      // Reattach the SAME card so the learner's selection/feedback is preserved.
+      if (this.storyDecisionRenderedForQuestionId === question.id && this.storyDecisionPreviousBox) {
+        target.append(this.storyDecisionPreviousBox);
+        return true;
+      }
       const cases = [
         {case:'追加出資の資金はどこへ動いた？', objective:'資金の増加と資金の置き場所を分けて追う', valid:'出資の証憑と現金・預金の移動記録を別々に照合する', trap:'入金があればすべて売上だと報告する', why:'出資は収益ではありません。資金の入手理由と資産内部の移動は別の事象です。', next:'水野先輩へ、出資と預け替えの違いを説明しよう。'},
         {case:'営業の売上報告と伝票が食い違う？', objective:'納品・返品・付随費用を取引単位で確認する', valid:'納品書・返品票・配送伝票を突き合わせる', trap:'営業担当の売上見込みを、そのまま確定した会計数値にする', why:'納品、返品、負担する運賃は資料に基づいて区別します。売上見込みだけでは確定できません。', next:'高橋へ、資料を照合した結果を根拠付きで説明しよう。'},
@@ -827,6 +837,14 @@
         button.addEventListener('click', () => {
           feedback.textContent = option.valid ? '根拠を優先した判断です。' + task.why + ' ' + task.next
             : 'その判断はまだ根拠が不足しています。' + task.why + ' ' + task.next;
+          // A visible record of the decision, not a fictional ledger mutation.
+          const outcome = this.document.createElement('p');
+          outcome.className = 'story-case-outcome';
+          const ready = option.valid && score.correct;
+          outcome.textContent = ready
+            ? '仕事の成果：根拠のある確認方針を整理しました。次の報告に進む準備ができました。' + task.next
+            : '仕事の状態：報告は保留です。証憑と仕訳を確認し、判断の根拠を整えましょう。' + task.next;
+          feedback.append(outcome);
           for (const sibling of choices.children) {
             sibling.disabled = true;
             sibling.setAttribute('aria-pressed', sibling === button ? 'true' : 'false');
@@ -838,6 +856,8 @@
       foot.textContent = 'この振り返りは章全体の判断練習です。今回の仕訳・金額の正答根拠は上の解説で確認してください。';
       box.append(heading, mystery, status, goal, prompt, choices, feedback, foot);
       target.append(box);
+      this.storyDecisionRenderedForQuestionId = question.id;
+      this.storyDecisionPreviousBox = box;
       return true;
     }
     renderNarrativeResult(scenes = [], { mode = 'story', resolved = false, epilogueFacts = [] } = {}) {

@@ -1141,6 +1141,48 @@
       this.document.getElementById('resume-task').textContent = `次の仕事「${next.question}」`;
       this.document.getElementById('resume-progress').textContent = `Chapter進捗 ${chapterIds.filter(id => this.model.state.answeredIds.includes(id)).length} / ${chapterIds.length}｜役職 ${this.rpg.role}`;
       this.document.getElementById('resume-button').dataset.questionId = nextId;
+      Controller.prototype.renderStoryWorkOutcomes.call(this, storyIds, next.chapter);
+    }
+    // Only existing answer and correctness evidence is used; never change cash or profit.
+    renderStoryWorkOutcomes(storyIds, currentChapter) {
+      const panel = this.document?.getElementById?.('story-work-outcomes');
+      if (!panel) return false;
+      panel.replaceChildren();
+      const answered = new Set(this.model.state.answeredIds || []);
+      const correct = new Set(this.model.state.correctIds || []);
+      const add = (element, value) => {
+        const node = this.document.createElement(element);
+        node.textContent = value;
+        return node;
+      };
+      const heading = add('h3', '仕事の成果が見える経理記録');
+      const note = add('p', '提出済みの回答履歴から表示しています。正答・実際の会社の残高や利益、選択肢の評価は変わりません。');
+      note.className = 'story-work-outcomes-note';
+      panel.append(heading, note);
+      for (let chapter = Math.max(1, currentChapter - 1); chapter <= currentChapter; chapter += 1) {
+        const ids = storyIds.filter(id => this.questions[id]?.chapter === chapter);
+        if (!ids.length) continue;
+        const count = ids.filter(id => answered.has(id)).length;
+        const climax = (root.AnchorScenes || []).find(scene => scene.chapter === chapter && scene.beat === 'BOSS');
+        const recorded = Boolean(climax && answered.has(climax.referenceQuestionId));
+        const verified = Boolean(recorded && correct.has(climax.referenceQuestionId) &&
+          !this.model.isUnverified?.('correctIds', climax.referenceQuestionId));
+        const card = this.document.createElement('article');
+        card.className = 'story-work-outcome-card';
+        card.append(add('h4', '第' + chapter + '章｜処理した資料 ' + count + '/' + ids.length + '件'));
+        const meter = this.document.createElement('progress');
+        meter.max = ids.length;
+        meter.value = count;
+        meter.setAttribute('aria-label', '第' + chapter + '章の回答記録');
+        card.append(meter);
+        const state = !recorded ? '章の報告課題はこれから'
+          : verified ? '章の報告課題に正答した記録あり'
+          : '章の報告課題は回答済み・正答を再確認';
+        card.append(add('p', state));
+        if (verified && climax?.hook) card.append(add('small', '次の仕事：' + climax.hook));
+        panel.append(card);
+      }
+      return true;
     }
     resumeCandidate(mode = this.model.state.mode) {
       if (mode === 'desk') return null;
@@ -1171,7 +1213,7 @@
         onConfirm:() => this.start(id)
       });
     }
-    start(id, options = {}) { if (!this.questions[id] || (this.model.state.mode === 'exam' && !this.modeIds().includes(id))) return; if (options.fresh === true) this.model.clearDraft?.(id); this.resetCalculator(); this.submitting = false; this.learningFlow = this.model.state.mode === 'exam' ? null : { questionId:id, phase:'I', hintStage:0, retryCount:0, nextConsumed:false, gameOverPending:false, gameOverDispatched:false }; this.currentId = id; this.learningObservationNumber = this.model.nextLearningObservation?.(id); this.questionStartedAt = Date.now(); this.reviewSourceId = this.model.state.mode === 'review' ? (this.reviewMappings.get(id)?.sourceQuestionId || (this.model.dueReviewIds().includes(id) ? id : null)) : null; this.model.state.currentQuestionId = id; this.model.save(); this.view.resetLearningSurfaces?.(); this.view.renderQuestion(this.questions[id], this.model.state.drafts[id], this.model.state.mode); this.view.setAnswerMode?.('initial'); this.view.show('view-question'); this.document.getElementById('question-filters').hidden = true; this.document.getElementById?.('q-text')?.focus(); const status = this.document.getElementById('save-status'); if (status && this.model.isUnverified?.('drafts',id)) status.textContent = '旧版の未検証の途中入力です。編集でき、回答時に内容を確認します。'; if (status && this.reviewSourceId && this.model.isUnverified?.('reviewSchedule',this.reviewSourceId)) status.textContent = '旧版の復習予定は未検証です。今回の回答から予定を再評価します。過去の復習段階の達成や追加報酬は確定しません。'; }
+    start(id, options = {}) { if (!this.questions[id] || (this.model.state.mode === 'exam' && !this.modeIds().includes(id))) return; if (options.fresh === true) this.model.clearDraft?.(id); this.resetCalculator(); this.submitting = false; this.learningFlow = this.model.state.mode === 'exam' ? null : { questionId:id, phase:'I', hintStage:0, retryCount:0, nextConsumed:false, gameOverPending:false, gameOverDispatched:false }; this.currentId = id; this.learningObservationNumber = this.model.nextLearningObservation?.(id); this.questionStartedAt = Date.now(); this.reviewSourceId = this.model.state.mode === 'review' ? (this.reviewMappings.get(id)?.sourceQuestionId || (this.model.dueReviewIds().includes(id) ? id : null)) : null; this.model.state.currentQuestionId = id; this.model.save(); this.view.resetLearningSurfaces?.(); this.view.storyDecisionRenderedForQuestionId = null; this.view.storyDecisionPreviousBox = null; this.view.storyDecisionEligible = this.model.state.mode === 'story' && !(this.model.state.answeredIds || []).includes(id); this.view.renderQuestion(this.questions[id], this.model.state.drafts[id], this.model.state.mode); this.view.setAnswerMode?.('initial'); this.view.show('view-question'); this.document.getElementById('question-filters').hidden = true; this.document.getElementById?.('q-text')?.focus(); const status = this.document.getElementById('save-status'); if (status && this.model.isUnverified?.('drafts',id)) status.textContent = '旧版の未検証の途中入力です。編集でき、回答時に内容を確認します。'; if (status && this.reviewSourceId && this.model.isUnverified?.('reviewSchedule',this.reviewSourceId)) status.textContent = '旧版の復習予定は未検証です。今回の回答から予定を再評価します。過去の復習段階の達成や追加報酬は確定しません。'; }
     saveDraft(message) {
       if (!this.currentId) return false;
       if (this.model.state.mode !== 'exam' && ['W','R'].includes(this.learningFlow?.phase)) {
