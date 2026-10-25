@@ -723,7 +723,7 @@
       this.renderCorrectJournal(question);
       this.renderExplanation(question, score, userAnswer);
       this.renderAchievement(this.byId('explanation'), achievement);
-      this.renderStoryCaseDecision(question, score);
+      if (typeof this.renderStoryCaseDecision === 'function') this.renderStoryCaseDecision(question, score);
     }
     renderErrorSummary(question, score, userAnswer) {
       const panel = this.byId('result-error-summary');
