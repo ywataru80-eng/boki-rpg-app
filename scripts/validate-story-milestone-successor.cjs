@@ -6,9 +6,9 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8'),original=p=>cp.execFileS
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex');
 assert.equal(git('merge-base',baseline,'HEAD'),baseline,'must descend from accepted Release222');
 assert.equal(git('status','--porcelain','--untracked-files=no'),'','tracked tree must be clean');
-const expected=[".github/workflows/question-quality-ledger-audit.yml","css/style.css","form-a.html","index.html","js/controller.js","js/view.js","pwa-release-manifest.json","reports/auto-gate/audit-locks/phase-b-generation-172.json","scripts/validate-story-milestone-successor.cjs","service-worker.js","tests/audit-matrix.test.js","tests/story-business-decision.test.js"];
+const expected=[".github/workflows/question-quality-ledger-audit.yml","css/style.css","form-a.html","index.html","js/controller.js","js/view.js","pwa-release-manifest.json","reports/auto-gate/audit-locks/phase-b-generation-172.json","reports/auto-gate/audit-locks/phase-b-generation-173.json","scripts/validate-story-milestone-successor.cjs","service-worker.js","tests/audit-matrix.test.js","tests/story-business-decision.test.js"];
 const changed=git('diff','--name-only',baseline,'HEAD').split('\n').filter(Boolean).sort();
-assert.deepEqual(changed,expected,'Release223 change scope must be the twelve approved files');
+assert.deepEqual(changed,expected,'Release223 change scope must be the thirteen approved files');
 for(const f of ['data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','js/model.js','js/rpg.js','js/engine.js','js/feedback.js','js/app.js','js/explanation-design-system.js','js/explanation-model.js','js/explanation-formulas.js','manifest.webmanifest','package.json','reports/auto-gate/audit-locks/phase-b-generation-170.json','reports/auto-gate/audit-locks/phase-b-generation-171.json'])assert.equal(read(f),original(f),f+' immutable');
 for(const f of ['form-a.html','service-worker.js'])assert.equal(read(f),original(f).replaceAll(older,release),f+' only release token');
 assert.equal(read('index.html'),original('index.html').replaceAll(older,release).replace('<article id="story-resume" class="resume-card">','<section id="story-work-outcomes" class="story-work-outcomes" aria-label="章ごとの仕事の成果"></section><article id="story-resume" class="resume-card">'),'index only add milestone section and version');
@@ -27,5 +27,7 @@ for(const [p,v] of Object.entries({...m.assets,...m.pages}))assert.equal(v,hash(
 const phase=require('./qa/phase-b-lifecycle');
 const prev=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-171.json')),g=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-172.json'));
 assert.equal(g.generation,172);assert.deepEqual(g.predecessor,phase.identity(prev),'Gen171 predecessor exact');
-const ok=phase.verifyCurrent();assert(ok.ok,'Gen172 validation: '+ok.errors.join('; '));assert.equal(ok.generation,172);
-console.log('PASS Release223: 12 changed paths, data/grade/history invariance, 20 production PWA assets, Generation172');
+const successor=JSON.parse(read('reports/auto-gate/audit-locks/phase-b-generation-173.json'));
+assert.equal(successor.generation,173);assert.deepEqual(successor.predecessor,phase.identity(g),'Gen172 immutable predecessor exact');
+const ok=phase.verifyCurrent();assert(ok.ok,'Gen173 validation: '+ok.errors.join('; '));assert.equal(ok.generation,173);
+console.log('PASS Release223: 13 changed paths, data/grade/history invariance, 20 production PWA assets, Generation172→173');
