@@ -70,6 +70,17 @@ for(const question of Object.values(q)) for(const correct of [false,true]) {
   instance.byId=()=>container;
   instance.renderExplanation(question,{correct},correct?question.answer:{});
   const nodes=descendants(container), details=nodes.filter(node=>node.tagName==='details');
+  if(question.id==='F001')assert(visible(container).includes('売上原価を二重に引かない'),question.id+' beginner double-counting reason visible');
+  if(question.id==='C002')assert(visible(container).includes('実査では未記帳の税込売上'),question.id+' cash/VAT/loss reasoning visible');
+  if(question.id==='C010')assert(visible(container).includes('社長への報告'),question.id+' grounded narrative purpose visible');
+  if(question.type==='comprehensive'){
+    assert(visible(container).includes('ここでは二度表示しません'),question.id+' placement prompt without duplicate numeric cards');
+    const maps=descendants(container).filter(node=>node.className==='explanation-placement-list');
+    assert.equal(maps.length,1,question.id+' one optional mapping list');
+    assert.equal(maps[0].children.length,question.table.inputCells.length,question.id+' mapping covers each input cell');
+    assert(maps[0].children.every(node=>node.textContent.includes('→')&&!/[0-9][0-9,]{2,}円/.test(node.textContent)),question.id+' label mapping never copies final amounts');
+  }
+
   if(question.type==='worksheet'&&/決算整理・計算問題/u.test(question.category))assert(!container.textContent.includes('精算表'),question.id+': supplementary route also follows the actual calculation format');
   const headings=nodes.filter(node=>/^h[1-5]$/.test(node.tagName)).map(node=>node.textContent);
   assert.strictEqual(new Set(headings).size,headings.length,question.id+': primary and supplementary section headings are distinct');

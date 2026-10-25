@@ -94,33 +94,3 @@ assert.equal(Formulas.build({type:'journal',explanation:'300,000－180,000＝120
 const coincidental={...questions.T001,question:'資料番号2、日付3日、合計5円',table:{...questions.T001.table,rows:[]},answer:{cells:{total_debit:5,total_credit:5}}};
 assert(!Feedback.diagnoseWrongAnswer(coincidental,{cells:{}},{correct:false}).some(d=>d.thinking.includes('2円 ＋ 3円')),'dates and numbers are not valid sum operands');
 console.log(JSON.stringify({status:'PASS',questions:300,scenarios,regressions:'units, transaction reasons, shortage clearing, source checks, actual forms, unresolved formulas, unsupported subset sums'}));
-
-// Release225 explanatory proof: a calculation must lead to the actual input cell;
-// supplemental checks must not change source answers, even after a wrong attempt.
-;(function verifyRelease225ReportBridges(){
-  const Model=require('../js/explanation-model');
-  const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-  const sb={window:{}};vm.runInNewContext(fs.readFileSync('data/questions.js','utf8'),sb);
-  const q=sb.window.QuestionData,original=JSON.stringify(q);
-  const F=Model.build(q.F001,q.F001.answer,{correct:true});
-  assert.equal(F.checks.length,2);
-  assert(F.checks.some(x=>x.expected.includes('400,000円')));
-  assert(F.checks.some(x=>x.expected.includes('180,000円')));
-  const C2=Model.build(q.C002,q.C002.answer,{correct:true});
-  for(const check of ['book-cash-reconciliation','tax-source-reconciliation','negative-income-sign'])
-    assert(C2.checks.some(x=>x.checkKind===check));
-  for(let i=1;i<=10;i++){
-    const x=q['C'+String(i).padStart(3,'0')],a=Model.build(x,x.answer,{correct:true});
-    assert.equal(a.transfer.length,x.table.inputCells.length,x.id+' coverage');
-    for(let j=0;j<x.table.inputCells.length;j++){
-      const key=x.table.inputCells[j],line=a.transfer[j],calc=a.calculation.find(z=>z.cellId===key);
-      assert(line.to.includes(calc.label),x.id+'/'+key+' placement');
-      assert.equal(line.value,x.answer.cells[key],x.id+'/'+key+' amount and sign');
-    }
-    const wrong={cells:{...x.answer.cells,[x.table.inputCells[0]]:'誤入力'}};
-    assert.deepEqual(Model.build(x,wrong,{correct:false}).transfer,a.transfer,x.id+' no answer-based teaching drift');
-  }
-  assert(Model.build(q.C010,q.C010.answer,{correct:true}).summary.some(x=>x.role==='report-intent'));
-  assert.equal(JSON.stringify(q),original,'300 canonical questions must not be edited');
-  console.log('Release225 explanation placement and grounded reporting checks: PASS');
-})();

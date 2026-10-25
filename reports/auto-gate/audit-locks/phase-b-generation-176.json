@@ -10,7 +10,7 @@
     "auditHash": "16ced615f2e21b485dc6b3ef8b8652015c91d955e6d0e0c18346cce242e8c9ca",
     "baselineIdentity": "c1f3bad0ddf284385b27ee31273240b49551091db60fa40cba03bc83a9aa2b9c"
   },
-  "baselineIdentity": "fc72032103f09ea6ffdbea2f63fd4e792a1d6be07f3249b2689e4987414d5082",
+  "baselineIdentity": "47e1cbec1e1806e27a3fe0d515bbc22c83ecbdced3967c35efa19576af4ac44b",
   "productionHashes": {
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369",
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
@@ -26,16 +26,16 @@
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
     "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
     "js/explanation-formulas.js": "1ccc51c1c67a9f5058ba4626b4622edc6ed32fd3dc77b4651554d2a3562d9416",
-    "js/explanation-model.js": "a52e6650d6a61d3dedf4198fee4d1fb47ea64a86c90281605499b1d26bcb51cf",
+    "js/explanation-model.js": "af5c0e1b052c7de0249d3f995df881a44c83dfc46d43a036b3cc6b3669f03241",
     "js/feedback.js": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
     "js/form-a-scoring.js": "0f115fdbd542438685d86a412c02e7a07262b516606c50fbe24409c0536cd086",
     "js/form-a-store.js": "13b5fd463de71b4a0536d7f5813abd21ca35303ada5334835f1fcc36622313b6",
     "js/form-a.js": "9d139b47bd895fd21a30a08d61f2c3e5355642cbadc574b329891bba3fdab430",
     "js/model.js": "9fafb92960072a204fc86e489bf88dfa9cec65151c4f807654d4e93f360094ff",
     "js/rpg.js": "0ac9ab4a9a1dc0488c6d03306d12eb005cfc085c70e15e9f62d45dcefcd0c97e",
-    "js/view.js": "b482918f3be6eab0dc556a30635ce69ec83eac81d5bf4ff54f4fbbaaa43b7200",
+    "js/view.js": "f6801f6cb86da6a4ba8a9f2b27158e65714b02815a643fea2f8ea9d0b5db78ec",
     "manifest.webmanifest": "fcde227f0593c3fc7fd5e8adc89be13201f9a35f74d9ad6a4212b23d2a75bd72",
-    "pwa-release-manifest.json": "20635f5b012e9803fda92ee4b04734b0e98dfed8e2ef0c63c2cddadfcb8cbf29",
+    "pwa-release-manifest.json": "b946e2a2f212fccd0933ac5001474e12fcd8336a589fd41c5b45ba28d95db9b5",
     "service-worker.js": "ed56f14eb2fa2cefd6c2c05ba378989d5e97d993c041329c35fb72b132441f97",
     "types/domain.d.ts": "94f1affd9e89eb139e968940e7a8ce64ca1e3b4728c5f59d9b6de0d97a96e3ec"
   },

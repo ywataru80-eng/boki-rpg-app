@@ -484,72 +484,6 @@
     }
     return out;
   }
-  // Learner-facing bridge only; this does not alter QuestionData, grading or the Oracle.
-  // Every amount comes from the already-derived teaching calculation, not from
-  // a displayed wrong answer. These checks are consistency aids, not proof of grading.
-  function clarifyFinalReporting(q, m){
-    if(q.id==='F001'){
-      const amounts=Object.fromEntries(arr(m.calculation)
-        .filter(x=>x.cellId&&typeof x.result==='number')
-        .map(x=>[x.cellId,x.result]));
-      const {sales,costOfSales,expenses,netIncome}=amounts;
-      if([sales,costOfSales,expenses,netIncome].every(Number.isFinite) &&
-          sales-costOfSales-expenses===netIncome){
-        const gross=sales-costOfSales;
-        m.checks=[...arr(m.checks),
-          {label:'売上総利益を確かめる',expected:`${num(sales)}円 − ${num(costOfSales)}円 ＝ ${num(gross)}円`,
-            note:'売上原価は商品を販売するためにかかった原価です。',evidenceRefs:['materials'],checkKind:'profit-step'},
-          {label:'当期純利益を確かめる',expected:`${num(gross)}円 − ${num(expenses)}円 ＝ ${num(netIncome)}円`,
-            note:'売上原価を費用合計へ二重に含めないでください。',evidenceRefs:['materials'],checkKind:'profit-step'}];
-      }
-    }
-    if(q.id==='C002'){
-      const steps=arr(m.calculation),named=label=>steps.find(x=>x.label===label);
-      const cash=named('決算後現金'),receipt=named('未記帳売上の現金受取額（税込）'),shortage=named('現金不足（雑損）');
-      const sourceText=JSON.stringify(q.materials||[]);
-      const bookBalance=/現金実査前帳簿([0-9,]+)/u.exec(sourceText);
-      const beginning=bookBalance?Number(bookBalance[1].replaceAll(',','')):NaN;
-      if([cash,receipt,shortage].every(x=>Number.isFinite(x?.result))&&
-          Number.isFinite(beginning)&&
-          beginning+receipt.result-cash.result===shortage.result){
-        m.checks=[...arr(m.checks),{
-          label:'未記帳の入金を加えてから現金実査と比べる',
-          expected:`${num(beginning)}円 ＋ ${num(receipt.result)}円 − ${num(cash.result)}円 ＝ ${num(shortage.result)}円`,
-          note:'帳簿と実査の比較に、未記帳の税込現金売上を反映します。',
-          evidenceRefs:['materials'],checkKind:'book-cash-reconciliation'}];
-      }
-      const vat=named('未払消費税');
-      if(Number.isFinite(vat?.result))m.checks=[...arr(m.checks),{
-        label:'消費税は仮受額と仮払額を照合する',
-        expected:String(vat.expression||`${num(vat.result)}円`),
-        note:'未記帳売上の仮受消費税と未処理仕入の仮払消費税も含めます。',
-        evidenceRefs:['materials'],checkKind:'tax-source-reconciliation'}];
-      const income=named('当期純利益');
-      if(typeof income?.result==='number'&&income.result<0)m.checks=[...arr(m.checks),{
-        label:'赤字の符号を確認する',expected:`当期純損失：${num(-income.result)}円（入力欄は ${num(income.result)}円）`,
-        note:'損失は利益欄に負の数で記入します。',
-        evidenceRefs:['materials'],checkKind:'negative-income-sign'}];
-    }
-    // The comprehensive exercise already calculates every requested cell.
-    // Expose *where* the learner should write it; do not generate a second formula.
-    if(q.type==='comprehensive'){
-      const expected=arr(q.table?.inputCells),byCell=new Map();
-      for(const item of arr(m.calculation))if(item?.cellId && expected.includes(item.cellId)&&
-        !byCell.has(item.cellId)&&item.result!=null && item.result!=='' && item.result!=='入力')byCell.set(item.cellId,item);
-      if(byCell.size===expected.length && expected.length>0){
-        m.transfer=expected.map(cell=>{
-          const calc=byCell.get(cell),negative=typeof calc.result==='number'&&calc.result<0;
-          return {from:calc.label,decision:negative?'損失は負の数で記入します。':'上の計算で求めた金額を記入します。',
-            to:`${calc.label}（解答欄）`,value:calc.result,semanticType:'amount',
-            evidenceRefs:['question','materials','table.inputCells']};
-        });
-      }
-      if(q.id==='C010')m.summary=[...arr(m.summary),{
-        text:'社長への報告では、現金の入出金と当月の損益を分けて説明します。掛売上は収益ですが未回収のため現金は増えません。',
-        evidenceRef:'question',role:'report-intent'}];
-    }
-    return m;
-  }
   function merge(g,a){
     if(!obj(a))return g;
     const m={...g,source:'authored'};
@@ -563,6 +497,6 @@
     return m;
   }
   function validate(m){const e=[];if(!obj(m))return{valid:false,errors:['model must be an object']};if(m.schemaVersion!==SCHEMA_VERSION)e.push(`schemaVersion must be ${SCHEMA_VERSION}`);REQUIRED_SECTIONS.forEach(k=>{if(!Array.isArray(m[k]))e.push(`${k} must be an array`);});if(!obj(m.fallback))e.push('fallback must be an object');if(m.fallback&&typeof m.fallback.authoredExplanation!=='string')e.push('fallback.authoredExplanation must be a string');if(m.fallback&&!Array.isArray(m.fallback.diagnostics))e.push('fallback.diagnostics must be an array');return{valid:e.length===0,errors:e};}
-  function build(q,a={},s={correct:false},o={}){if(!obj(q))throw new TypeError('question must be an object');const m=clarifyFinalReporting(q,optimizeInstruction(q,merge(generated(q,a,s,o),q.explanationModel))),v=validate(m);if(!v.valid)throw new Error(`invalid explanation model: ${v.errors.join('; ')}`);return m;}
+  function build(q,a={},s={correct:false},o={}){if(!obj(q))throw new TypeError('question must be an object');const m=optimizeInstruction(q,merge(generated(q,a,s,o),q.explanationModel)),v=validate(m);if(!v.valid)throw new Error(`invalid explanation model: ${v.errors.join('; ')}`);return m;}
   return Object.freeze({SCHEMA_VERSION,REQUIRED_SECTIONS,build,validate});
 });

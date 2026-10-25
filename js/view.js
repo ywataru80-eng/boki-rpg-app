@@ -1326,15 +1326,15 @@
         const items = model[key] || [];
         let primary = items, extra = [];
         if (key === 'sources' || key === 'checks') {
-          // For the final-report exercises, a concise consistency check must be
-          // visible without asking a novice to find a second disclosure.
-          if (key === 'checks' && (question.type === 'comprehensive' || question.id === 'F001')) {
+          // A real separate check for comprehensive closing deserves a first glance;
+          // do not invent an answer-echo check when no independent check exists.
+          if (key === 'checks' && question.type === 'comprehensive') {
             primary = items.slice(0, 1); extra = items.slice(1);
           } else { primary = []; extra = items; }
         }
         if (key === 'summary' && items.some(item => item.evidenceRef === 'explanation')) {
-          primary = items.filter(item => item.evidenceRef === 'explanation' || item.role === 'report-intent');
-          extra = items.filter(item => item.evidenceRef !== 'explanation' && item.role !== 'report-intent');
+          primary = items.filter(item => item.evidenceRef === 'explanation');
+          extra = items.filter(item => item.evidenceRef !== 'explanation');
         }
         if (key === 'mistakes') {
           primary = score.correct ? [] : items.slice(0, 1);
@@ -1342,6 +1342,33 @@
         }
         if (primary.length) flow.append(renderSection(key === 'mistakes' ? 'まず確認する点（原因の候補）' : label, key, primary, primaryIndex++));
         if (extra.length) supplementary.append(renderSection(key === 'summary' && primary.length ? '考え方の補足' : key === 'checks' && primary.length ? '追加の検算' : label, key, extra, null));
+        // The author-provided arithmetic remains the authority. Clarify what the
+        // result means without creating a fake independent check or duplicate card.
+        if (key === 'summary' && ['F001','C002','C010'].includes(question.id)) {
+          const guides = {
+            F001:'売上総利益は売上高から売上原価を引いた金額です。その残りから売上原価以外の費用を引くと当期純利益になります。売上原価を二重に引かないように確認します。',
+            C002:'現金の実査では未記帳の税込売上を帳簿に反映した後で差額を求めます。消費税は仮受と仮払を照合し、赤字は損失として負の数で記入します。',
+            C010:'社長への報告は現金の出入りと当月の収益・費用を分けて説明します。掛売上は収益でも現金の入金ではありません。'
+          };
+          const card = element('section','explanation-meaning-guide');
+          card.append(element('h5','','この仕事で判断すること'),element('p','',guides[question.id]));
+          flow.append(card);
+        }
+        if (key === 'calculation' && question.type === 'comprehensive') {
+          const inputs=question.table?.inputCells || [];
+          const slots=inputs.map(id=>({id,calculation:model.calculation.find(item=>item.cellId===id)}));
+          if(inputs.length && slots.every(slot=>slot.calculation)){
+            const card=element('section','explanation-placement-guide');
+            card.append(element('h5','','解答欄への記入を確認'),element('p','','計算で求めた金額を、同じ項目の解答欄へ記入します。金額は上の計算で確認し、ここでは二度表示しません。'));
+            const details=this.explanationDisclosure('どの計算がどの欄に対応するか確認');
+            const list=element('ol','explanation-placement-list');
+            slots.forEach(slot=>{
+              const label=question.table?.inputMetadata?.[slot.id]?.label || slot.calculation.label;
+              list.append(element('li','',slot.calculation.label+' → '+label+'欄'));
+            });
+            details.append(list);card.append(details);flow.append(card);
+          }
+        }
       });
       if (supplementary.children.length > 1) flow.append(supplementary);
       return flow;
