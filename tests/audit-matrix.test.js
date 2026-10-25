@@ -15,7 +15,8 @@ assert.deepStrictEqual(verifyMatrix(matrix,questions).stale,[{id:'J148',status:'
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');
 const approvedValidators=Object.freeze({
   '20261024-219':'scripts/validate-category-successor.cjs',
-  '20261025-220':'scripts/validate-account-nature-successor.cjs'
+  '20261025-220':'scripts/validate-account-nature-successor.cjs',
+  '20261025-221':'scripts/validate-special-account-reason-successor.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);
