@@ -90,8 +90,10 @@ assert(flat(board).includes('第1章｜処理した資料 1/1件'),'recorded ite
 assert(flat(board).includes('章の報告課題に正答した記録あり'),'verified response not imaginary account movement');
 assert(flat(board).includes('第2章｜処理した資料 1/2件'),'show actual partial progress');
 assert(flat(board).includes('章の報告課題はこれから'),'unsubmitted chapter climax must remain pending');
+assert(!flat(board).includes('次の仕事：'+context.window.AnchorScenes.find(s=>s.chapter===2&&s.beat==='BOSS').hook),'unanswered chapter must not leak the next beat');
 fake.model.state.correctIds=[];fake.renderStoryWorkOutcomes(['J103','J104','J109'],2);
 assert(flat(board).includes('正答を再確認'),'no false success when not correct');
+assert(!flat(board).includes('次の仕事：'+context.window.AnchorScenes.find(s=>s.chapter===1&&s.beat==='BOSS').hook),'wrong BOSS must never reveal success-only scene hook');
 fake.model.state.answeredIds=[];fake.renderStoryWorkOutcomes(['J103','J104','J109'],2);
 assert(flat(board).includes('0/2件'),'fresh player state must start at zero');
 assert(source.includes('this.storyDecisionEligible')&&fs.readFileSync('js/controller.js','utf8').includes('!(this.model.state.answeredIds || []).includes(id)'),'first BOSS attempt only, using saved evidence');
