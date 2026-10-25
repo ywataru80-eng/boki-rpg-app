@@ -25,11 +25,30 @@ const listed=args=>git(...args).split('\n').filter(Boolean);
 // The unchanged Form A unit test writes this report during npm run verify.
 // It is execution evidence, never an allowed tracked source modification.
 const generatedReport='artifacts/form-a-grade-results.json';
+// GitHub's canonical-ledger job checks out a fixed, independently validated historical
+// source *inside* the worktree. Git sees that nested checkout as one untracked directory.
+// Never broadly ignore untracked files: exempt only this exact clean checkout in its CI job.
+const historicalCheckout='historical-quality/';
+const untracked=listed(['ls-files','--others','--exclude-standard']);
+if(untracked.includes(historicalCheckout)){
+ const historicalDir=path.join(root,'historical-quality');
+ assert.equal(process.env.GITHUB_ACTIONS,'true','historical fixture exemption requires GitHub Actions');
+ assert.equal(process.env.GITHUB_JOB,'ledger','historical fixture exemption only applies to canonical-ledger job');
+ assert(fs.existsSync(historicalDir) && fs.lstatSync(historicalDir).isDirectory()
+   && !fs.lstatSync(historicalDir).isSymbolicLink(),'historical fixture must be a real directory');
+ assert.equal(git('-C',historicalDir,'rev-parse','--show-toplevel'),historicalDir,
+   'historical fixture must be its own Git checkout');
+ assert.equal(git('-C',historicalDir,'rev-parse','HEAD'),
+   '37086c6ae6511a249218533375bf6f19dac231d1',
+   'historical fixture must match immutable Release214 source');
+ assert.equal(git('-C',historicalDir,'status','--porcelain','--untracked-files=all'),'',
+   'historical fixture checkout must be clean');
+}
 const changed=[...new Set([
  ...listed(['diff','--name-only',baseline,'HEAD']),
  ...listed(['diff','--name-only','HEAD']),
  ...listed(['diff','--cached','--name-only']),
- ...listed(['ls-files','--others','--exclude-standard']).filter(p=>p!==generatedReport)
+ ...untracked.filter(p=>p!==generatedReport && p!==historicalCheckout)
 ])].sort();
 assert.deepEqual(changed,expected,'Release224 requires exactly ten approved files, no unrelated product edits');
 for(const p of [
