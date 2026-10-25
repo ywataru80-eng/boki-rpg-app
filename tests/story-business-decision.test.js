@@ -49,8 +49,14 @@ for(let chapter=1;chapter<=12;chapter++){
   assert(flat(casePanel).includes('根拠を優先した判断です'),'reasoned decision explains why');
   assert(flat(casePanel).includes('仕事の成果：'),'visible positive work outcome');
   assert(buttons.every(b=>b.disabled),'selection frozen without storing score');
+  explanation.replaceChildren();
+  assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true,'revealed result can attach preserved card');
+  assert.equal(explanation.children[0],casePanel,'same card instance and original feedback preserved');
+  assert(flat(explanation).includes('仕事の成果：'),'selected feedback survives explanation re-render');
   assert.equal(positive.attrs['aria-pressed'],'true');
   assert.equal(negative.attrs['aria-pressed'],'false');
+  // Separate independent attempt fixture; the real controller resets at the next start().
+  view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
   explanation.replaceChildren();
   assert.equal(view.renderStoryCaseDecision(question,{correct:false}),true,'wrong answer still allows non-punitive case reflection');
   assert(flat(explanation).includes('報告を確定せず'),'wrong answer does not imply business success');
@@ -58,6 +64,9 @@ for(let chapter=1;chapter<=12;chapter++){
   another.listeners.click();
   assert(flat(explanation).includes('根拠が不足しています'),'unsafe option is explained');
   assert(flat(explanation).includes('報告は保留です'),'unsafe outcome cannot be misreported as success');
+  const errorBox=explanation.children[0];explanation.replaceChildren();
+  assert.equal(view.renderStoryCaseDecision(question,{correct:false}),true,'wrong-answer reveal restores prior judgement');
+  assert.equal(explanation.children[0],errorBox,'wrong-answer original feedback is not recreated or lost');
 }
 for(const invalid of [0,13,-1,1.5,'invalid',null]){
   explanation.replaceChildren();
