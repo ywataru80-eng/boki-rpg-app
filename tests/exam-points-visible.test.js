@@ -17,6 +17,8 @@ const accepted=instantiate(oldModel),candidate=instantiate(script('js/explanatio
 const ids=Object.keys(candidate.QuestionData);
 assert.equal(ids.length,300);
 let found=0,safe=0,reasonRows=0,totalRuns=0,otherRows=0;
+const approvedTeaching=new Set(['F001',...Array.from({length:10},(_,i)=>'C'+String(i+1).padStart(3,'0'))]);
+let teachingCases=0;
 for(const id of ids){
  const question=candidate.QuestionData[id];
  const previous=accepted.QuestionData[id];
@@ -27,20 +29,35 @@ for(const id of ids){
   const score={correct};
   const before=accepted.ExplanationModel.build(previous,answer,score);
   const after=candidate.ExplanationModel.build(question,answer,score);
-  assert.equal(JSON.stringify(after.transfer),JSON.stringify(before.transfer),id+' transfer/accounting preserved');
+  const finalReport=id.startsWith('C');
+  if(finalReport){
+    assert.equal(before.transfer.length,0,id+' historical transfer authority');
+    assert.equal(after.transfer.length,question.table.inputCells.length,id+' one grounded placement per answer cell');
+    for(const cell of question.table.inputCells){
+      const calc=after.calculation.find(item=>item.cellId===cell);
+      assert(calc&&after.transfer.some(t=>t.value===calc.result&&t.to.includes(calc.label)),id+'/'+cell+' exact placement');
+    }
+  }else assert.equal(JSON.stringify(after.transfer),JSON.stringify(before.transfer),id+' unrelated transfers preserved');
   assert.equal(JSON.stringify(after.calculation),JSON.stringify(before.calculation),id+' calculation preserved');
   assert.equal(JSON.stringify(after.sources),JSON.stringify(before.sources),id+' evidence source preserved');
-  assert.equal(JSON.stringify(after.checks),JSON.stringify(before.checks),id+' arithmetic checks preserved');
+  if(id==='F001'||id==='C002'){
+    assert.deepEqual(JSON.parse(JSON.stringify(after.checks.slice(0,before.checks.length))),JSON.parse(JSON.stringify(before.checks)),id+' old checks preserved');
+    assert.equal(after.checks.length,before.checks.length+(id==='F001'?2:3),id+' exactly reviewed supplemental checks');
+  }else assert.equal(JSON.stringify(after.checks),JSON.stringify(before.checks),id+' unrelated checks preserved');
+  if(approvedTeaching.has(id))teachingCases++;
   const oldSummary=before.summary.map(x=>x.text);
-  const newSummary=after.summary.map(x=>x.text);
+  const canonicalSummary=id==='C010'?after.summary.filter(item=>item.role!=='report-intent'):after.summary;
+  if(id==='C010')assert.equal(after.summary.length,canonicalSummary.length+1,id+' grounded narrative added once');
+  const newSummary=canonicalSummary.map(x=>x.text);
   if(marker&&!oldSummary.some(x=>x.includes(marker))){
    const added='試験のポイント：'+marker;
    assert.equal(newSummary.filter(x=>x===added).length,1,id+' point visible exactly once');
    assert.equal(JSON.stringify(newSummary.filter(x=>x!==added)),JSON.stringify(oldSummary),id+' other reason text unchanged');
-   assert(after.summary.find(x=>x.text===added)?.evidenceRef==='explanation',id+' evidenced point');
+   assert(canonicalSummary.find(x=>x.text===added)?.evidenceRef==='explanation',id+' evidenced point');
    if(!correct)found++;
   }else{
-   assert.equal(JSON.stringify(after),JSON.stringify(before),id+' untouched');
+   const restored={...after,transfer:before.transfer,checks:before.checks,summary:canonicalSummary};
+   assert.equal(JSON.stringify(restored),JSON.stringify(before),id+' only explicitly accepted teaching changes');
    if(!correct)safe++;
   }
   if(question.type==='journal'){
@@ -52,7 +69,8 @@ for(const id of ids){
  }
 }
 assert.equal(found,44,'44 authored exam-point lessons recovered');
-assert.equal(safe,256,'256 questions do not change');
+assert.equal(safe,256,'256 questions with no exam-point alteration (including accepted teaching additions)');
+assert.equal(teachingCases,22,'F001 and 10 comprehensive questions in two grade states');
 assert.equal(reasonRows,349,'349 journal account entries maintained');
 assert.equal(otherRows,150,'other forms untouched');
 assert.equal(totalRuns,600,'300 questions in wrong/correct states');

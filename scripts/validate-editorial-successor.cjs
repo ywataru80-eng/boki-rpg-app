@@ -14,13 +14,13 @@ const approved=[
  '.github/workflows/question-quality-ledger-audit.yml','form-a.html','index.html',
  'js/explanation-model.js','js/view.js','pwa-release-manifest.json',
  lockPath,'scripts/validate-editorial-successor.cjs','service-worker.js',
- 'tests/audit-matrix.test.js','tests/explanation-quality.test.js'
+ 'tests/audit-matrix.test.js','tests/exam-points-visible.test.js','tests/explanation-quality.test.js'
 ].sort();
 assert.equal(git('merge-base',base,'HEAD'),base,'Release224 must be an ancestor');
 const untracked=listed(['ls-files','--others','--exclude-standard']);
 const fixture='historical-quality/';
 if(untracked.includes(fixture)){
- const folder=path.join(root,fixture);
+ const folder=path.resolve(root,fixture);
  assert.equal(process.env.GITHUB_ACTIONS,'true','nested historical checkout requires GitHub Actions');
  assert.equal(process.env.GITHUB_JOB,'ledger','nested historical checkout only allowed for ledger job');
  assert(fs.existsSync(folder)&&fs.lstatSync(folder).isDirectory()&&!fs.lstatSync(folder).isSymbolicLink(),'must be real nested checkout');
@@ -34,7 +34,7 @@ const changed=[...new Set([
  ...listed(['diff','--cached','--name-only']),
  ...untracked.filter(p=>p!=='artifacts/form-a-grade-results.json'&&p!==fixture)
 ])].sort();
-assert.deepEqual(changed,approved,'Release225 must change exactly 11 approved files');
+assert.deepEqual(changed,approved,'Release225 must change exactly 12 approved files');
 for(const p of [
  'data/questions.js','data/accounting-domain.js','data/accounting-oracle.js','data/form-a.json',
  'js/model.js','js/rpg.js','js/engine.js','js/feedback.js','js/controller.js','js/app.js',
@@ -52,6 +52,7 @@ for(const p of ['index.html','form-a.html','service-worker.js']){
 assert.equal(hash('js/explanation-model.js'),'a52e6650d6a61d3dedf4198fee4d1fb47ea64a86c90281605499b1d26bcb51cf','reviewed model required');
 assert.equal(hash('js/view.js'),'b482918f3be6eab0dc556a30635ce69ec83eac81d5bf4ff54f4fbbaaa43b7200','reviewed view required');
 assert.equal(hash('tests/explanation-quality.test.js'),'394ac71189b63b39b0308feb449ab3c77b7493aa3144b046d79e470ba9a62e38','fixed regression test required');
+assert.equal(git('hash-object','tests/exam-points-visible.test.js'),'5d7fd7020dcd3b93a5efc211cd5d1c1915b25558','historical contrast regression must be replaced only with exact strengthened successor');
 for(const [p,anchor,addition] of [
  ['tests/audit-matrix.test.js',"  '20261025-224':'scripts/validate-story-bridge-successor.cjs'",",\n  '20261026-225':'scripts/validate-editorial-successor.cjs'"],
  ['.github/workflows/question-quality-ledger-audit.yml',"            '20261025-224': 'scripts/validate-story-bridge-successor.cjs'",",\n            '20261026-225': 'scripts/validate-editorial-successor.cjs'"]
@@ -83,4 +84,4 @@ if(committed){
  const r=phase.verifyCandidate(lock);
  assert(r.ok,'Generation176 precommit candidate failed: '+r.errors.join('; '));
 }
-console.log('PASS Release225 '+(committed?'committed':'precommit')+': 11 scoped files, 300 immutable, Generation176 continuity');
+console.log('PASS Release225 '+(committed?'committed':'precommit')+': 12 scoped files, 300 immutable, Generation176 continuity');
