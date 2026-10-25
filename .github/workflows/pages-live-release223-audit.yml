@@ -1,0 +1,253 @@
+name: Release223 public HTTPS read-only audit
+on:
+  push:
+    branches:
+      - audit/release223-live-https-20261025
+permissions:
+  contents: read
+jobs:
+  verify-public-pages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: eaf04671df4c892a8cfaff157926299b56125775
+          persist-credentials: false
+      - name: Trust the exact checkout in the root-owned Playwright container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Compare live HTTPS Pages to exact released source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, time, urllib.request, urllib.parse
+          BASE = 'https://ywataru80-eng.github.io/boki-rpg-app/'
+          EXPECTED_RELEASE = '20261025-223'
+          ROOT = pathlib.Path('.')
+          nonce = os.getenv('GITHUB_RUN_ID', 'audit')
+          def digest(b): return hashlib.sha256(b).hexdigest()
+          def get(rel, versioned=False):
+              q = [('audit_run', nonce)]
+              if versioned: q.insert(0, ('v', EXPECTED_RELEASE))
+              url = BASE + rel + '?' + urllib.parse.urlencode(q)
+              req = urllib.request.Request(url, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'User-Agent': 'boki-pages-release-audit/1'})
+              last = None
+              for attempt in range(5):
+                  try:
+                      with urllib.request.urlopen(req, timeout=25) as rsp:
+                          final = urllib.parse.urlparse(rsp.geturl())
+                          assert rsp.status == 200, f'HTTP {rsp.status}: {rel}'
+                          assert final.scheme == 'https' and final.hostname == 'ywataru80-eng.github.io', f'unexpected redirect: {rsp.geturl()}'
+                          return rsp.read()
+                  except Exception as exc:
+                      last = exc
+                      if attempt < 4: time.sleep(5)
+              raise RuntimeError(f'{rel}: {last}')
+          def check_local(rel, remote):
+              local = (ROOT / rel).read_bytes()
+              actual, expected = digest(remote), digest(local)
+              assert actual == expected, f'{rel}: live {actual} != checkout {expected}'
+              print(f'PASS {rel} bytes={len(remote)} sha256={actual}')
+              return actual
+          assert os.getenv('GITHUB_SHA'), 'GitHub run identity missing'
+          assert os.popen('git rev-parse HEAD').read().strip() == 'eaf04671df4c892a8cfaff157926299b56125775', 'checkout must use exact accepted main SHA'
+          raw = get('pwa-release-manifest.json')
+          check_local('pwa-release-manifest.json', raw)
+          manifest = json.loads(raw)
+          assert manifest['release'] == EXPECTED_RELEASE, f'live release={manifest["release"]}'
+          assert manifest['previousRelease'] == '20261025-222'
+          for rel in ('', 'index.html', 'form-a.html', 'service-worker.js'):
+              remote = get(rel)
+              check_local(rel or 'index.html', remote)
+              if rel in ('','index.html','form-a.html','service-worker.js'):
+                  assert EXPECTED_RELEASE.encode() in remote, f'wrong version in {rel}'
+          for rel, expected in manifest['assets'].items():
+              remote = get(rel, True)
+              actual = check_local(rel, remote)
+              assert actual == expected, f'manifest asset mismatch {rel}: {actual} != {expected}'
+          for rel, expected in manifest.get('pages', {}).items():
+              assert digest((ROOT / rel).read_bytes()) == expected, f'manifest page mismatch {rel}'
+          print(json.dumps({'status': 'PASS', 'sourceCommit': 'eaf04671df4c892a8cfaff157926299b56125775', 'publicSite': BASE, 'release': EXPECTED_RELEASE, 'assets': len(manifest['assets']), 'pages': len(manifest.get('pages', {})), 'browserCacheOrExistingUserData': 'NOT TESTED'}, ensure_ascii=False))
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.64.1
+          npx playwright install chromium webkit
+      - name: Check deployed HTTPS startup, worker ownership, cache, and offline persistence
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const {chromium,webkit} = require('playwright');
+          const dns = require('node:dns/promises');
+          const {execFileSync} = require('node:child_process');
+          const site = 'https://ywataru80-eng.github.io/boki-rpg-app/';
+          const blockedRules = [];
+          const unblock = () => {
+            while(blockedRules.length){
+              const [binary,args] = blockedRules.pop();
+              execFileSync('sudo',[binary,'-D',...args],{stdio:'pipe'});
+            }
+          };
+          const blockOrigin = async () => {
+            const addresses = await dns.lookup('ywataru80-eng.github.io',{all:true});
+            assert(addresses.length>0,'no Pages origin IP resolved');
+            for(const item of addresses){
+              const binary=item.family===6?'ip6tables':'iptables';
+              const rule=['OUTPUT','-p','tcp','-d',item.address,'--dport','443','-j','REJECT'];
+              execFileSync('sudo',[binary,'-I',...rule],{stdio:'pipe'});
+              execFileSync('sudo',[binary,'-C',...rule],{stdio:'pipe'});
+              blockedRules.push([binary,rule]);
+            }
+            let unreachable=false;
+            try {
+              await fetch(site+'pwa-release-manifest.json?forced-outage='+Date.now(),{signal:AbortSignal.timeout(7000)});
+            } catch(err) {
+              unreachable=true;
+              console.log('Confirmed Pages origin unreachable during simulated network loss: '+String(err.cause?.code||err.name));
+            }
+            assert(unreachable,'OS-level network block ineffective: origin still reachable');
+            console.log('PASS OS firewall blocked Pages origin on '+addresses.length+' resolved addresses');
+          };
+          const release = '20261025-223';
+          (async()=>{
+            for(const [engine,launcher] of [['chromium',chromium],['webkit',webkit]]){
+              const browser = await launcher.launch({headless:true});
+              try {
+                const context = await browser.newContext({serviceWorkers:'allow'});
+                const page = await context.newPage();
+                const errors=[];
+                page.on('pageerror',err=>errors.push(String(err)));
+                const resp=await page.goto(site,{waitUntil:'load',timeout:60000});
+                assert.equal(resp?.status(),200,engine+' live homepage HTTP');
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                // Verify live Release223 special-account teaching, not just script availability.
+                for(const [width,height] of [[390,844],[1280,800]]){
+                  await page.setViewportSize({width,height});
+                  const audit = await page.evaluate(()=>{
+                    const assertWords=(name,question,words)=>{
+                      const container=document.createElement('div');
+                      new window.AppView(document).renderAccountNature(question,container);
+                      const explanation=container.textContent;
+                      for(const word of words)if(!explanation.includes(word))
+                        throw new Error(name+' missing '+word+': '+explanation);
+                      return name;
+                    };
+                    const J=window.QuestionData;
+                    const checks=[
+                      assertWords('J017 shortage',J.J017,['不足額','現金','借方に記入します']),
+                      assertWords('J050 net profit',J.J050,['当期純利益','損益','繰越利益剰余金']),
+                      assertWords('surplus synthetic',{type:'journal',answer:{debit:[{account:'現金',amount:300}],credit:[{account:'現金過不足',amount:300}]}},['過剰額','現金','貸方に記入します']),
+                      assertWords('net loss synthetic',{type:'journal',answer:{debit:[{account:'繰越利益剰余金',amount:700}],credit:[{account:'損益',amount:700}]}},['当期純損失','借方残高','貸方に記入し']),
+                      assertWords('expense close synthetic',{type:'journal',answer:{debit:[{account:'損益',amount:800}],credit:[{account:'給料',amount:800}]}},['費用勘定','損益の借方に記入します']),
+                      assertWords('revenue close synthetic',{type:'journal',answer:{debit:[{account:'売上',amount:900}],credit:[{account:'損益',amount:900}]}},['収益勘定','損益の貸方に記入します'])
+                    ];
+                    const counts=Object.values(J).reduce((a,q)=>(a[q.type]=(a[q.type]||0)+1,a),{});
+                    if(Object.keys(J).length!==300||counts.journal!==150||counts.correction!==20)
+                      throw new Error('canonical count mismatch '+JSON.stringify(counts));
+                    return {checks,counts};
+                  });
+                  console.log('PASS '+engine+' live special-account explanations viewport='+width+' count='+audit.checks.length+' 300 questions 150 journal 20 correction');
+                }
+                // Release223: validate the live BOSS-only first-encounter judgement and evidence-grounded Story outcome.
+                for(const [width,height] of [[390,844],[1280,800]]){
+                  await page.setViewportSize({width,height});
+                  const cases=await page.evaluate(()=>{
+                    const doc=document,original=doc.getElementById.bind(doc);
+                    const view=new window.AppView(doc);
+                    view.questionMode='story';
+                    let passed=0;
+                    try {
+                      for(let chapter=1;chapter<=12;chapter++){
+                        const climax=window.AnchorScenes.find(s=>s.chapter===chapter&&s.beat==='BOSS');
+                        if(!climax)throw new Error('No BOSS anchor: '+chapter);
+                        const id=climax.referenceQuestionId;
+                        const q=window.QuestionData[id];
+                        if(!q||q.chapter!==chapter)throw new Error('Invalid BOSS question '+id);
+                        const mount=doc.createElement('div');
+                        doc.getElementById=name=>name==='explanation'?mount:original(name);
+                        view.storyDecisionRenderedForQuestionId=null;
+                        view.storyDecisionPreviousBox=null;
+                        view.storyDecisionEligible=true;
+                        if(view.renderStoryCaseDecision({id:'NON_BOSS',chapter},{correct:true})!==false)
+                          throw new Error('Ordinary question repeats choice '+chapter);
+                        if(view.renderStoryCaseDecision(q,{correct:true})!==true)
+                          throw new Error('Missing first BOSS choice '+chapter);
+                        const buttons=mount.querySelectorAll('button.story-case-choice');
+                        if(buttons.length!==2)throw new Error('Expected two options '+chapter);
+                        if(!mount.textContent.includes('採点や報酬に影響しません'))
+                          throw new Error('No non-authority note '+chapter);
+                        buttons[chapter%2===1?1:0].click();
+                        if(!mount.textContent.includes('仕事の成果：'))
+                          throw new Error('Grounded outcome absent '+chapter);
+                        if(![...buttons].every(b=>b.disabled))
+                          throw new Error('Chosen decision can be clicked again '+chapter);
+                        const card=mount.querySelector('section.story-case-decision');
+                        mount.replaceChildren();
+                        if(view.renderStoryCaseDecision(q,{correct:true})!==true || mount.firstElementChild!==card)
+                          throw new Error('Re-render lost chapter choice '+chapter);
+                        view.storyDecisionEligible=false;
+                        mount.replaceChildren();
+                        if(view.renderStoryCaseDecision(q,{correct:true})!==false)
+                          throw new Error('Replay BOSS repeats choice '+chapter);
+                        view.storyDecisionEligible=true;
+                        view.storyDecisionRenderedForQuestionId=null;
+                        view.storyDecisionPreviousBox=null;
+                        if(view.renderStoryCaseDecision(q,{correct:false})!==true)
+                          throw new Error('Wrong answer cannot show education '+chapter);
+                        const wrong=mount.querySelectorAll('button.story-case-choice');
+                        wrong[chapter%2===1?0:1].click();
+                        if(!mount.textContent.includes('報告は保留です'))
+                          throw new Error('Incorrect or unsafe choice falsely succeeds '+chapter);
+                        // Real implementation, fake model evidence: no mutation of user storage.
+                        const panel=doc.createElement('section');
+                        const fake=Object.create(window.AppController.prototype);
+                        fake.document={createElement:tag=>doc.createElement(tag),
+                          getElementById:name=>name==='story-work-outcomes'?panel:null};
+                        fake.questions={[id]:q};
+                        fake.model={state:{answeredIds:[id],correctIds:[id]},isUnverified:()=>false};
+                        if(fake.renderStoryWorkOutcomes([id],chapter)!==true||
+                           !panel.textContent.includes('正答した記録あり'))
+                          throw new Error('Verified work-history card absent '+chapter);
+                        fake.model.state.correctIds=[];
+                        fake.renderStoryWorkOutcomes([id],chapter);
+                        if(!panel.textContent.includes('正答を再確認')||
+                           panel.textContent.includes('次の仕事：'+climax.hook))
+                          throw new Error('Incorrect work history leaks success '+chapter);
+                        passed++;
+                      }
+                    }finally{doc.getElementById=original;}
+                    return passed;
+                  });
+                  console.log('PASS '+engine+' live Release223 BOSS-only first visit, replay suppression, choice persistence, incorrect report hold, Story home progress viewport='+width+' chapters='+cases);
+                }
+                await page.evaluate(()=>navigator.serviceWorker.ready);
+                await page.waitForFunction(async()=>navigator.serviceWorker.controller && (await caches.keys()).includes('boki-rpg-'+ '20261025-223'),null,{timeout:45000});
+                const key='__boki_release_223_live_audit__';
+                await page.evaluate(k=>localStorage.setItem(k,'persisted-across-offline-reload'),key);
+                await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                console.log('PASS '+engine+' online SW-controlled reload');
+                // Latest stable Playwright 1.64.1 regression probe of
+                // microsoft/playwright#42775. No test bypass or route mocking.
+                await context.setOffline(true);
+                await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+                await page.waitForFunction(()=>window.QuestionData&&Object.keys(window.QuestionData).length===300,null,{timeout:30000});
+                assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),'persisted-across-offline-reload',engine+' offline local storage retained');
+                const form=await page.goto(site+'form-a.html',{waitUntil:'domcontentloaded',timeout:45000});
+                assert.equal(form?.status(),200,engine+' offline Form A navigation');
+                assert(!errors.length,engine+' browser exceptions: '+JSON.stringify(errors));
+                await context.setOffline(false);
+                await page.evaluate(k=>localStorage.removeItem(k),key);
+                console.log('PASS '+engine+' live HTTPS startup, 300 questions, SW223 cache, offline reload, persisted storage, Form A navigation');
+                await context.close();
+              } finally { if(engine==='webkit') unblock(); await browser.close(); }
+            }
+            console.log('PASS public live browser engines=2 release='+release+' (simulated storage only; not physical iPhone or migration from an actual user profile)');
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          NODE
