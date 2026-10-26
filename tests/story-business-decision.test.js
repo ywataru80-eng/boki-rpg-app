@@ -50,7 +50,7 @@ for(let chapter=1;chapter<=12;chapter++){
   assert.notEqual(buttons[0].textContent,buttons[1].textContent,'options differ');
   assert.equal(flat(casePanel).includes('根拠を優先した判断です'),false,'feedback not leaked before selection');
   const positive=buttons[chapter%2===1?1:0];
-  const negative=buttons[chapter%2===1?0:1];
+  const negative=buttons[chapter===4?2:chapter%2===1?0:1];
   if(chapter===4){
     assert.equal(buttons.length,3);
     assert(buttons[0].textContent.includes('現金出納帳'));
