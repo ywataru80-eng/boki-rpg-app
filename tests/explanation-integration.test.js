@@ -75,8 +75,9 @@ for(const question of Object.values(q)) for(const correct of [false,true]) {
   if(question.id==='C010')assert(visible(container).includes('社長への報告'),question.id+' grounded narrative purpose visible');
   if(question.type==='comprehensive'){
     assert(visible(container).includes('ここでは二度表示しません'),question.id+' placement prompt without duplicate numeric cards');
+    const mappingModel=sandbox.window.ExplanationModel.build(question,correct?question.answer:{},{correct});
     const mappings=question.table.inputCells.map(id=>{
-      const calculation=model.calculation.find(item=>item.cellId===id);
+      const calculation=mappingModel.calculation.find(item=>item.cellId===id);
       const label=question.table?.inputMetadata?.[id]?.label||calculation.label;
       return calculation.label+' → '+label+'欄';
     });
