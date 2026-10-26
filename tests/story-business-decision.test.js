@@ -45,15 +45,44 @@ for(let chapter=1;chapter<=12;chapter++){
   }
   assert(flat(casePanel).includes('採点や報酬に影響しません'),'explicit non-authority');
   const choices=casePanel.children[5];
-  assert.equal(choices.children.length,2,'two post-answer decisions');
+  assert.equal(choices.children.length,chapter===4?3:2,'chapter 4 has three investigation routes; other chapters retain two choices');
   const buttons=choices.children;
   assert.notEqual(buttons[0].textContent,buttons[1].textContent,'options differ');
   assert.equal(flat(casePanel).includes('根拠を優先した判断です'),false,'feedback not leaked before selection');
   const positive=buttons[chapter%2===1?1:0];
-  const negative=buttons[chapter%2===1?0:1];
+  const negative=buttons[chapter===4?2:chapter%2===1?0:1];
+  if(chapter===4){
+    assert.equal(buttons.length,3);
+    assert(buttons[0].textContent.includes('現金出納帳'));
+    assert(buttons[1].textContent.includes('領収証'));
+    assert(buttons[2].textContent.includes('雑費'));
+  }
   positive.listeners.click();
-  assert(flat(casePanel).includes('根拠を優先した判断です'),'reasoned decision explains why');
+  assert(flat(casePanel).includes(chapter===4?'調査の入口として合理的です。':'根拠を優先した判断です'),'reasoned decision explains why');
   assert(flat(casePanel).includes('仕事の成果：'),'visible positive work outcome');
+  if(chapter===4){
+    assert(flat(casePanel).includes('確認できること：'),'evidence finding shown');
+    assert(flat(casePanel).includes('まだ分からないこと：'),'uncertainty shown');
+    assert(flat(casePanel).includes('次に行うこと：'),'followup shown');
+    assert(!flat(casePanel).includes('原因を解決しました'),'no invented resolution');
+    view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
+    explanation.replaceChildren();
+    assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true);
+    const second=explanation.children[0].children[5].children[1];
+    second.listeners.click();
+    assert(flat(explanation).includes('未記帳の取引を調べられます'),'second legitimate path has a distinct evidence finding');
+    assert(flat(explanation).includes('帳簿との照合なしには確定しません'),'second path retains unknowns');
+    explanation.replaceChildren();
+    view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
+    assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true);
+    explanation.replaceChildren();
+    view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
+    assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true);
+    // Restore original first-option decision card for shared regression assertions.
+    explanation.replaceChildren();
+    explanation.append(casePanel);
+    view.storyDecisionRenderedForQuestionId=question.id;view.storyDecisionPreviousBox=casePanel;
+  }
   assert(buttons.every(b=>b.disabled),'selection frozen without storing score');
   explanation.replaceChildren();
   assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true,'revealed result can attach preserved card');
@@ -66,10 +95,14 @@ for(let chapter=1;chapter<=12;chapter++){
   explanation.replaceChildren();
   assert.equal(view.renderStoryCaseDecision(question,{correct:false}),true,'wrong answer still allows non-punitive case reflection');
   assert(flat(explanation).includes('報告を確定せず'),'wrong answer does not imply business success');
-  const another=explanation.children[0].children[5].children[chapter%2===1?0:1];
+  const another=explanation.children[0].children[5].children[chapter===4?2:chapter%2===1?0:1];
   another.listeners.click();
   assert(flat(explanation).includes('根拠が不足しています'),'unsafe option is explained');
   assert(flat(explanation).includes('報告は保留です'),'unsafe outcome cannot be misreported as success');
+  if(chapter===4){
+    assert(flat(explanation).includes('現金過不足として仮処理'),'unsafe path states correct accounting boundary');
+    assert(!flat(explanation).includes('仕事の成果：'),'unsafe path never grants success');
+  }
   const errorBox=explanation.children[0];explanation.replaceChildren();
   assert.equal(view.renderStoryCaseDecision(question,{correct:false}),true,'wrong-answer reveal restores prior judgement');
   assert.equal(explanation.children[0],errorBox,'wrong-answer original feedback is not recreated or lost');

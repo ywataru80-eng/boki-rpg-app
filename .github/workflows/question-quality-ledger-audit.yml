@@ -39,7 +39,8 @@ jobs:
             '20261025-222': 'scripts/validate-story-case-successor.cjs',
             '20261025-223': 'scripts/validate-story-milestone-successor.cjs',
             '20261025-224': 'scripts/validate-story-bridge-successor.cjs',
-            '20261026-225': 'scripts/validate-editorial-successor.cjs'
+            '20261026-225': 'scripts/validate-editorial-successor.cjs',
+            '20261027-226': 'scripts/validate-gameplay-successor.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);
