@@ -70,7 +70,7 @@ for(let chapter=1;chapter<=12;chapter++){
     assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true);
     const second=explanation.children[0].children[5].children[1];
     second.listeners.click();
-    assert(flat(explanation).includes('記帳漏れを調べられます'),'second legitimate path has a distinct evidence finding');
+    assert(flat(explanation).includes('未記帳の取引を調べられます'),'second legitimate path has a distinct evidence finding');
     assert(flat(explanation).includes('帳簿との照合なしには確定しません'),'second path retains unknowns');
     explanation.replaceChildren();
     view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
