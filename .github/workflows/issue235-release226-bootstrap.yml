@@ -1,24 +1,21 @@
-name: Issue235 Release226 one-shot preparation
+name: Issue235 Release226 lock export
 on:
   push:
     branches: [automation/issue235-release226-preparation]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  prepare:
-    if: github.repository == 'ywataru80-eng/boki-rpg-app'
+  export:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - name: Prepare fresh production candidate from immutable Release225
+      - name: Derive exact tested Generation179 from immutable Release225 source
         run: |
           set -euo pipefail
           cp scripts/prepare-release226.cjs /tmp/issue235-prepare-release226.cjs
@@ -27,27 +24,4 @@ jobs:
           git checkout -b feature/issue235-ch04-release226 origin/main
           node /tmp/issue235-prepare-release226.cjs
           node scripts/validate-gameplay-successor.cjs
-      - name: Install exact dependency lock
-        run: npm ci
-      - name: Mandatory pre-commit verification
-        run: |
-          set -euo pipefail
-          npm run verify
-          python3 tests/learning-effectiveness-independent.py
-          npm run qa:test
-          npm run qa:integrity
-          npm run qa:story
-          python3 scripts/check-explanation-accounting.py
-      - name: Commit, validate committed Generation179 and publish candidate branch
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/question-quality-ledger-audit.yml form-a.html index.html js/view.js pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-179.json scripts/validate-gameplay-successor.cjs service-worker.js tests/audit-matrix.test.js tests/story-business-decision.test.js
-          git diff --cached --check
-          git commit -m "feat(story): release 226 evidence-first chapter 4 pilot (generation 179)"
-          node scripts/validate-gameplay-successor.cjs
-          npm run qa:integrity
-          git status --porcelain
-          test -z "$(git status --porcelain --untracked-files=no)"
-          git push origin HEAD:refs/heads/feature/issue235-ch04-release226
+          node -e "console.log('ISSUE235_GEN179='+JSON.stringify(require('./reports/auto-gate/audit-locks/phase-b-generation-179.json')));console.log('ISSUE235_MANIFEST='+JSON.stringify(require('./pwa-release-manifest.json')))"
