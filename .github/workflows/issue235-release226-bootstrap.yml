@@ -1,27 +1,54 @@
-name: Issue235 Release226 lock export
+name: Issue235 Release226 reviewed-parent finalizer
 on:
   push:
     branches: [automation/issue235-release226-preparation]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  export:
+  finalize:
+    if: github.repository == 'ywataru80-eng/boki-rpg-app'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Derive exact tested Generation179 from immutable Release225 source
+          cache: npm
+      - name: Prepare Release226 on previously authorized workflow-router parent
         run: |
           set -euo pipefail
           cp scripts/prepare-release226.cjs /tmp/issue235-prepare-release226.cjs
-          git fetch origin main feature/issue235-ch04-investigation-pilot automation/issue235-release226-preparation
+          git fetch origin main feature/issue235-ch04-investigation-pilot feature/issue235-ch04-release226-reviewed automation/issue235-release226-preparation
           test "$(git rev-parse origin/main)" = "eddde65e44cc32254a27f22fa8d4f5638430be23"
-          git checkout -b feature/issue235-ch04-release226 origin/main
+          git checkout -b issue235-release226-delivery origin/feature/issue235-ch04-release226-reviewed
           node /tmp/issue235-prepare-release226.cjs
           node scripts/validate-gameplay-successor.cjs
-          node -e "console.log('ISSUE235_GEN179='+JSON.stringify(require('./reports/auto-gate/audit-locks/phase-b-generation-179.json')));console.log('ISSUE235_MANIFEST='+JSON.stringify(require('./pwa-release-manifest.json')))"
+          git diff -- .github/workflows/question-quality-ledger-audit.yml
+          test -z "$(git diff -- .github/workflows/question-quality-ledger-audit.yml)"
+      - name: Install exact dependencies
+        run: npm ci
+      - name: Mandatory precommit verification
+        run: |
+          set -euo pipefail
+          npm run verify
+          python3 tests/learning-effectiveness-independent.py
+          npm run qa:integrity
+          npm run qa:story
+          python3 scripts/check-explanation-accounting.py
+      - name: Finalize immutable Generation179 and push without changing workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          test -z "$(git diff -- .github/workflows/question-quality-ledger-audit.yml)"
+          git add form-a.html index.html pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-179.json tests/audit-matrix.test.js
+          git diff --cached --check
+          git commit -m "feat(story): finish Release226 with immutable Generation179"
+          node scripts/validate-gameplay-successor.cjs
+          npm run qa:integrity
+          test -z "$(git status --porcelain --untracked-files=no)"
+          git push origin HEAD:refs/heads/feature/issue235-ch04-release226-reviewed
