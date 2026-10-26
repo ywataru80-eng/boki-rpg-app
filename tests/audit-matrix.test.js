@@ -19,7 +19,8 @@ const approvedValidators=Object.freeze({
   '20261025-221':'scripts/validate-special-account-reason-successor.cjs',
   '20261025-222':'scripts/validate-story-case-successor.cjs',
   '20261025-223':'scripts/validate-story-milestone-successor.cjs',
-  '20261025-224':'scripts/validate-story-bridge-successor.cjs'
+  '20261025-224':'scripts/validate-story-bridge-successor.cjs',
+  '20261026-225':'scripts/validate-editorial-successor.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);

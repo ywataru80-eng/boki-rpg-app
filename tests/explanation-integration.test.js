@@ -70,6 +70,29 @@ for(const question of Object.values(q)) for(const correct of [false,true]) {
   instance.byId=()=>container;
   instance.renderExplanation(question,{correct},correct?question.answer:{});
   const nodes=descendants(container), details=nodes.filter(node=>node.tagName==='details');
+  if(question.id==='F001')assert(visible(container).includes('売上原価を二重に引かない'),question.id+' beginner double-counting reason visible');
+  if(question.id==='C002')assert(visible(container).includes('実査では未記帳の税込売上'),question.id+' cash/VAT/loss reasoning visible');
+  if(question.id==='C010')assert(visible(container).includes('社長への報告'),question.id+' grounded narrative purpose visible');
+  if(question.type==='comprehensive'){
+    assert(visible(container).includes('ここでは二度表示しません'),question.id+' placement prompt without duplicate numeric cards');
+    const mappingModel=sandbox.window.ExplanationModel.build(question,correct?question.answer:{},{correct});
+    const mappings=question.table.inputCells.map(id=>{
+      const calculation=mappingModel.calculation.find(item=>item.cellId===id);
+      const label=question.table?.inputMetadata?.[id]?.label||calculation.label;
+      return calculation.label+' → '+label+'欄';
+    });
+    const first=descendants(container).filter(node=>node.className==='explanation-placement-first');
+    assert.equal(first.length,1,question.id+' first placement is shown without disclosure');
+    assert(visible(container).includes('最初の記入先：'+mappings[0]),question.id+' first destination is visible');
+    const maps=descendants(container).filter(node=>node.className==='explanation-placement-list');
+    assert.equal(maps.length,question.table.inputCells.length>1?1:0,question.id+' optional remaining destinations');
+    if(maps.length){
+      assert.equal(maps[0].children.length,mappings.length-1,question.id+' no duplicate first destination');
+      assert.strictEqual(JSON.stringify(maps[0].children.map(node=>node.textContent)),JSON.stringify(mappings.slice(1)),question.id+' all other destinations reachable');
+    }
+    assert(!/[0-9][0-9,]{2,}円/.test(first[0].textContent),question.id+' no extra answer echo');
+  }
+
   if(question.type==='worksheet'&&/決算整理・計算問題/u.test(question.category))assert(!container.textContent.includes('精算表'),question.id+': supplementary route also follows the actual calculation format');
   const headings=nodes.filter(node=>/^h[1-5]$/.test(node.tagName)).map(node=>node.textContent);
   assert.strictEqual(new Set(headings).size,headings.length,question.id+': primary and supplementary section headings are distinct');
