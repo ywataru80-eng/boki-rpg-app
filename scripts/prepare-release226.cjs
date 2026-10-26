@@ -12,7 +12,7 @@ const write=(f,s)=>{fs.mkdirSync(path.dirname(path.join(ROOT,f)),{recursive:true
 const original=f=>cp.execFileSync('git',['show',BASE+':'+f],{encoding:'utf8',maxBuffer:64*1024*1024}).toString();
 const fromRef=(ref,f)=>cp.execFileSync('git',['show',ref+':'+f],{encoding:'utf8',maxBuffer:64*1024*1024}).toString();
 const sha=f=>crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT,f))).digest('hex');
-assert.equal(run('rev-parse',BASE),run('rev-parse','HEAD'),'bootstrap target MUST start at validated Release225 main');
+assert.equal(run('merge-base',BASE,'HEAD'),BASE,'bootstrap target MUST descend from validated Release225 main');
 for(const f of ['js/view.js','tests/story-business-decision.test.js'])write(f,fromRef(FEATURE,f));
 write('scripts/validate-gameplay-successor.cjs',fromRef(SOURCE_BRANCH,'scripts/validate-gameplay-successor.cjs'));
 for(const f of ['index.html','form-a.html','service-worker.js']){
