@@ -1360,13 +1360,20 @@
           if(inputs.length && slots.every(slot=>slot.calculation)){
             const card=element('section','explanation-placement-guide');
             card.append(element('h5','','解答欄への記入を確認'),element('p','','計算で求めた金額を、同じ項目の解答欄へ記入します。金額は上の計算で確認し、ここでは二度表示しません。'));
-            const details=this.explanationDisclosure('どの計算がどの欄に対応するか確認');
-            const list=element('ol','explanation-placement-list');
-            slots.forEach(slot=>{
+            // The first destination is visible at a glance. Only additional
+            // destinations need disclosure; never reprint calculated answers.
+            const destinations=slots.map(slot=>{
               const label=question.table?.inputMetadata?.[slot.id]?.label || slot.calculation.label;
-              list.append(element('li','',slot.calculation.label+' → '+label+'欄'));
+              return slot.calculation.label+' → '+label+'欄';
             });
-            details.append(list);card.append(details);flow.append(card);
+            card.append(element('p','explanation-placement-first','最初の記入先：'+destinations[0]));
+            if (destinations.length>1) {
+              const details=this.explanationDisclosure('残り'+(destinations.length-1)+'項目の記入先を確認');
+              const list=element('ol','explanation-placement-list');
+              destinations.slice(1).forEach(destination=>list.append(element('li','',destination)));
+              details.append(list);card.append(details);
+            }
+            flow.append(card);
           }
         }
       });
