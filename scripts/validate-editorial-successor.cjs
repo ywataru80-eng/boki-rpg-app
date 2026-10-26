@@ -56,7 +56,7 @@ for(const p of ['index.html','form-a.html','service-worker.js']){
 }
 assert.equal(hash('js/view.js'),'bf4e22e19bfe25108cb4ea9de7e3d5e2961ba90734079fadedb6ebd448743a2a','reviewed view required');
 assert.equal(git('hash-object','.github/visual/run-explanation-integration.js'),'206ef2f74e8cf6b850106e73516bb54ca091d2bc','precise browser order contract required');
-assert.equal(git('hash-object','tests/explanation-integration.test.js'),'87da0fea9800b2abc50cb4b81bb3184e8b78fe43','focused rendered prose and placement test required');
+assert.equal(git('hash-object','tests/explanation-integration.test.js'),'4cce828a85af5629048c8b1122b74b5d24538e72','focused rendered prose and placement test required');
 for(const [p,anchor,addition] of [
  ['tests/audit-matrix.test.js',"  '20261025-224':'scripts/validate-story-bridge-successor.cjs'",",\n  '20261026-225':'scripts/validate-editorial-successor.cjs'"],
  ['.github/workflows/question-quality-ledger-audit.yml',"            '20261025-224': 'scripts/validate-story-bridge-successor.cjs'",",\n            '20261026-225': 'scripts/validate-editorial-successor.cjs'"]

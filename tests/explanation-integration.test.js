@@ -88,7 +88,7 @@ for(const question of Object.values(q)) for(const correct of [false,true]) {
     assert.equal(maps.length,question.table.inputCells.length>1?1:0,question.id+' optional remaining destinations');
     if(maps.length){
       assert.equal(maps[0].children.length,mappings.length-1,question.id+' no duplicate first destination');
-      assert.deepStrictEqual(maps[0].children.map(node=>node.textContent),mappings.slice(1),question.id+' all other destinations reachable');
+      assert.strictEqual(JSON.stringify(maps[0].children.map(node=>node.textContent)),JSON.stringify(mappings.slice(1)),question.id+' all other destinations reachable');
     }
     assert(!/[0-9][0-9,]{2,}円/.test(first[0].textContent),question.id+' no extra answer echo');
   }
