@@ -828,22 +828,56 @@
       const choices = this.document.createElement('div'); choices.className = 'story-case-choices';
       const feedback = this.document.createElement('p'); feedback.className = 'story-case-choice-feedback';
       feedback.setAttribute('role', 'status');
-      const options = chapter % 2
-        ? [{valid:false,label:task.trap},{valid:true,label:task.valid}]
-        : [{valid:true,label:task.valid},{valid:false,label:task.trap}];
+      // Chapter 4 pilot: the two evidence-first approaches are both legitimate.
+      // They lead to different investigative findings, never fabricated postings.
+      const options = chapter === 4
+        ? [
+          {valid:true,label:'現金出納帳と実査記録から差額を調べる',
+            finding:'帳簿残高と実際の現金の差を特定するための記録を確認できます。',
+            outstanding:'差額の原因は、この資料だけでは確定しません。',
+            followup:'続けて領収証と支払伝票を照合します。'},
+          {valid:true,label:'領収証と支払伝票から記帳漏れを調べる',
+            finding:'記録された支払の根拠と未記帳の取引を調べられます。',
+            outstanding:'現金の実査額との差は、帳簿との照合なしには確定しません。',
+            followup:'続けて現金出納帳と実査記録を照合します。'},
+          {valid:false,label:'原因を調べずに雑費として処理する',
+            finding:'費用と断定するための証拠がありません。',
+            outstanding:'現金差額の原因は未判明のままです。',
+            followup:'差額は根拠なく雑費とせず、現金過不足として仮処理する必要性を含め確認します。'}
+        ]
+        : chapter % 2
+          ? [{valid:false,label:task.trap},{valid:true,label:task.valid}]
+          : [{valid:true,label:task.valid},{valid:false,label:task.trap}];
       for (const option of options) {
         const button = this.document.createElement('button');
         button.type = 'button'; button.className = 'story-case-choice'; button.textContent = option.label;
         button.addEventListener('click', () => {
-          feedback.textContent = option.valid ? '根拠を優先した判断です。' + task.why + ' ' + task.next
-            : 'その判断はまだ根拠が不足しています。' + task.why + ' ' + task.next;
+          feedback.textContent = chapter === 4
+            ? (option.valid ? '調査の入口として合理的です。' : 'このままでは根拠が不足しています。')
+            : option.valid ? '根拠を優先した判断です。' + task.why + ' ' + task.next
+              : 'その判断はまだ根拠が不足しています。' + task.why + ' ' + task.next;
+          if (chapter === 4) {
+            for (const [label, value] of [
+              ['確認できること', option.finding],
+              ['まだ分からないこと', option.outstanding],
+              ['次に行うこと', option.followup]
+            ]) {
+              const detail = this.document.createElement('p');
+              detail.textContent = label + '：' + value;
+              feedback.append(detail);
+            }
+          }
           // A visible record of the decision, not a fictional ledger mutation.
           const outcome = this.document.createElement('p');
           outcome.className = 'story-case-outcome';
           const ready = option.valid && score.correct;
-          outcome.textContent = ready
-            ? '仕事の成果：根拠のある確認方針を整理しました。次の報告に進む準備ができました。' + task.next
-            : '仕事の状態：報告は保留です。証憑と仕訳を確認し、判断の根拠を整えましょう。' + task.next;
+          outcome.textContent = chapter === 4
+            ? ready
+              ? '仕事の成果：調査の手順を整理しました。原因や章全体の完了はまだ確定していません。'
+              : '仕事の状態：報告は保留です。証拠と仕訳の確認を続けましょう。'
+            : ready
+              ? '仕事の成果：根拠のある確認方針を整理しました。次の報告に進む準備ができました。' + task.next
+              : '仕事の状態：報告は保留です。証憑と仕訳を確認し、判断の根拠を整えましょう。' + task.next;
           feedback.append(outcome);
           for (const sibling of choices.children) {
             sibling.disabled = true;
