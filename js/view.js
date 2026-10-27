@@ -817,16 +817,21 @@
       box.className = 'story-case-decision';
       box.setAttribute('aria-label', '章の事件と実務判断');
       const heading = this.document.createElement('h3'); heading.textContent = '第' + chapter + '章｜いま起きている経理事件';
-      const mystery = this.document.createElement('p'); mystery.className = 'story-case-mystery'; mystery.textContent = task.case;
+      const mystery = this.document.createElement('p'); mystery.className = 'story-case-mystery';
+      mystery.textContent = chapter === 4
+        ? task.case + ' 第4章ではすでに現金実査額と帳簿残高の不一致が確認されています。J120の14,000円の小口現金精算・小切手補給は、別の原因未判明の差額を解消する仕訳ではありません。森「残る差額は、何から調べたらいいですか？」'
+        : task.case;
       const status = this.document.createElement('p'); status.className = 'story-case-status';
       status.textContent = score.correct
         ? '今回の解答は確認できました。ただし、この章の業務全体が完了したという意味ではありません。'
         : '今回の解答には相違点があります。報告を確定せず、根拠の確認を続けましょう。';
       const goal = this.document.createElement('p'); goal.textContent = '3分の振り返り目標：' + task.objective;
       const prompt = this.document.createElement('p'); prompt.className = 'story-case-prompt';
-      prompt.textContent = '社内報告へ進むなら、どちらの確認方法を選びますか？（任意・採点や報酬に影響しません）';
+      prompt.textContent = chapter === 4
+        ? '森への報告に向け、最初に何を確認しますか？（任意・採点や報酬に影響しません）'
+        : '社内報告へ進むなら、どちらの確認方法を選びますか？（任意・採点や報酬に影響しません）';
       const choices = this.document.createElement('div'); choices.className = 'story-case-choices';
-      const feedback = this.document.createElement('p'); feedback.className = 'story-case-choice-feedback';
+      const feedback = this.document.createElement(chapter === 4 ? 'div' : 'p'); feedback.className = 'story-case-choice-feedback';
       feedback.setAttribute('role', 'status');
       // Chapter 4 pilot: the two evidence-first approaches are both legitimate.
       // They lead to different investigative findings, never fabricated postings.
@@ -835,15 +840,18 @@
           {valid:true,label:'現金出納帳と実査記録から差額を調べる',
             finding:'帳簿残高と実際の現金の差を特定するための記録を確認できます。',
             outstanding:'差額の原因は、この資料だけでは確定しません。',
-            followup:'続けて領収証と支払伝票を照合します。'},
+            followup:'続けて領収証と支払伝票を照合します。',
+            character:'森「出納帳と実査記録で差額を確認します。原因はまだ決めつけません。」'},
           {valid:true,label:'領収証と支払伝票から記帳漏れを調べる',
             finding:'記録された支払の根拠と未記帳の取引を調べられます。',
             outstanding:'現金の実査額との差は、帳簿との照合なしには確定しません。',
-            followup:'続けて現金出納帳と実査記録を照合します。'},
+            followup:'続けて現金出納帳と実査記録を照合します。',
+            character:'森「領収証と支払伝票を照合します。漏れがあるかはまだ分かりません。」'},
           {valid:false,label:'原因を調べずに雑費として処理する',
             finding:'費用と断定するための証拠がありません。',
             outstanding:'現金差額の原因は未判明のままです。',
-            followup:'差額は根拠なく雑費とせず、現金過不足として仮処理する必要性を含め確認します。'}
+            followup:'差額は根拠なく雑費とせず、現金過不足として仮処理する必要性を含め確認します。',
+            character:'森「証拠がないまま雑費にはしません。資料を確かめます。」'}
         ]
         : chapter % 2
           ? [{valid:false,label:task.trap},{valid:true,label:task.valid}]
@@ -865,6 +873,27 @@
               const detail = this.document.createElement('p');
               detail.textContent = label + '：' + value;
               feedback.append(detail);
+            }
+            const reaction = this.document.createElement('p');
+            reaction.textContent = option.character;
+            feedback.append(reaction);
+            if (option.valid) {
+              const other = options.find(candidate => candidate !== option && candidate.valid);
+              const inspect = this.document.createElement('button');
+              inspect.type = 'button';
+              inspect.className = 'story-case-choice';
+              inspect.textContent = 'もう一方の資料も確認する（任意）';
+              inspect.addEventListener('click', () => {
+                if (inspect.disabled) return;
+                const comparison = this.document.createElement('p');
+                comparison.textContent = '追加照合の視点：' + other.finding + ' ' + other.outstanding;
+                const response = this.document.createElement('p');
+                response.textContent = '森「両方の資料を見比べ、説明できない原因は調査を続けます。」';
+                feedback.append(comparison, response);
+                inspect.disabled = true;
+                inspect.textContent = '追加照合の確認済み';
+              });
+              feedback.append(inspect);
             }
           }
           // A visible record of the decision, not a fictional ledger mutation.

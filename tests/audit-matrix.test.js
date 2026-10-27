@@ -21,7 +21,8 @@ const approvedValidators=Object.freeze({
   '20261025-223':'scripts/validate-story-milestone-successor.cjs',
   '20261025-224':'scripts/validate-story-bridge-successor.cjs',
   '20261026-225':'scripts/validate-editorial-successor.cjs',
-  '20261027-226':'scripts/validate-gameplay-successor.cjs'
+  '20261027-226':'scripts/validate-gameplay-successor.cjs',
+  '20261028-227':'scripts/validate-investigation-successor.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);
