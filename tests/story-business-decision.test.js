@@ -44,6 +44,11 @@ for(let chapter=1;chapter<=12;chapter++){
     assert(context.window.QuestionData.J149.question.includes('約束手形を振り出した'));
   }
   assert(flat(casePanel).includes('採点や報酬に影響しません'),'explicit non-authority');
+  if (chapter === 4) {
+    assert(!casePanel.children[4].textContent.includes('どちら'),'three options do not use two-choice prompt');
+    assert(casePanel.children[4].textContent.includes('最初に何を確認'),'chapter 4 question');
+    assert(flat(casePanel).includes('J120')&&flat(casePanel).includes('森'),'J120/Mori bridge');
+  } else assert(casePanel.children[4].textContent.includes('どちら'),'other chapters retain original binary prompt');
   const choices=casePanel.children[5];
   assert.equal(choices.children.length,chapter===4?3:2,'chapter 4 has three investigation routes; other chapters retain two choices');
   const buttons=choices.children;
@@ -65,6 +70,14 @@ for(let chapter=1;chapter<=12;chapter++){
     assert(flat(casePanel).includes('まだ分からないこと：'),'uncertainty shown');
     assert(flat(casePanel).includes('次に行うこと：'),'followup shown');
     assert(!flat(casePanel).includes('原因を解決しました'),'no invented resolution');
+    assert(flat(casePanel).includes('森「出納帳と実査記録'),'Mori reacts to first evidence');
+    const evidenceBox=casePanel.children[6];
+    const inspect=evidenceBox.children.find(n=>n.tagName==='button'&&n.textContent.includes('もう一方'));
+    assert(inspect,'optional second evidence review button appears');
+    inspect.listeners.click();
+    assert(inspect.disabled&&flat(casePanel).includes('追加照合の視点：'),'second document checked');
+    const detailsBefore=evidenceBox.children.length;inspect.listeners.click();
+    assert.equal(evidenceBox.children.length,detailsBefore,'no duplicate second inspection');
     view.storyDecisionRenderedForQuestionId=null;view.storyDecisionPreviousBox=null;
     explanation.replaceChildren();
     assert.equal(view.renderStoryCaseDecision(question,{correct:true}),true);
@@ -102,6 +115,7 @@ for(let chapter=1;chapter<=12;chapter++){
   if(chapter===4){
     assert(flat(explanation).includes('現金過不足として仮処理'),'unsafe path states correct accounting boundary');
     assert(!flat(explanation).includes('仕事の成果：'),'unsafe path never grants success');
+    assert(!explanation.children[0].children[6].children.some(n=>n.tagName==='button'),'unsafe choice cannot request optional evidence');
   }
   const errorBox=explanation.children[0];explanation.replaceChildren();
   assert.equal(view.renderStoryCaseDecision(question,{correct:false}),true,'wrong-answer reveal restores prior judgement');
