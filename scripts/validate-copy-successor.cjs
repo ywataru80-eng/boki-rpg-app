@@ -1,10 +1,10 @@
 'use strict';
-// Release228/Generation181: scoped user-visible copy and independent prose inventory.
+// Release228/Generation182: scoped user-visible copy and independent prose inventory.
 // Not an acceptance certificate for 300 individual texts or pedagogical effectiveness.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto');
 const BASE='dee5bb92886cd23495cc253bf2404a5f28c4c783';
 const OLD='20261028-227',RELEASE='20261029-228';
-const LOCK='reports/auto-gate/audit-locks/phase-b-generation-181.json';
+const LOCK='reports/auto-gate/audit-locks/phase-b-generation-182.json';
 const raw=(...x)=>cp.execFileSync('git',x,{encoding:'utf8',maxBuffer:64*1024*1024});
 const git=(...x)=>raw(...x).toString('utf8').trim();
 const read=p=>fs.readFileSync(p,'utf8');
@@ -14,7 +14,7 @@ const list=(...x)=>git(...x).split('\n').filter(Boolean);
 const expected=[
  '.github/workflows/question-quality-ledger-audit.yml',
  'form-a.html','index.html','js/controller.js','js/form-a.js','package.json',
- 'pwa-release-manifest.json',LOCK,'scripts/audit-user-facing-prose.cjs',
+ 'pwa-release-manifest.json','reports/auto-gate/audit-locks/phase-b-generation-181.json',LOCK,'scripts/audit-user-facing-prose.cjs',
  'scripts/validate-copy-successor.cjs','service-worker.js',
  'tests/audit-matrix.test.js','tests/learning-recommendation-ux.test.js',
  'tests/user-facing-copy-contract.test.js'
@@ -72,9 +72,10 @@ assert(!read('form-a.html').includes('保存領域での初回提示'),'legacy U
 assert(read('package.json').includes('node tests/user-facing-copy-contract.test.js && node scripts/audit-user-facing-prose.cjs'),'mandatory quality test routing');
 assert(read('tests/audit-matrix.test.js').includes("'20261029-228':'scripts/validate-copy-successor.cjs'"),'matrix route');
 assert(read('.github/workflows/question-quality-ledger-audit.yml').includes("'20261029-228': 'scripts/validate-copy-successor.cjs'"),'CI route');
+// The historical Generation181 authority is verified byte-for-byte by phase.verifyCurrent().
 assert.equal(read(LOCK).length>15000,true,'successor lock missing');
-const l=JSON.parse(read(LOCK));assert.equal(l.generation,181);assert.equal(l.predecessor.generation,180);
+const l=JSON.parse(read(LOCK));assert.equal(l.generation,182);assert.equal(l.predecessor.generation,181);
 const phase=require('./qa/phase-b-lifecycle');
 const v=list('ls-tree','-r','--name-only','HEAD','--',LOCK).includes(LOCK)?phase.verifyCurrent():phase.verifyCandidate(l);
-assert(v.ok,'Generation181 invalid: '+v.errors.join('; '));
-console.log('RELEASE228_COPY_GEN181_PASS; audit inventory is not individual editorial certification');
+assert(v.ok,'Generation182 invalid: '+v.errors.join('; '));
+console.log('RELEASE228_COPY_GEN182_PASS; audit inventory is not individual editorial certification');
