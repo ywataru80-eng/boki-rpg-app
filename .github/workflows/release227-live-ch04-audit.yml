@@ -112,7 +112,11 @@ jobs:
                 assert.equal(await secondary.count(),1);
                 await secondary.tap();
                 assert((await area.innerText()).includes('追加照合の視点：'));
-                assert(await secondary.isDisabled());
+                // The button intentionally renames itself on tap; do not re-query by its old label.
+                const secondaryAfter=area.locator('.story-case-choice-feedback > button');
+                assert.equal(await secondaryAfter.count(),1);
+                assert(await secondaryAfter.isDisabled());
+                assert.equal(await secondaryAfter.textContent(),'追加照合の確認済み');
                 const n=await area.locator('.story-case-choice-feedback p').count();
                 assert.equal(await area.locator('.story-case-choice-feedback p').count(),n);
               }
