@@ -1,6 +1,6 @@
 {
-  "release": "20261029-228",
-  "previousRelease": "20261028-227",
+  "release": "20261029-229",
+  "previousRelease": "20261029-228",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "97b67b248b42cc0734a8ef26c244c46bf4d9748a7cd5e5ccfec0dfe16021909c",
@@ -8,22 +8,22 @@
     "data/accounting-oracle.js": "4f5c58a0447f9d07fa5249202d39600369301254d728b2d7ab3d494a55caac44",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
     "js/model.js": "9fafb92960072a204fc86e489bf88dfa9cec65151c4f807654d4e93f360094ff",
-    "js/rpg.js": "0ac9ab4a9a1dc0488c6d03306d12eb005cfc085c70e15e9f62d45dcefcd0c97e",
+    "js/rpg.js": "c446f3c34173d0c4c9eda3945b13e0fbf94fce1ec88e22e8a4ad596e2f1815dd",
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
     "js/feedback.js": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
     "js/explanation-formulas.js": "1ccc51c1c67a9f5058ba4626b4622edc6ed32fd3dc77b4651554d2a3562d9416",
     "js/explanation-model.js": "af5c0e1b052c7de0249d3f995df881a44c83dfc46d43a036b3cc6b3669f03241",
     "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
-    "js/view.js": "f23889b81587fd4c2f6de6255134845fba3016073a6b54f3f828d3238298048e",
-    "js/controller.js": "4a24830b637e4847cc0739807a93952cf565f03ef6111edb1d065b906c870a9f",
+    "js/view.js": "434a68e1546a0299d710789bc6dcff70e8cff4313e1ed77165e10a29fc02b126",
+    "js/controller.js": "6731bf90ccac57b6c3045531fca41a636b047d8c87f817ab2229ec06c1a4ea8c",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",
     "data/form-a.json": "8d980909e2dccd532bb9f23b6908bcd49fb8b9fdef7fc661afc72799d2a77bc1",
     "js/form-a-scoring.js": "0f115fdbd542438685d86a412c02e7a07262b516606c50fbe24409c0536cd086",
     "js/form-a-store.js": "13b5fd463de71b4a0536d7f5813abd21ca35303ada5334835f1fcc36622313b6",
-    "js/form-a.js": "e738edfe0893e534c819f2ce1e783aca94f9325090d8c06e3afc6b1aa5e30fe6",
+    "js/form-a.js": "7724b8e15e41d38499b6647c9498e42272a5c27faecb8c853bf33947f9faaf58",
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "7db3a600ea196628a3e9cefe25629c85a44b571f282c1bfef9be18feb547dded"
+    "form-a.html": "fc698aab1570f0e7044dc6b66a61ffcfb165cb96276e899b8f8ddfba42eff9ce"
   }
 }
