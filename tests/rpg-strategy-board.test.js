@@ -95,7 +95,7 @@ due = ['L1'];
 Controller.prototype.renderRpgMission.call(context, 1000);
 text = flatten(missionNode);
 assert(text.includes('再戦：復習期限'), '期限到来時は再戦ミッションとして表示する');
-assert(text.includes('1問の復習期限が来ています'), '期限到来件数を表示する');
+assert(text.includes('復習する問題が1問あります。'), '期限到来件数を表示する');
 ctas = buttons(missionNode);
 assert(ctas.some(button => button.dataset.action === 'mode' && button.dataset.mode === 'review'), '期限到来時はReview modeへ誘導する');
 assert(!ctas.some(button => button.dataset.action === 'start-rpg-mission'), '期限到来sourceを通常ミッションとして直接開始しない');
