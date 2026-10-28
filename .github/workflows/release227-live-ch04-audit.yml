@@ -70,12 +70,17 @@ jobs:
             try{
               const nav=await page.goto(BASE,{waitUntil:'load',timeout:45000});
               assert.equal(nav.status(),200);
-              await page.waitForFunction(()=>typeof window.AppView==='function' && Boolean(window.QuestionData?.J120));
-              await page.waitForTimeout(150);
+              await page.waitForFunction(()=>typeof window.AppView==='function' && Boolean(window.QuestionData?.J120) && Boolean(window.App?.controller));
+              await page.waitForTimeout(350);
               const start=await page.evaluate((correct)=>{
                 const snapshot=Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)]));
-                document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-                document.querySelector('#view-result').classList.add('active');
+                // This harness bypasses the first-run placement screen solely to render the
+                // post-answer card. Hide all unrelated screens as the existing visual harness does.
+                document.querySelectorAll('.view').forEach(x=>{
+                  const result=x.id==='view-result';
+                  x.classList.toggle('active',result);
+                  x.style.display=result?'block':'none';
+                });
                 const area=document.querySelector('#explanation');area.replaceChildren();
                 const v=new window.AppView(document);
                 v.questionMode='story';v.storyDecisionEligible=true;
