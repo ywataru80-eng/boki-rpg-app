@@ -1,0 +1,74 @@
+name: Release229 independent public HTTPS exact-byte audit
+on:
+  push:
+    branches: [audit/release229-public-https-20261029]
+permissions:
+  contents: read
+jobs:
+  audit-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit exact public HTTPS bytes against merged main
+        run: |
+          node <<'NODE'
+          'use strict';
+          const fs=require('node:fs'),crypto=require('node:crypto'),cp=require('node:child_process'),assert=require('node:assert/strict');
+          const base='https://ywataru80-eng.github.io/boki-rpg-app/';
+          const production='3ed53a7dc4f1a55785404b2f2690a71d7a0b9c39';
+          const report={release:'20261029-229',production,base,status:'IN_PROGRESS',checks:[],limitations:[
+            'Public exact-byte HTTPS verification does not equal physical iPhone operation',
+            'The 300-ID terminology test is not a human TAC or narrative quality certification'
+          ]};
+          fs.mkdirSync('artifacts/release229-live',{recursive:true});
+          const save=()=>fs.writeFileSync('artifacts/release229-live/evidence.json',JSON.stringify(report,null,2)+'\n');
+          const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
+          (async()=>{
+            try{
+              assert.equal(cp.execFileSync('git',['rev-parse','HEAD^'],{encoding:'utf8'}).trim(),production,'audit branch parent must be exact published main');
+              const m=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+              assert.equal(m.release,'20261029-229');
+              assert.equal(m.previousRelease,'20261029-228');
+              const all=[...new Set(['index.html','form-a.html','service-worker.js','pwa-release-manifest.json','manifest.webmanifest',...Object.keys(m.assets),...Object.keys(m.pages)])];
+              assert.equal(all.length,25);
+              for(const f of all){
+                const file=fs.readFileSync(f),expected=sha(file);
+                if(m.assets[f])assert.equal(m.assets[f],expected,'manifest asset digest '+f);
+                if(m.pages[f])assert.equal(m.pages[f],expected,'manifest page digest '+f);
+                const url=new URL(f,base).href;let actual,attempt=0;
+                for(;attempt<4;attempt++){
+                  const response=await fetch(url,{cache:'no-store',headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(25000)});
+                  assert.equal(response.status,200,'site status '+f);
+                  actual=Buffer.from(await response.arrayBuffer());
+                  if(sha(actual)===expected)break;
+                  if(attempt<3)await new Promise(ok=>setTimeout(ok,5000));
+                }
+                assert.equal(sha(actual),expected,'actual HTTPS byte differs from main: '+f);
+                report.checks.push({file,sha256:expected,bytes:actual.length,attempts:attempt+1});
+                save();
+              }
+              const html=fs.readFileSync('index.html','utf8'),form=fs.readFileSync('form-a.html','utf8');
+              assert(html.includes('3伝票制の実務演習'));
+              assert(form.includes('3伝票制の実務演習'));
+              assert(!html.includes('Form A')&&!form.includes('Form A')&&!form.includes('取引ID'));
+              assert(!fs.readFileSync('js/view.js','utf8').includes('Boss Case'));
+              assert(!fs.readFileSync('js/rpg.js','utf8').includes('Boss Case'));
+              assert(fs.readFileSync('js/form-a.js','utf8').includes('learnerText(scorer.fixture.question)'));
+              report.status='PASS';save();
+              console.log('RELEASE229_PUBLIC_HTTPS_PASS '+JSON.stringify({files:report.checks.length,release:m.release,production,labels:'no Form A/Boss Case in rendered page source',totalBytes:report.checks.reduce((n,x)=>n+x.bytes,0)}));
+            }catch(e){report.status='FAIL';report.error=String(e.stack||e);save();console.error(report.error);process.exitCode=1;}
+          })();
+          NODE
+      - name: Retain independent live HTTPS proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release229-public-https-proof
+          path: artifacts/release229-live/evidence.json
+          if-no-files-found: error
