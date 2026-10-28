@@ -1060,8 +1060,8 @@
         const copy = make('div', 'study-recommendation-copy');
         copy.append(
           make('span', 'study-recommendation-badge', '復習期限'),
-          make('strong', '', `${dueIds.length}問の復習期限が来ています`),
-          make('p', 'study-recommendation-reason', first ? `${first.category || '学習済み問題'}から復習を始めます。期限前の問題は前倒ししません。` : '期限が来た問題から復習します。')
+          make('strong', '', `復習する問題が${dueIds.length}問あります。`),
+          make('p', 'study-recommendation-reason', first ? `${first.category || '学習済み問題'}から取り組みます。復習期限前の問題は含まれません。` : '復習期限に達した問題から取り組みます。')
         );
         const button = make('button', '', '復習モードへ');
         button.type = 'button';
