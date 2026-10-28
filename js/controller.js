@@ -826,7 +826,7 @@
       const card = make('article', `rpg-mission-card ${mission.kind === 'review' ? 'due-review' : ''}`.trim());
       const copy = make('div', 'rpg-mission-copy');
       const reason = mission.kind === 'review'
-        ? `${mission.dueCount}問の復習期限が来ています。期限が来た問題から再戦します。`
+        ? `復習する問題が${mission.dueCount}問あります。復習モードから取り組みましょう。`
         : (mission.priority?.reasons || []).join('・');
       const skillText = mission.skill
         ? `対応スキル：${mission.skill} ${Math.round(Math.max(0, Math.min(1, mission.skillMastery || 0)) * 100)}%`
