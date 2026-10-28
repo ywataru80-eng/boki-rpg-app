@@ -19,7 +19,7 @@
       const empty=node('option','選んでください',select);empty.value='';for(const choice of scorer.fixture.choices){const option=node('option',choice,select);option.value=choice;}select.value=row.voucher;
       const label=node('label','金額',pair),line=node('span','',label);line.className='amount-line';const input=node('input','',line);input.type='text';input.inputMode='numeric';input.maxLength=64;input.id='amount-'+id;input.value=row.amount;input.setAttribute('aria-label','取引'+id+'の金額');node('span','円',line);
     }
-    byId('exercise').hidden=false;message('この保存領域での提示 '+a.ordinal+' 回目。入力は自動保存します。');byId('exercise-title').focus();
+    byId('exercise').hidden=false;message('このブラウザーの記録では'+a.ordinal+'回目の挑戦です。入力内容は自動保存されます。');byId('exercise-title').focus();
   }
   function answerList(parent,receipt){
     parent.replaceChildren();for(const row of receipt.answer){const d=receipt.result.details.find(item=>item.id===row.id),card=node('p','',parent);card.className='result-row';card.textContent='取引'+row.id+'：'+(row.voucher||'未選択')+' ／ '+(row.amount||'未入力')+'円 — 分類 '+(d.voucherCorrect?'正解':'誤答')+'・金額 '+(d.amountCorrect?'正解':'誤答');}
