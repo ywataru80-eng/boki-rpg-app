@@ -41,7 +41,8 @@ assert(originalController.includes(beforeReview),'old review explanation baselin
 assert.equal(read('js/controller.js'),originalController.replace(beforeReview,afterReview),'controller may change only due review copy');
 const oldForm=old('js/form-a.js');
 const updates=[
- ['この保存領域での提示 \'+a.ordinal+\' 回目。入力は自動保存します。','このブラウザーの記録では\'+a.ordinal+\'回目の挑戦です。入力内容は自動保存されます。'],
+ ['この保存領域での提示 ','このブラウザーの記録では'],
+ [' 回目。入力は自動保存します。','回目の挑戦です。入力内容は自動保存されます。'],
  ['この保存領域で最初に提示した試行の結果です。過去の閲覧経験は不明です。','このブラウザーに保存されている最初の挑戦の結果です。別の端末で学習したかどうかは分かりません。'],
  ['再受験の結果です。この保存領域での最初の結果は変更されません。','2回目以降の挑戦です。最初の結果はそのまま残ります。'],
  ['保存領域を利用できます。開始すると最初の提示を記録します。','準備できました。「確認を始める」を押すと、最初の挑戦として記録します。']
