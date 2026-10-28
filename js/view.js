@@ -121,8 +121,8 @@
       const operations = [
         { level:5, label:'税込・税抜クイック計算', action:'tax-calculate', detail:'請求書の税込額を即座に確認' },
         { level:10, label:'過去ログ分析', action:'open-log-analysis', detail:'誤答傾向から次の調査先を特定' },
-        { level:20, label:'月次決算 Boss Case', action:'start-boss', boss:'monthly', detail:'試算表・精算表の難関案件' },
-        { level:30, label:'年度決算 Boss Case', action:'start-boss', boss:'annual', detail:'財務諸表を完成させ社長へ報告' }
+        { level:20, label:'月次決算の特別案件', action:'start-boss', boss:'monthly', detail:'試算表・精算表の難関案件' },
+        { level:30, label:'年度決算の特別案件', action:'start-boss', boss:'annual', detail:'財務諸表を完成させ社長へ報告' }
       ];
       panel.replaceChildren(...operations.map(item => {
         const card = this.document.createElement('article'); card.className = `operation-card${rpg.level >= item.level ? ' unlocked' : ' locked'}`;
@@ -1038,7 +1038,7 @@
     renderAchievement(anchor, achievement = {}) {
       let banner = this.byId('achievement-banner');
       if (!banner) { banner = this.document.createElement('aside'); banner.id = 'achievement-banner'; banner.className = 'achievement-banner'; banner.setAttribute('role', 'status'); banner.setAttribute('aria-live', 'polite'); anchor.after(banner); }
-      const unlocks = [achievement.reward || '', achievement.level ? `LEVEL UP！ Lv.${achievement.level}` : '', achievement.role ? `NEW ROLE！「${achievement.role}」解放 — 新ツールと専用Boss Caseを確認できます` : ''].filter(Boolean);
+      const unlocks = [achievement.reward || '', achievement.level ? `レベルアップ！ Lv.${achievement.level}` : '', achievement.role ? `新しい役職「${achievement.role}」に昇格しました。新しい仕事と機能を確認できます` : ''].filter(Boolean);
       banner.hidden = unlocks.length === 0; banner.textContent = unlocks.join(' ／ ');
       anchor.after(banner);
     }

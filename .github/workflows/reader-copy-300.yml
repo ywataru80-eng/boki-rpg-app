@@ -1,0 +1,41 @@
+name: 300 problem and explanation reader-terminology audit
+on:
+  pull_request:
+    paths:
+      - 'data/questions.js'
+      - 'js/**'
+      - 'index.html'
+      - 'form-a.html'
+      - 'scripts/audit-all300-reader-terminology.cjs'
+      - '.github/workflows/reader-copy-300.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'js/**'
+      - 'index.html'
+      - 'form-a.html'
+      - 'scripts/audit-all300-reader-terminology.cjs'
+permissions:
+  contents: read
+jobs:
+  review-all-300:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Evaluate all 300 original and runtime question/explanation records
+        env:
+          ALL300_AUDIT_OUTPUT: artifacts/reviewed-300-reader-terminology.json
+        run: |
+          node scripts/audit-all300-reader-terminology.cjs
+          node tests/user-facing-copy-contract.test.js
+      - name: Retain all 300 record-specific evidence, including failures
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: all300-reader-terminology-audit
+          path: artifacts/reviewed-300-reader-terminology.json
+          if-no-files-found: warn
