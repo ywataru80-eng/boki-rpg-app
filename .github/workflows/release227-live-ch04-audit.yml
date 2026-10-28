@@ -1,0 +1,157 @@
+name: Release227 independent live HTTPS Chapter4 audit
+on:
+  push:
+    branches: [audit/release227-live-ch04-20261028]
+permissions:
+  contents: read
+jobs:
+  published-ch04:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install pinned browser test runner
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Install actual Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
+      - name: Verify real public HTTPS bytes and exercise actual Chapter4 Story DOM
+        env:
+          AUDIT_BASE_SHA: dee5bb92886cd23495cc253bf2404a5f28c4c783
+        run: |
+          node <<'NODE'
+          'use strict';
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          const crypto=require('node:crypto');
+          const {chromium,webkit}=require('playwright');
+          const BASE='https://ywataru80-eng.github.io/boki-rpg-app/';
+          const EXPECTED='20261028-227';
+          const MAIN='dee5bb92886cd23495cc253bf2404a5f28c4c783';
+          const outDir='artifacts/release227-live-ch04';
+          const evidence={release:EXPECTED,sourceCommit:MAIN,site:BASE,status:'RUNNING',assetChecks:[],browserChecks:[],limitations:[
+            'Playwright mobile emulation, not a physical iPhone',
+            'Rendered post-answer Story scene using actual deployed AppView and touch input; does not claim a human completed the full 300-question journey',
+            'No enrolled learner; enjoyment, transfer, delayed retention unmeasured'
+          ]};
+          fs.mkdirSync(outDir,{recursive:true});
+          const save=()=>fs.writeFileSync(path.join(outDir,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');
+          const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+          async function exactHTTPS(){
+            const manifest=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+            assert.equal(manifest.release,EXPECTED);
+            assert.equal(process.env.AUDIT_BASE_SHA,MAIN);
+            assert.equal(require('node:child_process').execFileSync('git',['rev-parse',MAIN],{encoding:'utf8'}).trim(),MAIN);
+            const files=[...new Set(['index.html','form-a.html','service-worker.js','pwa-release-manifest.json','manifest.webmanifest',...Object.keys(manifest.assets),...Object.keys(manifest.pages||{})])];
+            for (const f of files){
+              const expected=fs.readFileSync(f);
+              if(manifest.assets[f])assert.equal(sha(expected),manifest.assets[f],'committed asset manifest '+f);
+              if(manifest.pages?.[f])assert.equal(sha(expected),manifest.pages[f],'committed page manifest '+f);
+              const url=new URL(f,BASE).href;
+              const res=await fetch(url,{cache:'no-store',headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(25000)});
+              assert.equal(res.status,200,'live HTTPS status '+f);
+              const actual=Buffer.from(await res.arrayBuffer());
+              assert.equal(sha(actual),sha(expected),'live byte hash '+f);
+              evidence.assetChecks.push({path:f,sha256:sha(actual),bytes:actual.length});
+            }
+            save();
+          }
+          // Mobile Chrome/WebKit reads the deployed JavaScript and dispatches real pointer/touch actions.
+          async function play(engine,launcher,width,route,correct){
+            const browser=await launcher.launch({headless:true});
+            const context=await browser.newContext({viewport:{width,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:2});
+            const page=await context.newPage();const errors=[];
+            page.on('pageerror',e=>errors.push(String(e?.message||e)));
+            try{
+              const nav=await page.goto(BASE,{waitUntil:'load',timeout:45000});
+              assert.equal(nav.status(),200);
+              await page.waitForFunction(()=>typeof window.AppView==='function' && Boolean(window.QuestionData?.J120));
+              await page.waitForTimeout(150);
+              const start=await page.evaluate((correct)=>{
+                const snapshot=Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)]));
+                document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+                document.querySelector('#view-result').classList.add('active');
+                const area=document.querySelector('#explanation');area.replaceChildren();
+                const v=new window.AppView(document);
+                v.questionMode='story';v.storyDecisionEligible=true;
+                if(!v.renderStoryCaseDecision(window.QuestionData.J120,{correct}))throw Error('CH04_NOT_RENDERED');
+                const card=area.querySelector('.story-case-decision');
+                return {storage:snapshot,prompt:card.querySelector('.story-case-prompt').textContent,
+                  labels:[...card.querySelectorAll('.story-case-choices > button')].map(x=>x.textContent),
+                  wrongHint:card.querySelector('.story-case-status')?.textContent};
+              },correct);
+              assert.equal(start.labels.length,3);
+              assert(!start.prompt.includes('どちら'));
+              assert(start.prompt.includes('最初に何を確認'));
+              assert(start.labels[0].includes('現金出納帳'));
+              assert(start.labels[1].includes('領収証'));
+              assert(start.labels[2].includes('雑費'));
+              const first=page.locator('.story-case-decision .story-case-choices > button');
+              await first.nth(route).tap();
+              assert.equal(await page.locator('.story-case-decision .story-case-choices > button:disabled').count(),3);
+              const area=page.locator('.story-case-decision');
+              const txt=await area.innerText();
+              assert(txt.includes('確認できること：')&&txt.includes('まだ分からないこと：')&&txt.includes('次に行うこと：'));
+              assert(txt.includes('森「'));
+              assert(!txt.includes('原因を解決しました'));
+              assert(!txt.includes('利益が確定'));
+              if(route===2||!correct)assert(txt.includes('報告は保留'));
+              if(route===2){assert(!txt.includes('仕事の成果：'));assert.equal(await area.locator('button:has-text("もう一方の資料も確認")').count(),0);}
+              else{
+                const secondary=area.getByRole('button',{name:'もう一方の資料も確認する（任意）'});
+                assert.equal(await secondary.count(),1);
+                await secondary.tap();
+                assert((await area.innerText()).includes('追加照合の視点：'));
+                assert(await secondary.isDisabled());
+                const n=await area.locator('.story-case-choice-feedback p').count();
+                assert.equal(await area.locator('.story-case-choice-feedback p').count(),n);
+              }
+              const state=await page.evaluate(()=>{
+                const card=document.querySelector('.story-case-decision');
+                const st=Object.fromEntries(Object.keys(localStorage).sort().map(k=>[k,localStorage.getItem(k)]));
+                const vw=document.documentElement;
+                const choiceButtons=[...card.querySelectorAll('.story-case-choices > button')];
+                return {storage:st,overflow:vw.scrollWidth>vw.clientWidth+1,
+                  minTapHeight:Math.min(...choiceButtons.map(b=>b.getBoundingClientRect().height)),
+                  selected:choiceButtons.filter(b=>b.getAttribute('aria-pressed')==='true').length};
+              });
+              assert.deepEqual(state.storage,start.storage,'Story optional decision mutated persisted storage');
+              assert.equal(state.overflow,false,'horizontal overflow at '+width);
+              assert(state.minTapHeight>=44,'touch target under 44px');
+              assert.equal(state.selected,1);
+              assert.deepEqual(errors,[],'JS errors');
+              if(engine==='chromium'&&width===390&&route===0&&correct){
+                await area.screenshot({path:path.join(outDir,'ch04-390-chromium.png')});
+              }
+              evidence.browserChecks.push({engine,width,route,correct,steps:['live load','story-only BOSS render','3 choices','tap','feedback','result guard','storage unchanged','mobile width','touch target'],scrollWidthOK:true});
+              save();
+            }finally{await context.close();await browser.close();}
+          }
+          (async()=>{
+            try{
+              await exactHTTPS();
+              for(const [engine,launcher] of Object.entries({chromium,webkit})){
+                for(const width of [320,390,430]){
+                  for(const route of [0,1,2]){
+                    for(const correct of [true,false])await play(engine,launcher,width,route,correct);
+                  }
+                }
+              }
+              assert.equal(evidence.browserChecks.length,36);
+              evidence.status='PASS';save();
+              console.log('LIVE_RELEASE227_CH04_PASS',JSON.stringify({assets:evidence.assetChecks.length,browserPaths:evidence.browserChecks.length,engines:['chromium','webkit'],widths:[320,390,430]}));
+            }catch(err){evidence.status='FAIL';evidence.error=String(err?.stack||err);save();console.error(evidence.error);process.exitCode=1;}
+          })();
+          NODE
+      - name: Upload independent audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release227-independent-live-ch04
+          path: artifacts/release227-live-ch04/
+          if-no-files-found: warn
