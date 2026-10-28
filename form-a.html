@@ -4,34 +4,34 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2c3e50"><title>伝票分類の確認 Form A | 簿記RPG</title>
   <link rel="icon" href="icons/app-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/form-a.css?v=20261028-227">
+  <link rel="stylesheet" href="css/form-a.css?v=20261029-228">
 </head>
 <body>
 <main>
-  <header><a href="./?mode=training">トレーニングへ戻る</a><p class="eyebrow">学んだことを別の取引で確認</p><h1>伝票分類の確認 <span>Form A</span></h1></header>
-  <p id="status" role="status" aria-live="polite">保存領域を確認しています。</p>
+  <header><a href="./?mode=training">トレーニングへ戻る</a><p class="eyebrow">学んだことを別の取引で確認</p><h1>伝票分類の確認 <span>独立練習 Form A</span></h1></header>
+  <p id="status" role="status" aria-live="polite">このブラウザーの保存データを確認しています。</p>
   <p id="error" role="alert" hidden></p>
   <button id="reopen" type="button" hidden>保存済みの状態を開く</button>
   <p id="update-status" role="status" hidden></p>
   <section id="intro" hidden aria-labelledby="intro-title"><h2 id="intro-title">4つの取引を、伝票に分類します</h2>
     <p>伝票の種類と金額を入力します。時間制限はありません。提出前のヒントはなく、提出・保存の後に解説を確認できます。</p>
-    <p>この確認の記録は独立して保存されます。通常の復習・模試・経験値・報酬には影響しません。</p>
-    <details><summary>記録について</summary><p>このブラウザーの保存領域での初回提示と、その回答結果を記録します。過去に別の端末で見たかどうかは判断できず、初見での正答を証明するものではありません。再受験しても最初の結果は残ります。通常の進捗バックアップには含まれません。</p></details>
+    <p>この練習は本編のストーリーと独立しています。結果はこのブラウザーに別保存され、通常の復習・模試・経験値・報酬には影響しません。</p>
+    <details><summary>記録について</summary><p>このブラウザーで最初に問題を表示した記録と、提出した結果を保存します。別の端末で学習済みかどうかは分からないため、初見での正解とは判定しません。再挑戦しても最初の提出結果は残ります。本編の進捗バックアップには含まれません。</p></details>
     <button id="start" type="button">確認を始める</button>
   </section>
-  <section id="exercise" hidden aria-labelledby="exercise-title"><h2 id="exercise-title" tabindex="-1">今回の取引</h2><p id="question"></p>
+  <section id="exercise" hidden aria-labelledby="exercise-title"><h2 id="exercise-title" tabindex="-1">4件の伝票分類</h2><p id="question"></p>
     <div class="work-area"><section aria-labelledby="materials-title"><h3 id="materials-title">資料</h3><div id="materials"></div></section>
     <form id="answers" novalidate autocomplete="off"><h3>解答欄</h3><p>取引IDを資料と照合してください。</p><div id="fields"></div><button id="submit" type="submit">提出して結果を保存する</button><p class="note">未選択・未入力の欄は誤答として記録されます。</p></form></div>
   </section>
   <section id="result" hidden aria-labelledby="result-title"><h2 id="result-title" tabindex="-1">今回の結果</h2><p id="score" class="score"></p><p id="diagnostics"></p><p id="first-context"></p><div id="answers-result"></div>
     <section class="explanation" aria-labelledby="explanation-title"><h3 id="explanation-title">次も自分で解くために</h3><p id="explanation"></p><details><summary>仕訳と検算を確認する</summary><p id="supplement"></p><div class="journal-scroll"><table><caption>各取引の仕訳</caption><thead><tr><th>取引</th><th>借方科目</th><th>借方金額</th><th>貸方科目</th><th>貸方金額</th></tr></thead><tbody id="journals"></tbody></table></div></details></section>
-    <details><summary>この保存領域での最初の結果</summary><p id="first-score"></p><div id="first-answers"></div></details>
+    <details><summary>このブラウザーで最初に提出した結果</summary><p id="first-score"></p><div id="first-answers"></div></details>
     <button id="retry" type="button">別の試行としてもう一度解く</button>
   </section>
-  <footer><p>記録はこのブラウザー内に保存されます。保存領域の削除や端末変更で引き継がれるものではありません。</p><a href="./?mode=training">トレーニングへ戻る</a></footer>
+  <footer><p>結果はこのブラウザーに保存されます。ブラウザーのデータを消したり、別の端末を使ったりしても、結果は引き継がれません。</p><a href="./?mode=training">トレーニングへ戻る</a></footer>
 </main>
-<script src="js/engine.js?v=20261028-227"></script>
-<script src="js/form-a-scoring.js?v=20261028-227"></script>
-<script src="js/form-a-store.js?v=20261028-227"></script>
-<script src="js/form-a.js?v=20261028-227"></script>
+<script src="js/engine.js?v=20261029-228"></script>
+<script src="js/form-a-scoring.js?v=20261029-228"></script>
+<script src="js/form-a-store.js?v=20261029-228"></script>
+<script src="js/form-a.js?v=20261029-228"></script>
 </body></html>

@@ -826,7 +826,7 @@
       const card = make('article', `rpg-mission-card ${mission.kind === 'review' ? 'due-review' : ''}`.trim());
       const copy = make('div', 'rpg-mission-copy');
       const reason = mission.kind === 'review'
-        ? `${mission.dueCount}問の復習期限が来ています。期限が来た問題から再戦します。`
+        ? `復習する問題が${mission.dueCount}問あります。復習モードから取り組みましょう。`
         : (mission.priority?.reasons || []).join('・');
       const skillText = mission.skill
         ? `対応スキル：${mission.skill} ${Math.round(Math.max(0, Math.min(1, mission.skillMastery || 0)) * 100)}%`
@@ -1060,8 +1060,8 @@
         const copy = make('div', 'study-recommendation-copy');
         copy.append(
           make('span', 'study-recommendation-badge', '復習期限'),
-          make('strong', '', `${dueIds.length}問の復習期限が来ています`),
-          make('p', 'study-recommendation-reason', first ? `${first.category || '学習済み問題'}から復習を始めます。期限前の問題は前倒ししません。` : '期限が来た問題から復習します。')
+          make('strong', '', `復習する問題が${dueIds.length}問あります。`),
+          make('p', 'study-recommendation-reason', first ? `${first.category || '学習済み問題'}から取り組みます。復習期限前の問題は含まれません。` : '復習期限に達した問題から取り組みます。')
         );
         const button = make('button', '', '復習モードへ');
         button.type = 'button';

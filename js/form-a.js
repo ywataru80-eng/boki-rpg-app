@@ -19,7 +19,7 @@
       const empty=node('option','選んでください',select);empty.value='';for(const choice of scorer.fixture.choices){const option=node('option',choice,select);option.value=choice;}select.value=row.voucher;
       const label=node('label','金額',pair),line=node('span','',label);line.className='amount-line';const input=node('input','',line);input.type='text';input.inputMode='numeric';input.maxLength=64;input.id='amount-'+id;input.value=row.amount;input.setAttribute('aria-label','取引'+id+'の金額');node('span','円',line);
     }
-    byId('exercise').hidden=false;message('この保存領域での提示 '+a.ordinal+' 回目。入力は自動保存します。');byId('exercise-title').focus();
+    byId('exercise').hidden=false;message('このブラウザーの記録では'+a.ordinal+'回目の挑戦です。入力内容は自動保存されます。');byId('exercise-title').focus();
   }
   function answerList(parent,receipt){
     parent.replaceChildren();for(const row of receipt.answer){const d=receipt.result.details.find(item=>item.id===row.id),card=node('p','',parent);card.className='result-row';card.textContent='取引'+row.id+'：'+(row.voucher||'未選択')+' ／ '+(row.amount||'未入力')+'円 — 分類 '+(d.voucherCorrect?'正解':'誤答')+'・金額 '+(d.amountCorrect?'正解':'誤答');}
@@ -28,7 +28,7 @@
     // Called only after the store transaction completes, never from a provisional grade.
     byId('exercise').hidden=true;byId('intro').hidden=true;byId('score').textContent=receipt.result.earned+' / 4 取引正解';
     byId('diagnostics').textContent='伝票分類 '+receipt.result.classificationCorrect+'/4 ・ 金額 '+receipt.result.amountCorrect+'/4。各取引は両方正しくて1点です。';
-    byId('first-context').textContent=receipt.localFirstPresentation?'この保存領域で最初に提示した試行の結果です。過去の閲覧経験は不明です。':'再受験の結果です。この保存領域での最初の結果は変更されません。';
+    byId('first-context').textContent=receipt.localFirstPresentation?'このブラウザーに保存されている最初の挑戦の結果です。別の端末で学習したかどうかは分かりません。':'2回目以降の挑戦です。最初の結果はそのまま残ります。';
     answerList(byId('answers-result'),receipt);byId('explanation').textContent=scorer.fixture.explanation.initial;byId('supplement').textContent=scorer.fixture.explanation.supplement;
     byId('journals').replaceChildren();for(const [id,debit,credit,amount] of [['A','普通預金','売掛金',42000],['B','買掛金','現金',18000],['C','現金','売掛金',18000],['D','通信費','普通預金',6000]]){const tr=node('tr','',byId('journals'));for(const text of [id,debit,amount.toLocaleString('ja-JP'),credit,amount.toLocaleString('ja-JP')])node('td',text,tr);}
     const state=await store.read(),first=state.firstSubmission;
@@ -39,7 +39,7 @@
     if(busy)return;pending(true);clearError();
     try{
       await draftQueue;store?.close();store=await root.FormAStore.open(scorer);const state=await store.read(),last=state.attempts.at(-1);draftFailed=false;
-      if(last?.receipt)await showResult(last.receipt);else if(last?.status==='issued')showExercise(last);else {byId('intro').hidden=false;message('保存領域を利用できます。開始すると最初の提示を記録します。');}
+      if(last?.receipt)await showResult(last.receipt);else if(last?.status==='issued')showExercise(last);else {byId('intro').hidden=false;message('準備できました。「確認を始める」を押すと、最初の挑戦として記録します。');}
     }catch(e){error(e);}finally{pending(false);}
   }
   async function begin(retry){
