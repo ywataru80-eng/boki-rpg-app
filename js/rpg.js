@@ -52,8 +52,8 @@
       const tools = ['標準電卓'];
       if (this.level >= 5) tools.push('税込・税抜クイック計算');
       if (this.level >= 10) tools.push('過去ログ分析');
-      if (this.level >= 20) tools.push('Boss Case：月次決算');
-      if (this.level >= 30) tools.push('Boss Case：年度決算');
+      if (this.level >= 20) tools.push('月次決算の特別案件');
+      if (this.level >= 30) tools.push('年度決算の特別案件');
       return tools;
     }
     // Lv.30 requires 12,615 XP: less than the XP available from completing the
