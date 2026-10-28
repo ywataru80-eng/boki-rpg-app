@@ -85,7 +85,7 @@ assert(text.includes('帳簿｜L1') && text.includes('試算表｜L2') && text.i
 due = ['L1'];
 Controller.prototype.renderStudyRecommendations.call(context, 'story', 1000);
 text = flatten(story);
-assert(text.includes('復習期限') && text.includes('復習する問題が1問あります。'), '期限到来時は復習を最優先で表示する');
+assert(text.includes('復習する問題が1問あります。') && text.includes('復習モードから取り組みましょう。'), '期限到来時は復習を最優先で表示する');
 const dueButtons = buttons(story);
 assert(dueButtons.some(button => button.dataset.action === 'mode' && button.dataset.mode === 'review'), '期限到来時は既存review modeへ誘導する');
 assert(!dueButtons.some(button => button.dataset.action === 'start'), '期限到来済みsourceを通常問題として直接開始しない');
