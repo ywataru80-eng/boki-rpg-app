@@ -17,7 +17,7 @@ const expected=[
  'pwa-release-manifest.json','reports/auto-gate/audit-locks/phase-b-generation-181.json',LOCK,'scripts/audit-user-facing-prose.cjs',
  'scripts/validate-copy-successor.cjs','service-worker.js',
  'tests/audit-matrix.test.js','tests/learning-recommendation-ux.test.js',
- 'tests/user-facing-copy-contract.test.js'
+ 'tests/rpg-strategy-board.test.js','tests/user-facing-copy-contract.test.js'
 ].sort();
 assert.equal(git('merge-base',BASE,'HEAD'),BASE,'accepted Release227 ancestry required');
 const files=[...new Set([
