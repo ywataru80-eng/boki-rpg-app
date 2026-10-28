@@ -10,7 +10,7 @@
     "auditHash": "16ced615f2e21b485dc6b3ef8b8652015c91d955e6d0e0c18346cce242e8c9ca",
     "baselineIdentity": "6ff69bf3549b0fe73dc2a2961e90a68bee84976cbb961a39b31f5c18c588b018"
   },
-  "baselineIdentity": "7fa8e90c8f08237838bc2238562de91ab9d41ee10a8ffd3fc53ab7524678b9b7",
+  "baselineIdentity": "37065970cc97ae0533763d96e38199e3dbad5528d8dff00ccf137e0a58db30bb",
   "productionHashes": {
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369",
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
@@ -22,7 +22,7 @@
     "index.html": "529ba76612f05007ea626e124c85457cf4ef92e0fb50121cd49893a67d6c7eb8",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
-    "js/controller.js": "921b13b438043a0c9c7e1372ad4246fcea8082fd390c0038a94e86f4f7239c92",
+    "js/controller.js": "4a24830b637e4847cc0739807a93952cf565f03ef6111edb1d065b906c870a9f",
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
     "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
     "js/explanation-formulas.js": "1ccc51c1c67a9f5058ba4626b4622edc6ed32fd3dc77b4651554d2a3562d9416",
@@ -35,7 +35,7 @@
     "js/rpg.js": "0ac9ab4a9a1dc0488c6d03306d12eb005cfc085c70e15e9f62d45dcefcd0c97e",
     "js/view.js": "f23889b81587fd4c2f6de6255134845fba3016073a6b54f3f828d3238298048e",
     "manifest.webmanifest": "fcde227f0593c3fc7fd5e8adc89be13201f9a35f74d9ad6a4212b23d2a75bd72",
-    "pwa-release-manifest.json": "14df054c3f8a6664ee5273a5141e27bad2c186e7e48801084e7e559cb9e6aeb3",
+    "pwa-release-manifest.json": "18b68392a647ceace1f0b7cef48686e712c09ffef8cb7b850db8156846fc2027",
     "service-worker.js": "bbbc520dc1943cc383ffc1217147711f37bb2dc466b5c4f5e2dc22b999129046",
     "types/domain.d.ts": "94f1affd9e89eb139e968940e7a8ce64ca1e3b4728c5f59d9b6de0d97a96e3ec"
   },
