@@ -38,7 +38,16 @@ const originalController=old('js/controller.js');
 const beforeReview='${mission.dueCount}問の復習期限が来ています。期限が来た問題から再戦します。';
 const afterReview='復習する問題が${mission.dueCount}問あります。復習モードから取り組みましょう。';
 assert(originalController.includes(beforeReview),'old review explanation baseline');
-assert.equal(read('js/controller.js'),originalController.replace(beforeReview,afterReview),'controller may change only due review copy');
+const reviewCardOld='make(\'strong\', \'\', \`\u0024{dueIds.length}問の復習期限が来ています\`)';
+const reviewCardNew='make(\'strong\', \'\', \`復習する問題が\u0024{dueIds.length}問あります。\`)';
+const explanationOld="first ? \`\u0024{first.category || '学習済み問題'}から復習を始めます。期限前の問題は前倒ししません。\` : '期限が来た問題から復習します。'";
+const explanationNew="first ? \`\u0024{first.category || '学習済み問題'}から取り組みます。復習期限前の問題は含まれません。\` : '復習期限に達した問題から取り組みます。'";
+let expectedController=originalController.replace(beforeReview,afterReview);
+for(const [before,after] of [[reviewCardOld,reviewCardNew],[explanationOld,explanationNew]]){
+ assert.equal(expectedController.split(before).length,2,'old review card must be unique');
+ expectedController=expectedController.replace(before,after);
+}
+assert.equal(read('js/controller.js'),expectedController,'controller may change only three review copy strings');
 const oldForm=old('js/form-a.js');
 const updates=[
  ['この保存領域での提示 ','このブラウザーの記録では'],
