@@ -3,6 +3,7 @@
 // Runtime questions.js executes in a sandbox to capture post-normalization, post-story-authoring prose.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const os=require('node:os');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
 const path=require('node:path');
@@ -77,7 +78,7 @@ const output={
   ],
   byChapter,questions:rows,staticSources:staticInventory
 };
-const out=path.join(repo,'artifacts','user-facing-prose-inventory.json');
+const out=process.env.COPY_AUDIT_OUTPUT||path.join(os.tmpdir(),'boki-user-facing-prose-inventory.json');
 fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(output,null,2)+'\n');
 console.log('COPY_INVENTORY_COMPLETE '+JSON.stringify(output.summary));
 console.log('COPY_EDITORIAL_STATUS NOT_APPROVED; human/causality review required for all 300; fallback cases remain classified.');
