@@ -435,7 +435,7 @@
         }
         status.classList.remove('storage-error');
         status.textContent = 'バックアップを復元しました。画面を再読み込みします。'; root.location?.reload?.(); return true;
-      } catch (error) { status.textContent = error.rollbackFailed ? '復元に失敗し、元の保存状態も完全には戻せませんでした。保存データが不整合な可能性があります。画面は再読み込みしていません。' : '復元できませんでした。BOKI RPGが書き出した有効なJSONファイルを選んでください。画面は再読み込みしていません。'; status.classList.add('storage-error'); return false; }
+      } catch (error) { status.textContent = error.rollbackFailed ? '復元に失敗し、元の保存状態も完全には戻せませんでした。保存データが不整合な可能性があります。画面は再読み込みしていません。' : '復元できませんでした。このアプリで保存したバックアップファイルを選んでください。画面は再読み込みしていません。'; status.classList.add('storage-error'); return false; }
     }
     static recoverAnswerTransaction(storage, progressKey = 'boki-rpg-progress-v2', characterKey = 'boki-rpg-character-v1') {
       const io = Controller.prototype, key = `${progressKey}:pending-answer-v1`, read = io.storageRead(storage, key);
