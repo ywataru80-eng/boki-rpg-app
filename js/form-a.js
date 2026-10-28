@@ -2,6 +2,8 @@
   'use strict';
   const script=document.currentScript,release=new URL(script.src).searchParams.get('v');
   const byId=id=>document.getElementById(id);
+  // Only the displayed prose is adapted; the assessed fixture, answer key and content identity remain unchanged.
+  const learnerText=value=>String(value).replaceAll('取引ID','取引の記号（A～D）');
   let scorer,store,attempt,busy=false,draftQueue=Promise.resolve(),draftFailed=false,draftsPending=0;
   const message=text=>{byId('status').textContent=text;};
   function error(e){byId('error').textContent=e.message||'保存を確認できません。入力を控えて再試行してください。';byId('error').hidden=false;byId('reopen').hidden=false;}
@@ -11,7 +13,7 @@
   const rows=()=>scorer.fixture.answerOrder.map(id=>({id,voucher:byId('voucher-'+id).value,amount:byId('amount-'+id).value}));
   function showExercise(a){
     attempt=a;byId('intro').hidden=true;byId('result').hidden=true;
-    byId('question').textContent=scorer.fixture.question;byId('materials').replaceChildren();byId('fields').replaceChildren();
+    byId('question').textContent=learnerText(scorer.fixture.question);byId('materials').replaceChildren();byId('fields').replaceChildren();
     for(const item of scorer.fixture.materials){const card=node('article','',byId('materials'));card.className='material';node('strong','取引 '+item.id,card);node('p',item.text,card);}
     for(const id of scorer.fixture.answerOrder){
       const row=a.draft.find(item=>item.id===id),fieldset=node('fieldset','',byId('fields'));fieldset.className='answer-row';node('legend','取引 '+id,fieldset);const pair=node('div','',fieldset);pair.className='input-pair';
@@ -29,7 +31,7 @@
     byId('exercise').hidden=true;byId('intro').hidden=true;byId('score').textContent=receipt.result.earned+' / 4 取引正解';
     byId('diagnostics').textContent='伝票分類 '+receipt.result.classificationCorrect+'/4 ・ 金額 '+receipt.result.amountCorrect+'/4。各取引は両方正しくて1点です。';
     byId('first-context').textContent=receipt.localFirstPresentation?'このブラウザーに保存されている最初の挑戦の結果です。別の端末で学習したかどうかは分かりません。':'2回目以降の挑戦です。最初の結果はそのまま残ります。';
-    answerList(byId('answers-result'),receipt);byId('explanation').textContent=scorer.fixture.explanation.initial;byId('supplement').textContent=scorer.fixture.explanation.supplement;
+    answerList(byId('answers-result'),receipt);byId('explanation').textContent=learnerText(scorer.fixture.explanation.initial);byId('supplement').textContent=learnerText(scorer.fixture.explanation.supplement);
     byId('journals').replaceChildren();for(const [id,debit,credit,amount] of [['A','普通預金','売掛金',42000],['B','買掛金','現金',18000],['C','現金','売掛金',18000],['D','通信費','普通預金',6000]]){const tr=node('tr','',byId('journals'));for(const text of [id,debit,amount.toLocaleString('ja-JP'),credit,amount.toLocaleString('ja-JP')])node('td',text,tr);}
     const state=await store.read(),first=state.firstSubmission;
     byId('first-score').textContent=first?'最初の結果：'+first.result.earned+'/4（分類 '+first.result.classificationCorrect+'/4・金額 '+first.result.amountCorrect+'/4）':'最初の試行の提出結果はありません。';byId('first-answers').replaceChildren();if(first)answerList(byId('first-answers'),first);
