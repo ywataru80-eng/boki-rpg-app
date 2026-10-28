@@ -1,0 +1,47 @@
+name: Release228 digest refresh (temporary)
+on:
+  push:
+    branches: [feature/issue235-user-facing-copy-release228-20261029]
+permissions:
+  contents: read
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Recompute Release228 and Generation181 at accepted predecessor
+        run: |
+          node <<'NODE'
+          'use strict';
+          const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+          const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          const m=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+          assert.equal(m.release,'20261029-228');assert.equal(m.previousRelease,'20261028-227');
+          for(const p of Object.keys(m.assets))m.assets[p]=sha(p);
+          for(const p of Object.keys(m.pages))m.pages[p]=sha(p);
+          const manifest=JSON.stringify(m,null,2)+'\n';
+          fs.writeFileSync('pwa-release-manifest.json',manifest);
+          console.log('REFRESH228_MANIFEST_BASE64 '+Buffer.from(manifest).toString('base64'));
+          const phase=require('./scripts/qa/phase-b-lifecycle');
+          const gens=phase.generationAuthorities().filter(x=>x.document.generation<=180);
+          assert.equal(gens.at(-1).document.generation,180);
+          const lock=phase.createCandidate('B_GENERATION',gens);
+          assert.equal(lock.generation,181);
+          const ok=phase.verifyCandidate(lock,{generations:gens});
+          assert(ok.ok,ok.errors.join(';'));
+          const text=JSON.stringify(lock,null,2)+'\n';
+          fs.writeFileSync('reports/auto-gate/audit-locks/phase-b-generation-181.json',text);
+          console.log('REFRESH228_LOCK_BASE64 '+Buffer.from(text).toString('base64'));
+          console.log('REFRESH228_PASS');
+          NODE
+      - name: Verify updated user-facing wording and 300 rows
+        run: |
+          node scripts/audit-user-facing-prose.cjs
+          node tests/user-facing-copy-contract.test.js
+          node tests/learning-recommendation-ux.test.js
