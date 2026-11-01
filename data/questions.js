@@ -16107,9 +16107,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "月末の経理室",
     "stakeholder": "水野先輩",
-    "before": "帳簿を照合する途中、主人公が水野先輩より先に残高の違和感を見つけます。",
-    "after": "水野先輩は答えを示さず、主人公の調査順序を確認する側へ回りました。",
-    "hook": "残る帳簿を照合し、月次残高を自分の判断で確定します。",
+    "before": "商品有高帳の期首在庫と追加仕入は単価が異なります。主人公は先に仕入れた在庫から払出単価と期末残高を確かめます。",
+    "after": "主人公は先入先出法で払出額と期末残高を計算しました。水野先輩は答えを示さず、計算過程を検算します。",
+    "hook": "残る補助簿にも、数量・単価・残高のつながりがあるか確認します。",
     "dialogue": "水野「その違和感、どこから確かめる？」",
     "protagonistResponsibility": "異常を発見し調査順序を決める",
     "mizunoRelationshipStage": "Reviewer",
@@ -16128,9 +16128,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "月末の経理室",
     "stakeholder": "水野先輩",
-    "before": "最後の台帳まで照合し、月次報告へ使う残高を確定します。",
-    "after": "主人公が作った照合結果を水野先輩がレビューし、修正なしで月次締めへ進みました。",
-    "hook": "残高を集めた試算表には、それでも説明できないずれが残っています。",
+    "before": "月次の帳簿確認を終え、過去に取得した備品の年度決算用台帳を確認します。12月取得の備品について、3月末までの使用月数を数えます。",
+    "after": "備品の月割減価償却費と期末帳簿価額を記入しました。この台帳は月次締めとは別に年度決算の資料として保管します。",
+    "hook": "次に照合する試算表では、残高の集計と個々の取引の正しさを区別します。",
     "dialogue": "水野「今回は修正なし。君の締め方で進めよう。」",
     "protagonistResponsibility": "月次締めの残高を自分の責任で確定する",
     "mizunoRelationshipStage": "Reviewer",
@@ -16169,9 +16169,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "試算表を広げた会議室",
     "stakeholder": "水野先輩",
-    "before": "一見怪しかった記録だけを直しても、試算表の違和感は消えません。別の未確認資料へ調査範囲を広げます。",
-    "after": "主人公は最初の仮説を数字で修正し、原因候補を絞りました。",
-    "hook": "訂正が必要な箇所だけを残し、試算表を一致させます。",
+    "before": "試算表には貸倒引当金と減価償却累計額の貸方残高が含まれます。個々の仕訳の正誤を推測せず、借方と貸方を別々に合計します。",
+    "after": "主人公は借方と貸方の合計を求めました。合計の一致だけでは、記帳漏れや同額誤記がないとは断定できません。",
+    "hook": "続いて証憑と仕訳を照合し、訂正が必要な取引を調べます。",
     "dialogue": "水野「最初の仮説を捨てる根拠はある？」",
     "protagonistResponsibility": "仮説を数字で検証し修正する",
     "mizunoRelationshipStage": "Reviewer",
@@ -16190,9 +16190,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "試算表を広げた会議室",
     "stakeholder": "水野先輩",
-    "before": "証憑と帳簿を最後まで照合し、正しい記録は残したまま必要な訂正だけを行います。",
-    "after": "試算表のずれが解消し、水野先輩は主人公の調査手順を次回の標準に採用しました。",
-    "hook": "数字は合いました。次は、その数字が本当に今期のものかを確かめます。",
+    "before": "誤記の証憑と帳簿を比較し、今回必要な訂正仕訳だけを記録します。これだけで試算表全体の正確性は証明できません。",
+    "after": "今回の訂正仕訳と根拠を確認しました。試算表全体の一致や、ほかの未記帳取引の有無は別途確認します。",
+    "hook": "次は残高がどの会計期間に属するかを、決算整理で確認します。",
     "dialogue": "水野「調査順まで含めて、君の判断で合っている。」",
     "protagonistResponsibility": "原因調査から訂正まで主導する",
     "mizunoRelationshipStage": "Reviewer",
@@ -16293,9 +16293,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "年度決算の作業室",
     "stakeholder": "経理責任者",
-    "before": "個別の計算が合っていても、精算表の振り分けを誤れば決算全体は完成しません。",
-    "after": "主人公は計算結果だけでなく、どの欄へつながるかまで責任者へ説明しました。",
-    "hook": "残る整理事項を反映し、利益と期末残高を確定します。",
+    "before": "保険料の次期分と当期分、備品の減価償却費と帳簿価額を分けて求めます。主人公は四つの数値を計算し、経理責任者へ根拠を示します。",
+    "after": "四つの計算結果を照合しました。精算表への転記と全体の締切は、なお別の確認事項として残っています。",
+    "hook": "別の取得原価や期間条件でも、同じ計算手順が使えるか確かめます。",
     "dialogue": "水野「計算だけでなく、どこへつながるかまで見て。」",
     "protagonistResponsibility": "決算全体のつながりを説明する",
     "mizunoRelationshipStage": "Supporter",
@@ -16314,9 +16314,9 @@ const AnchorScenes = Object.freeze([
     },
     "place": "年度決算の作業室",
     "stakeholder": "経理責任者",
-    "before": "最後の決算整理の予行演習を精算表へ反映し、本決算に向けた作業手順を確認します。",
-    "after": "経理責任者は予行演習の作業順序と説明を承認し、水野先輩は本決算では補足役に回ることになりました。",
-    "hook": "予行演習で手順は固まりました。次は取締役会前の最終照合で、数字の根拠を他者へ説明します。",
+    "before": "予行演習の最後に、保険料の繰延べと備品の定額法による償却を計算します。四つの回答欄を埋めますが、これは本決算の完了ではありません。",
+    "after": "四つの金額と計算根拠を確認しました。経理責任者は本決算への転記を別工程として残し、水野先輩は補足に回ります。",
+    "hook": "取締役会前には、計算結果だけでなく支払義務の根拠も説明します。",
     "dialogue": "経理責任者「この予行演習の手順を、本決算で使える形に整理しよう。」",
     "protagonistResponsibility": "本決算に備えて決算整理の手順を説明する",
     "mizunoRelationshipStage": "Supporter",
@@ -16783,11 +16783,27 @@ const JournalEvidenceNotes = Object.freeze({
   "J089": "【差額の計算】85,000円－67,000円＝18,000円を追加で記帳します。",
   "J139": "【差額の計算】95,000円－77,000円＝18,000円を追加で記帳します。"
 });
+const specializedMovementReason = (item, account, side) => {
+  if (account === '現金過不足') return side === 'debit'
+    ? '実査額が帳簿残高を下回り、現金（資産）が減少したため、不足額を原因判明まで借方に仮記録します。'
+    : '不足原因が通信費の記帳漏れと判明したため、先に借方へ仮記録した現金過不足を減少させ、貸方で取り消します。現金を二度減らす処理ではありません。';
+  if (account === '貸倒引当金') return side === 'debit'
+    ? '前期の売掛金が回収不能になったため、以前に計上した引当金の貸方残高を減少させる借方の取崩しです。当期費用を重ねて計上しません。'
+    : '売掛金の回収不能見込額から既存の貸方残高を差し引く差額補充法です。不足分の引当金を増加させるため貸方に記録します。';
+  if (account === '減価償却累計額') return side === 'debit'
+    ? '備品売却時は、過去に積み上げた貸方残高の累計額を減少させ、借方に記入して取り崩します。'
+    : '当期の減価償却費は借方、資産の控除額を増加させる減価償却累計額は貸方に記録します。間接法では備品の取得原価を維持します。';
+  if (account === '損益') return '決算振替後の貸方残高は当期純利益です。損益勘定を減少させ残高をゼロにするため借方へ記入し、純資産へ振り替えます。';
+  if (account === '繰越利益剰余金') return side === 'debit'
+    ? '配当の決議により蓄積した利益（純資産）が減少するため借方へ記入します。未払配当金を貸方に計上し、決議時に現金を減らしません。'
+    : '当期純利益を社内に蓄積し純資産が増加するため、繰越利益剰余金を貸方に記入します。';
+  throw new Error('特殊勘定の解説未対応: ' + item.id + ' / ' + account);
+};
 const journalExplanation = item => {
   const explain = (side, row) => {
     if (SPECIAL_ACCOUNT_RULES[row.account]) {
       const sideLabel = side === 'debit' ? '借方' : '貸方';
-      return `${row.account}は${SPECIAL_ACCOUNT_RULES[row.account]}です。${row.account}という特殊勘定の増加・減少を取引の目的に沿って処理するため、この問題では${sideLabel}に${yenText(row.amount)}を記録します。`;
+      return `${row.account}は${SPECIAL_ACCOUNT_RULES[row.account]}です。${row.account}という勘定の今回の扱いは、${specializedMovementReason(item, row.account, side)}この問題では${sideLabel}に${yenText(row.amount)}を記録します。`;
     }
     const type = explanationAccountType(row.account); const normal = normalSide(type); const label = explanationTypeLabel[type];
     const movement = side === normal ? '増加' : '減少'; const sideLabel = side === 'debit' ? '借方' : '貸方';
