@@ -2,6 +2,7 @@
 // Release229 / Generation183. Prevent accidental accounting or history changes.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto');
 const BASE='4067008230ad2fae5874d9e0e2e6caa8320ed3b0';
+const ACCEPTED229='3ed53a7dc4f1a55785404b2f2690a71d7a0b9c39';
 const FROM='20261029-228',TO='20261029-229';
 const LOCK='reports/auto-gate/audit-locks/phase-b-generation-183.json';
 const raw=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:64*1024*1024});
@@ -19,13 +20,36 @@ const EXPECT=[
  'service-worker.js','tests/audit-matrix.test.js','tests/user-facing-copy-contract.test.js'
 ].sort();
 assert.equal(git('merge-base',BASE,'HEAD'),BASE,'baseline Release228 ancestry');
+assert.equal(git('merge-base',ACCEPTED229,'HEAD'),ACCEPTED229,'accepted Release229 commit must remain an ancestor');
+assert.deepEqual(list('diff','--name-only',BASE,ACCEPTED229).sort(),EXPECT,'accepted Release229 historical scope remains immutable');
 const changed=[...new Set([
- ...list('diff','--name-only',BASE,'HEAD'),
+ ...list('diff','--name-only',ACCEPTED229,'HEAD'),
  ...list('diff','--name-only','HEAD'),
  ...list('diff','--cached','--name-only'),
  ...list('ls-files','--others','--exclude-standard').filter(s=>s!=='historical-quality/'&&s!=='artifacts/form-a-grade-results.json')
 ])].sort();
-assert.deepEqual(changed,EXPECT,'Release229 changed-file scope mismatch');
+const postReleaseAuditFiles=['scripts/audit-all300-reader-terminology.cjs','scripts/audit-user-facing-prose.cjs','scripts/validate-all300-copy-successor.cjs'].sort();
+assert.deepEqual(changed,postReleaseAuditFiles,'post-Release229 audit-only file scope mismatch');
+// Keep the exact accepted 229 bytes as historical evidence; only the two
+// targeted audit runtimes are allowed to gain the browser-domain preload.
+const uniqueReplace=(value,from,to)=>{
+ assert.equal(value.split(from).length,2,'expected unique audit-only patch anchor '+from.slice(0,90));
+ return value.replace(from,to);
+};
+for(const [file,anchor,replacement] of [
+ ['scripts/audit-user-facing-prose.cjs',
+  'const {QuestionData,WorkCaseNarratives,AnchorScenes}=sandbox.window;',
+  "const {QuestionData,WorkCaseNarratives,AnchorScenes}=sandbox.window;\nassert.equal(sandbox.AccountingDomain.accountType('未払配当金'),'liability','audit must use browser account taxonomy');\nassert(QuestionData.J051.explanation.includes('未払配当金は負債で'),'audited text must match browser runtime, not fallback taxonomy');"],
+ ['scripts/audit-all300-reader-terminology.cjs',
+  'const runtime=sandbox.window.QuestionData;',
+  "const runtime=sandbox.window.QuestionData;\nassert.equal(sandbox.AccountingDomain.accountType('未払配当金'),'liability','audit must use browser account taxonomy');\nassert(runtime.J051.explanation.includes('未払配当金は負債で'),'audited text must match browser runtime, not fallback taxonomy');"]
+]){
+ let expected=raw('show',ACCEPTED229+':'+file).toString('utf8');
+ expected=uniqueReplace(expected,'const sandbox={window:{},console};',
+   "const sandbox={window:{},console};\n// Match index.html: the authoritative account classification loads before questions.js.\nvm.runInNewContext(read('data/accounting-domain.js'),sandbox,{filename:'data/accounting-domain.js',timeout:30000});\nsandbox.AccountingDomain=sandbox.window.AccountingDomain;");
+ expected=uniqueReplace(expected,anchor,replacement);
+ assert.equal(read(file),expected,'post-release audit patch must match exact reviewed changes: '+file);
+}
 for(const p of [
  'data/questions.js','data/accounting-domain.js','data/accounting-oracle.js',
  'data/form-a.json','js/engine.js','js/model.js','js/form-a-store.js','js/form-a-scoring.js',
