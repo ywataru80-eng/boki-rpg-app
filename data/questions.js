@@ -16603,6 +16603,19 @@ const WorkInstructions = Object.freeze({
   comprehensive:'資料を順に照合し、求められた数値を確定してください'
 });
 
+const BossClosingCopy = Object.freeze({
+  "J032": "給与関連の確認を終え、最後に契約書へ使った収入印紙の記録を点検します。あなたは購入と使用の証憑を照らし合わせ、この取引の仕訳を完成してください。",
+  "J044": "決算前夜の経理室。貸付金の利息はまだ入金されていません。水野先輩は「入金がないことと、当期の収益がないことは同じだろうか」と尋ねました。あなたは当期分の利息が発生しているか確かめ、決算日に必要な仕訳を作成してください。",
+  "J103": "入社初日の経理室。仕入代金を支払う口座の準備が整いました。水野先輩は預金の振替記録を示し、あなたは普通預金と当座預金の増減を確認し、仕訳を説明してください。",
+  "J109": "営業会議のあと、高橋が桜井商店から返送された商品の記録を持ち込みました。あなたは最初の掛売上と返品の証憑を照合し、この返品に必要な仕訳を確かめてください。",
+  "J116": "資金繰り表を広げた経理室。桜井商店から特注商品の内金が届きました。社長は「受け取った時点で、もう売上にしてよいのか」と尋ねます。あなたは引渡しの状況を確かめて仕訳を決めてください。",
+  "J120": "小口現金係から月末の支払報告と補給記録が届きました。森は「現金実査で残った差額は引き続き調べます」と記録に添えています。あなたは小口現金の精算だけを切り分け、費用と補給の仕訳を作成してください。",
+  "J127": "借入金の返済明細には、元本と当期の利息が一緒に記されています。水野先輩は「同じ振込でも、帳簿上の意味は違う」と指摘しました。あなたは二つの金額を分け、支払いの仕訳を完成してください。",
+  "J149": "取締役会前の最終照合で、約束手形を振り出した仕入取引が確認対象になりました。あなたは仕入と手形債務の関係を証憑から読み取り、今回の仕訳を説明してください。",
+  "L030": "年度決算の準備として、12月に取得した備品の固定資産台帳を締める段階です。あなたは決算日までの使用期間を確かめ、減価償却と帳簿価額を記入してください。",
+  "E014": "試算表の差異調査で、出張旅費の概算払に関する記帳の誤りが見つかりました。あなたは帳簿と証憑を突き合わせ、必要な訂正仕訳を作成してください。残る資料の調査結果は、この訂正とは分けて報告します。",
+  "D012": "年度決算の作業室。あなたは保険の契約期間と備品の取得条件を照合します。前払振替額、当期の保険料、減価償却費、期末帳簿価額を計算し、四つの回答欄に記入してください。"
+});
 const ReaderFacingBeats = Object.freeze([
   (arc, item, instruction) => `${arc.place}。${arc.requester}があなたに「${arc.problem}」と説明し、${item.category}の資料を渡しました。${instruction}。`,
   (arc, item, instruction) => `${arc.place}。まだ${arc.goal}ことができません。あなたは次の${item.category}の確認を任されました。${instruction}。`,
@@ -16691,7 +16704,7 @@ const buildExplanation = item => {
     const correction = `（借）${cells.debitAccount} ${yenText(cells.debitAmount)}／（貸）${cells.creditAccount} ${yenText(cells.creditAmount)}`;
     return `【やさしい考え方】帳簿には「${material.recorded || '記録なし'}」と記録されていますが、証憑は「${material.evidence || '証憑なし'}」を示しています。両者を比べ、誤っている科目や金額だけを直します。\n` +
       `【試験のポイント】訂正仕訳は「${correction}」です。誤った仕訳をすべて記帳し直すのではなく、現在の帳簿へこの仕訳を加えた結果が証憑どおりになることを確認します。\n` +
-      `【実務での使い方】【業務の結果】帳簿の記録、証憑が示す正しい処理、両者の差額の順に確認すると、訂正後の残高を根拠とともに説明できます。`;
+      `【実務での使い方】帳簿の記録、証憑が示す正しい処理、両者の差額の順に確認すると、訂正後の残高を根拠とともに説明できます。`;
   }
   const clue = String(item.question).replace(/[。！？\s]+/gu, ' ').slice(0, 20);
   const digest = answerDigest(item);
@@ -16699,7 +16712,7 @@ const buildExplanation = item => {
   const indirectMethodNote = item.id.startsWith('D') ? '間接法では備品勘定そのものを減額しません。' : '';
   return `【やさしい考え方】第${item.chapter}章・調査${item.caseNumber}の「${clue}」という条件から、${item.category}の答えは${digest}と確定します。\n` +
     `【試験のポイント】第${item.chapter}章・調査${item.caseNumber}の「${clue.slice(0, 24)}」では、${methodFor(item)}。第${item.chapter}章・調査${item.caseNumber}「${clue.slice(0, 8)}」の解答（${shortAnswer}）を元資料と対応させて検算します。\n` +
-    `【実務での使い方】【業務の結果】第${item.chapter}章・調査${item.caseNumber}の${item.category}で「${clue.slice(0, 14)}」を記録すると、${item.chapterArc.result}へ数値が進みます。${indirectMethodNote}答えを元資料へ戻せば転記違いも発見できます。`;
+    `【実務での使い方】第${item.chapter}章・調査${item.caseNumber}の${item.category}で「${clue.slice(0, 14)}」を記録すると、${item.chapterArc.result}へ数値が進みます。${indirectMethodNote}答えを元資料へ戻せば転記違いも発見できます。`;
 };
 // Repeated drills keep the same accounting rule but present a distinct piece of
 // workplace evidence, rather than shipping byte-identical question/explanation pairs.
@@ -16759,6 +16772,17 @@ const journalCalculationTrace = item => {
   }
   return '';
 };
+const JournalEvidenceNotes = Object.freeze({
+  "J020": "【補給時点】支払報告を受けて直ちに補給するため、当日の補給額は支出三科目の合計と一致します。",
+  "J070": "【月末の確認】月末の支払報告を費用別に整理し、補給小切手の金額と三科目の合計を照合します。",
+  "J120": "【処理の範囲】小口現金の補給を記帳しても、原因未判明の現金実査差額が解消したことにはなりません。",
+  "J030": "【負担の区別】従業員から預かった保険料は会社の費用ではなく、会社負担分だけが法定福利費です。",
+  "J080": "【納付期限日の処理】納付日でも従業員分は預り金の消滅、会社分は費用として区別します。",
+  "J130": "【納付総額の確認】従業員分50,000円と会社分50,000円を合わせた100,000円が預金から減少します。",
+  "J039": "【差額の計算】75,000円－57,000円＝18,000円を追加で記帳します。",
+  "J089": "【差額の計算】85,000円－67,000円＝18,000円を追加で記帳します。",
+  "J139": "【差額の計算】95,000円－77,000円＝18,000円を追加で記帳します。"
+});
 const journalExplanation = item => {
   const explain = (side, row) => {
     if (SPECIAL_ACCOUNT_RULES[row.account]) {
@@ -16772,7 +16796,7 @@ const journalExplanation = item => {
   const debit = item.answer.debit.map(row => explain('debit', row)).join('');
   const credit = item.answer.credit.map(row => explain('credit', row)).join('');
   const entry = `（借）${item.answer.debit.map(row => `${row.account} ${yenText(row.amount)}`).join('、')}／（貸）${item.answer.credit.map(row => `${row.account} ${yenText(row.amount)}`).join('、')}`;
-  return `【この問題への当てはめ】問題文「${String(item.question).replace(/\s+/gu, ' ')}」から、取引で増減する科目と金額を一つずつ拾います。${debit}${credit}\n${journalCalculationTrace(item)}\n【この問題の仕訳】${entry}。借方合計・貸方合計はいずれも${yenText(item.answer.debit.reduce((sum, row) => sum + row.amount, 0))}となり、貸借が一致します。`;
+  return `【この問題への当てはめ】${debit}${credit}${JournalEvidenceNotes[item.id] ? '\n' + JournalEvidenceNotes[item.id] : ''}\n${journalCalculationTrace(item)}\n【この問題の仕訳】${entry}。借方合計・貸方合計はいずれも${yenText(item.answer.debit.reduce((sum, row) => sum + row.amount, 0))}となり、貸借が一致します。`;
 };
 const sourceLine = item => {
   const materialLabels = { date:'日付', description:'摘要', quantity:'数量', unitPrice:'単価', amount:'金額', asset:'固定資産', acquisitionCost:'取得原価', life:'耐用年数', openingAccumulated:'期首減価償却累計額' };
@@ -16825,9 +16849,26 @@ const tableExplanation = item => {
     correction:'証憑が示す本来の記録から帳簿の誤記を差し引き、必要な訂正仕訳だけを記入します',
     worksheet:'整理前残高に各決算整理の増減を反映し、整理後残高を損益計算書または貸借対照表へ振り分けます',
     financial_statement:'表の各科目を資産・負債・純資産または収益・費用に分類し、同じ区分を加算して差額を求めます',
-    comprehensive:'資料を日付順に読み、現金の増減と収益・費用の発生を分けてから、各回答欄まで計算をつなぎます'
+    comprehensive:item.id === 'C001'
+      ? '未処理の掛売上と掛仕入を反映した後、期末棚卸、貸倒見積り、減価償却、保険料の繰延べ、未払費用、法人税等を整理して利益と期末残高を求めます'
+      : item.id === 'C002'
+        ? '記帳漏れの現金売上を先に記録し、実査差額を調べます。誤記訂正、消費税の精算、売上原価、決算整理後の利益を順に確認します'
+        : item.id === 'C003'
+          ? '貸倒見積り、借入利息の未払計上、家賃の期間配分、固定資産の月割償却と売却時の帳簿価額を区別して計算します'
+          : '現金の受払いと当期の収益・費用を別々に分類し、現金残高と利益をそれぞれ計算します'
   }[item.type];
-  return `【使用する資料】この問題では「${sources}」を使います。\n【計算と転記】${typeGuide}。資料の値を順に「前残・元データ → 増加または調整 → 減少または振替 → 最終値」と追うと、${answers}です。\n【検算】回答欄ごとに資料へ戻り、使用した科目・日付・金額と「${answers}」が対応していることを確認します。`;
+  const finalCheck = item.type === 'ledger'
+    ? '数量・残高は元の取引から再計算し、日付、相手勘定、元丁などの転記項目は資料の記載と照合します'
+    : item.type === 'correction'
+      ? '訂正仕訳を元の帳簿へ加えた結果が、証憑に示された本来の取引と一致するか確認します'
+      : item.type === 'worksheet'
+        ? '各決算整理額を転記した後、整理後残高の借方・貸方を照合します'
+        : item.type === 'financial_statement'
+          ? '損益計算書の利益と貸借対照表の純資産とのつながり、および資産と負債・純資産の一致を確かめます'
+          : item.type === 'comprehensive' && Number(item.id.slice(1)) <= 3
+            ? '個別の調整額をもう一度計算し、現金残高・損益・決算整理後の各勘定を区別して確認します'
+            : '現金が実際に増減した額と、収益・費用として認識した額をそれぞれ再集計します';
+  return `【使用する資料】${sources}。\n【計算と転記】${typeGuide}。記入する金額・科目は${answers}です。\n【検算】${finalCheck}。`;
 };
 const ExamPoolDefinition = Object.freeze([
   ...Array.from({length:20},(_,i)=>`J${String(128+i).padStart(3,'0')}`),
@@ -16952,6 +16993,9 @@ Object.values(QuestionData).forEach(item => {
     : authoredWorkCase
       ? `${authoredWorkCase.before}〔調査 ${chapterPosition + 1}/${storyCount}〕`
       : `${ReaderFacingBeats[phase](arc, item, instruction, item.bossCase)}${isStoryEligible ? `〔調査 ${chapterPosition + 1}/${storyCount}〕` : `〔評価資料 ${item.caseNumber}〕`}`;
+  if (item.bossCase && BossClosingCopy[item.id]) {
+    item.story = `${BossClosingCopy[item.id]}〔調査 ${chapterPosition + 1}/${storyCount}〕`;
+  }
   // The prose stored with each question is reviewed teaching content.  Never
   // replace it with the generic fallback merely because runtime metadata was
   // added above; the fallback exists only for genuinely unauthored questions.
