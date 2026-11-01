@@ -14,7 +14,7 @@ const EXPECT=[
  'data/questions.js','form-a.html','index.html','package.json','pwa-release-manifest.json',
  'reports/auto-gate/audit-locks/phase-b-generation-184.json',
  'scripts/validate-reader-editorial-successor.cjs','service-worker.js',
- 'tests/audit-matrix.test.js','tests/editorial-review-230.test.js','tests/ledger-opening-migration.test.js','tests/user-facing-copy-contract.test.js'
+ 'tests/audit-matrix.test.js','tests/editorial-review-230.test.js','tests/ledger-opening-migration.test.js','tests/l039-explanation.test.js','tests/user-facing-copy-contract.test.js'
 ].sort();
 assert.equal(git('merge-base',BASE,'HEAD'),BASE,'must descend from merged Release229 audit authority');
 const changed=[...new Set([
