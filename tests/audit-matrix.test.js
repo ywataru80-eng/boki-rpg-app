@@ -11,7 +11,13 @@ const cp=require('node:child_process'),vm=require('node:vm'),baseline='37086c6ae
 assert(fs.readFileSync('reports/question-audit-matrix.json').equals(cp.execFileSync('git',['show',baseline+':reports/question-audit-matrix.json'],{maxBuffer:8*1024*1024})),'historical matrix bytes unchanged');
 vm.runInNewContext(cp.execFileSync('git',['show',baseline+':data/questions.js'],{encoding:'utf8',maxBuffer:8*1024*1024}),old);
 assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'historical matrix matches its fixed source');
-assert.deepStrictEqual(verifyMatrix(matrix,questions).stale,[{id:'J148',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L044',status:'STALE',reasons:['SOURCE_CHANGED']},{id:'L045',status:'STALE',reasons:['SOURCE_CHANGED']}],'only three explicitly superseded source texts differ');
+// The historical matrix remains immutable. Release230 changes eleven story
+// surfaces, which must be reported STALE rather than silently recertified.
+const baselineStale=['J148','L044','L045'];
+const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J120','J127','J149','L030'];
+const expectedStale=[...baselineStale,...reviewedStoryChanges].sort().map(id=>({id,status:'STALE',reasons:['SOURCE_CHANGED']}));
+const actualStale=verifyMatrix(matrix,questions).stale.slice().sort((a,b)=>a.id.localeCompare(b.id));
+assert.deepStrictEqual(actualStale,expectedStale,'historical evidence must explicitly mark superseded stories and original three stale sources');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');
 const approvedValidators=Object.freeze({
   '20261024-219':'scripts/validate-category-successor.cjs',
@@ -24,7 +30,8 @@ const approvedValidators=Object.freeze({
   '20261027-226':'scripts/validate-gameplay-successor.cjs',
   '20261028-227':'scripts/validate-investigation-successor.cjs',
   '20261029-228':'scripts/validate-copy-successor.cjs',
-  '20261029-229':'scripts/validate-all300-copy-successor.cjs'
+  '20261029-229':'scripts/validate-all300-copy-successor.cjs',
+  '20261101-230':'scripts/validate-reader-editorial-successor.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);
