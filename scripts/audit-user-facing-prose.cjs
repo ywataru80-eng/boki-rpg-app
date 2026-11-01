@@ -11,8 +11,13 @@ const repo=path.resolve(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(repo,p),'utf8');
 const digest=s=>crypto.createHash('sha256').update(s).digest('hex');
 const sandbox={window:{},console};
+// Match index.html: the authoritative account classification loads before questions.js.
+vm.runInNewContext(read('data/accounting-domain.js'),sandbox,{filename:'data/accounting-domain.js',timeout:30000});
+sandbox.AccountingDomain=sandbox.window.AccountingDomain;
 vm.runInNewContext(read('data/questions.js'),sandbox,{filename:'data/questions.js',timeout:30000});
 const {QuestionData,WorkCaseNarratives,AnchorScenes}=sandbox.window;
+assert.equal(sandbox.AccountingDomain.accountType('未払配当金'),'liability','audit must use browser account taxonomy');
+assert(QuestionData.J051.explanation.includes('未払配当金は負債で'),'audited text must match browser runtime, not fallback taxonomy');
 const ids=Object.keys(QuestionData||{});
 assert.equal(ids.length,300,'canonical Grade3 question count');
 assert.equal(new Set(ids).size,300,'canonical IDs unique');

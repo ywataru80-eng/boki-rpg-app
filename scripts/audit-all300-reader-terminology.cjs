@@ -10,8 +10,13 @@ const start=source.indexOf(marker);assert(start>=0);
 const close=source.indexOf('\n};',start+marker.length);assert(close>start);
 const literal=JSON.parse(source.slice(start+marker.length,close+2));
 const sandbox={window:{},console};
+// Match index.html: the authoritative account classification loads before questions.js.
+vm.runInNewContext(read('data/accounting-domain.js'),sandbox,{filename:'data/accounting-domain.js',timeout:30000});
+sandbox.AccountingDomain=sandbox.window.AccountingDomain;
 vm.runInNewContext(source,sandbox,{filename:'data/questions.js',timeout:30000});
 const runtime=sandbox.window.QuestionData;
+assert.equal(sandbox.AccountingDomain.accountType('未払配当金'),'liability','audit must use browser account taxonomy');
+assert(runtime.J051.explanation.includes('未払配当金は負債で'),'audited text must match browser runtime, not fallback taxonomy');
 const ids=Object.keys(runtime);
 assert.equal(ids.length,300);
 assert.deepEqual(ids.slice().sort(),Object.keys(literal).sort());
