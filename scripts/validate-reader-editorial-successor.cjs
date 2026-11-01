@@ -32,7 +32,7 @@ for(const file of [
  'reports/auto-gate/audit-locks/phase-b-generation-183.json',
  'scripts/audit-user-facing-prose.cjs','scripts/audit-all300-reader-terminology.cjs',
  'scripts/validate-all300-copy-successor.cjs'
-])assert(fs.readFileSync(file).equals(old(file)),'protected file edited: '+file);
+])assert.equal(read(file),old(file),'protected file edited: '+file);
 const current=JSON.parse(read('pwa-release-manifest.json'));
 const previous=JSON.parse(old('pwa-release-manifest.json').toString('utf8'));
 assert.equal(current.release,NEXT);

@@ -16772,6 +16772,17 @@ const journalCalculationTrace = item => {
   }
   return '';
 };
+const JournalEvidenceNotes = Object.freeze({
+  "J020": "【補給時点】支払報告を受けて直ちに補給するため、当日の補給額は支出三科目の合計と一致します。",
+  "J070": "【月末の確認】月末の支払報告を費用別に整理し、補給小切手の金額と三科目の合計を照合します。",
+  "J120": "【処理の範囲】小口現金の補給を記帳しても、原因未判明の現金実査差額が解消したことにはなりません。",
+  "J030": "【負担の区別】従業員から預かった保険料は会社の費用ではなく、会社負担分だけが法定福利費です。",
+  "J080": "【納付期限日の処理】納付日でも従業員分は預り金の消滅、会社分は費用として区別します。",
+  "J130": "【納付総額の確認】従業員分50,000円と会社分50,000円を合わせた100,000円が預金から減少します。",
+  "J039": "【差額の計算】75,000円－57,000円＝18,000円を追加で記帳します。",
+  "J089": "【差額の計算】85,000円－67,000円＝18,000円を追加で記帳します。",
+  "J139": "【差額の計算】95,000円－77,000円＝18,000円を追加で記帳します。"
+});
 const journalExplanation = item => {
   const explain = (side, row) => {
     if (SPECIAL_ACCOUNT_RULES[row.account]) {
@@ -16785,7 +16796,7 @@ const journalExplanation = item => {
   const debit = item.answer.debit.map(row => explain('debit', row)).join('');
   const credit = item.answer.credit.map(row => explain('credit', row)).join('');
   const entry = `（借）${item.answer.debit.map(row => `${row.account} ${yenText(row.amount)}`).join('、')}／（貸）${item.answer.credit.map(row => `${row.account} ${yenText(row.amount)}`).join('、')}`;
-  return `【この問題への当てはめ】${debit}${credit}\n${journalCalculationTrace(item)}\n【この問題の仕訳】${entry}。借方合計・貸方合計はいずれも${yenText(item.answer.debit.reduce((sum, row) => sum + row.amount, 0))}となり、貸借が一致します。`;
+  return `【この問題への当てはめ】${debit}${credit}${JournalEvidenceNotes[item.id] ? '\n' + JournalEvidenceNotes[item.id] : ''}\n${journalCalculationTrace(item)}\n【この問題の仕訳】${entry}。借方合計・貸方合計はいずれも${yenText(item.answer.debit.reduce((sum, row) => sum + row.amount, 0))}となり、貸借が一致します。`;
 };
 const sourceLine = item => {
   const materialLabels = { date:'日付', description:'摘要', quantity:'数量', unitPrice:'単価', amount:'金額', asset:'固定資産', acquisitionCost:'取得原価', life:'耐用年数', openingAccumulated:'期首減価償却累計額' };
