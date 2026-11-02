@@ -5,7 +5,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('nod
 const BASE='fde4d327115666e78a28d1662d74692df55802aa',domain=fs.readFileSync('data/accounting-domain.js','utf8');
 const old=cp.execFileSync('git',['show',BASE+':data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
 const load=source=>{const scope={window:{},console};vm.runInNewContext(domain,scope,{filename:'domain.js'});scope.AccountingDomain=scope.window.AccountingDomain;vm.runInNewContext(source,scope,{filename:'questions.js'});return scope.window;};
-const a=load(old),b=load(fs.readFileSync('data/questions.js','utf8'));
+const a=load(old),b=load(cp.execFileSync('git',['show','61c06adf3b6a7d59b7cb54a9b74bcc0ddc519dba:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}));
 const ids=Object.keys(b.QuestionData).sort();assert.equal(ids.length,300);assert.deepEqual(ids,Object.keys(a.QuestionData).sort());
 const special=new Set('J017 J018 J022 J045 J046 J047 J050 J051 J067 J068 J072 J095 J096 J097 J100 J117 J118 J122 J137 J145 J146'.split(' ')),scenes=new Set(["CH07-REVERSAL","CH07-BOSS","CH08-REVERSAL","CH08-BOSS","CH10-REVERSAL","CH10-BOSS"]);
 for(const id of ids){

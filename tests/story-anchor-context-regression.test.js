@@ -30,6 +30,9 @@ assert(!/創業|会社の開始|会社の出発点/u.test([arcs[1].theme,arcs[1]
 assert(/追加出資|追加払込|拡大資金|事業拡大/u.test([arcs[1].theme,arcs[1].problem,arcs[1].goal,ch1Open.before,ch1Open.learningObjective].join(' ')),
   'Chapter 1 must frame the actual additional-investment / expansion transaction');
 
+const ch4Reversal=byId('CH04-REVERSAL');
+assert(/一部.*判明/.test(ch4Reversal.before)&&/残る差額.*証明しません/.test(ch4Reversal.before),'Chapter 4 REVERSAL must distinguish partial proof from unresolved variance');
+assert(/調査を続けます/.test(ch4Reversal.hook),'Chapter 4 REVERSAL cannot promise the shortage will be resolved by petty cash reimbursement');
 const ch4Boss=byId('CH04-BOSS');
 assert(/調査中|未判明|推測しない|原因未確定/u.test([ch4Boss.before,ch4Boss.after,ch4Boss.learningObjective].join(' ')),
   'Chapter 4 BOSS must preserve the unresolved 5,000-yen shortage instead of inventing a cause');
