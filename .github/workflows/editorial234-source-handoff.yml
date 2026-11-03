@@ -1,0 +1,32 @@
+name: Editorial234 authenticated source handoff
+on:
+  push:
+    branches:
+      - audit/editorial234-source-20261103
+permissions:
+  contents: read
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm exact candidate source and complete Git history
+        run: |
+          test "$(git rev-parse HEAD^)" = c3689f0529e10519c71073acf6d75ec75bdd253a
+          git fsck --no-reflogs --full
+          git reset --hard HEAD^
+          test "$(git rev-parse HEAD)" = c3689f0529e10519c71073acf6d75ec75bdd253a
+          git status --porcelain
+      - name: Archive pristine checkout with Git history
+        run: |
+          tar --exclude='./node_modules' --exclude='./.git/hooks' -czf "$RUNNER_TEMP/editorial-pr254-source.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: editorial234-pr254-complete-source
+          path: ${{ runner.temp }}/editorial-pr254-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
