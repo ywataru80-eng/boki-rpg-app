@@ -70,7 +70,7 @@ assert.equal(corrections,20,'20 correction items covered');
 assert.equal(JSON.stringify(data),before,'no authored question/answer/explanation mutation');
 const resultSource=fs.readFileSync(path.join(root,'js/view.js'),'utf8');
 assert(resultSource.includes('this.renderAccountNature(question, container);'),'post-score feedback integration');
-assert(resultSource.includes('this.renderAccountNature(question, details);'),'post-exam review integration');
+assert(resultSource.includes("const nature = this.explanationDisclosure('勘定科目の区分と借方・貸方の補足');") && resultSource.includes('this.renderAccountNature(question, nature);') && resultSource.includes('details.append(nature);'),'post-exam review integration: full account guidance must remain reachable inside an accessible disclosure');
 const check=(id,side,account,words)=>{
   const q=data[id],card=createElement('div');view.renderAccountNature(q,card);
   const answer=q.type==='journal'?q.answer:view.correctionJournal(q.answer);

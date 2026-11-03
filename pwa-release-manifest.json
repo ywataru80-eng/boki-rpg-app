@@ -1,6 +1,6 @@
 {
-  "release": "20261102-232",
-  "previousRelease": "20261102-231",
+  "release": "20261103-233",
+  "previousRelease": "20261102-232",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "97b67b248b42cc0734a8ef26c244c46bf4d9748a7cd5e5ccfec0dfe16021909c",
@@ -14,7 +14,7 @@
     "js/explanation-formulas.js": "1ccc51c1c67a9f5058ba4626b4622edc6ed32fd3dc77b4651554d2a3562d9416",
     "js/explanation-model.js": "af5c0e1b052c7de0249d3f995df881a44c83dfc46d43a036b3cc6b3669f03241",
     "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
-    "js/view.js": "434a68e1546a0299d710789bc6dcff70e8cff4313e1ed77165e10a29fc02b126",
+    "js/view.js": "281e0669eb9d0e63fa732933a9dcc1fe2a63d231be8c47bc1a168b077270cabd",
     "js/controller.js": "6731bf90ccac57b6c3045531fca41a636b047d8c87f817ab2229ec06c1a4ea8c",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",
     "data/form-a.json": "8d980909e2dccd532bb9f23b6908bcd49fb8b9fdef7fc661afc72799d2a77bc1",
@@ -24,6 +24,6 @@
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "f801351f450c810c596fbd618f2fa61fd5c609c3d18c07f24fb422e3e2d09c80"
+    "form-a.html": "d3fef7e164c1604e3809e707abc9d5f14f59aac67dbb423c9207f19a455a9e2b"
   }
 }
