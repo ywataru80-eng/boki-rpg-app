@@ -1,32 +1,66 @@
-name: Editorial234 authenticated source handoff
+name: Release234 editorial candidate authenticated gate
 on:
   push:
     branches:
       - audit/editorial234-source-20261103
 permissions:
-  contents: read
+  contents: write
 jobs:
-  checkout:
+  verify-and-stage:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
-      - name: Confirm exact candidate source and complete Git history
+          persist-credentials: true
+      - name: Verify immutable patch and authorized predecessor
+        shell: bash
         run: |
-          test "$(git rev-parse HEAD^)" = c3689f0529e10519c71073acf6d75ec75bdd253a
-          git fsck --no-reflogs --full
-          git reset --hard HEAD^
-          test "$(git rev-parse HEAD)" = c3689f0529e10519c71073acf6d75ec75bdd253a
-          git status --porcelain
-      - name: Archive pristine checkout with Git history
-        run: |
-          tar --exclude='./node_modules' --exclude='./.git/hooks' -czf "$RUNNER_TEMP/editorial-pr254-source.tar.gz" .
-      - uses: actions/upload-artifact@v4
+          set -euo pipefail
+          base64 -d .handoff/editorial234.patch.gz.b64 > "$RUNNER_TEMP/editorial234.patch.gz"
+          test "$(sha256sum "$RUNNER_TEMP/editorial234.patch.gz" | cut -d' ' -f1)" = d39798b22c5997151182a38e8ba24c6cb53261be3a8da8b09d3e1bdc0ef277b1
+          gzip -d -c "$RUNNER_TEMP/editorial234.patch.gz" > "$RUNNER_TEMP/editorial234.patch"
+          git cat-file -e 'c3689f0529e10519c71073acf6d75ec75bdd253a^{commit}'
+          git checkout -B editorial/release234-gen188-20261103 c3689f0529e10519c71073acf6d75ec75bdd253a
+          git apply --check "$RUNNER_TEMP/editorial234.patch"
+          git apply "$RUNNER_TEMP/editorial234.patch"
+          test "$(git hash-object data/questions.js)" = 5da3024bae40d99b6cac739ee6bb25a0d217580e
+          git diff --check
+          git status --short
+      - uses: actions/setup-node@v4
         with:
-          name: editorial234-pr254-complete-source
-          path: ${{ runner.temp }}/editorial-pr254-source.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+          node-version: '22'
+      - run: npm ci
+      - name: Verify whole product before commit
+        run: npm run verify
+      - name: Verify next Generation and story before commit
+        run: |
+          npm run qa:integrity
+          npm run qa:story
+          python3 scripts/check-explanation-accounting.py
+      - name: Commit exact audited source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/workflows/question-quality-ledger-audit.yml data/questions.js form-a.html index.html package.json pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-188.json reports/edu-quality/editorial-content-identity-234.json scripts/audit-explanations.js scripts/qa/contract-runner.js scripts/validate-editorial-successor-234.cjs service-worker.js tests/audit-matrix.test.js tests/editorial-review-230.test.js tests/editorial-review-232.test.js tests/editorial-review-233.test.js tests/editorial-review-234.test.js tests/l039-explanation.test.js tests/ledger-opening-migration.test.js tests/user-facing-copy-contract.test.js
+          test "$(git write-tree)" = d69bb0740e33693ab216a35bdf7cca39e69fd1da
+          git diff --cached --check
+          git commit -m 'fix(editorial): Release234 Generation188 correct closing explanations with stable history'
+          test "$(git rev-parse 'HEAD^{tree}')" = d69bb0740e33693ab216a35bdf7cca39e69fd1da
+      - name: Verify committed Generation188 and release
+        run: |
+          npm run verify
+          npm run qa:integrity
+          npm run qa:story
+      - name: Independent mutation and immutable history suite
+        run: npm run qa:test
+      - name: Push only separate successor branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! git ls-remote --exit-code --heads origin refs/heads/editorial/release234-gen188-20261103
+          git push origin HEAD:refs/heads/editorial/release234-gen188-20261103
+          echo "verified_release234_branch=editorial/release234-gen188-20261103"
