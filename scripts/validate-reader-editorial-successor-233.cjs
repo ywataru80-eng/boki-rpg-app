@@ -10,17 +10,33 @@ const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8'}).trim();
 assert.equal(git('merge-base',BASE,'HEAD'),BASE,'Release233 requires historical Release232 ancestry');
 const allowed=new Set([
  'form-a.html','index.html','js/view.js','package.json','pwa-release-manifest.json','service-worker.js',
+ '.github/visual/run-explanation-integration.js',
  '.github/workflows/question-quality-ledger-audit.yml',
  'scripts/validate-reader-editorial-successor-233.cjs','tests/audit-matrix.test.js','tests/user-facing-copy-contract.test.js',
  'tests/editorial-review-233.test.js','tests/account-nature-teaching.test.js',GEN,
  'tests/exam-review-structured.test.js','tests/exam-review-content.test.js','tests/exam-review-authored.test.js',
  'tests/exam-review-special-notes.test.js','tests/exam-review-unanswered.test.js','tests/npc-dialogue-story.test.js'
 ]);
+// The ledger CI checks out a pinned historical repository into a separate, untracked
+// folder. It is not a Release233 product change. Accept ONLY the verified CI fixture.
+const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean);
+const fixture='historical-quality/';
+if(untracked.includes(fixture)){
+ assert.equal(process.env.GITHUB_ACTIONS,'true','historical fixture must come from GitHub Actions');
+ assert.equal(process.env.GITHUB_JOB,'ledger','historical fixture is only allowed in the ledger job');
+ assert(fs.lstatSync(fixture).isDirectory()&&!fs.lstatSync(fixture).isSymbolicLink(),
+   'historical fixture must be a real checkout directory');
+ assert.equal(git('-C',fixture,'rev-parse','HEAD'),
+   '37086c6ae6511a249218533375bf6f19dac231d1',
+   'historical fixture must be the pinned Release214 checkout');
+ assert.equal(git('-C',fixture,'status','--porcelain','--untracked-files=all'),'',
+   'historical fixture worktree must be clean');
+}
 const paths=[...new Set([
  ...git('diff','--name-only',BASE,'HEAD').split(/\n/u),
  ...git('diff','--name-only').split(/\n/u),
  ...git('diff','--cached','--name-only').split(/\n/u),
- ...git('ls-files','--others','--exclude-standard').split(/\n/u)
+ ...untracked.filter(p=>p!==fixture)
 ])].filter(Boolean).filter(p=>!p.startsWith('artifacts/')&&!p.startsWith('reports/baseline-current/')).sort();
 assert(paths.length>0,'Release233 must change production implementation');
 assert(paths.every(p=>allowed.has(p)), 'Release233 diff has unexpected paths: '+paths.filter(p=>!allowed.has(p)).join(','));
