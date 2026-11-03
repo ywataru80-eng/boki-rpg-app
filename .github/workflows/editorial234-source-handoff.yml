@@ -37,6 +37,13 @@ jobs:
           npm run verify
           npm run qa:integrity
           python3 scripts/check-explanation-accounting.py
+      - name: Export exact verified patch for local editorial review
+        uses: actions/upload-artifact@v4
+        with:
+          name: editorial234-verified-source-diff
+          path: ${{ runner.temp }}/editorial234.patch.gz
+          retention-days: 1
+          if-no-files-found: error
       - name: Upload 19 verified non-workflow Git blobs only
         env:
           GH_TOKEN: ${{ github.token }}
