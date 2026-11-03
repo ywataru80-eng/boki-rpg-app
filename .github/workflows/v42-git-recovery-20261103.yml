@@ -1,0 +1,36 @@
+name: v42 authenticated git history recovery (temporary)
+on:
+  push:
+    branches:
+      - fix/exam-review-display-v2-20261103
+permissions:
+  contents: read
+jobs:
+  checkout-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run verify
+      - name: Check authentic Git history
+        run: |
+          git fsck --no-reflogs --full
+          git rev-parse HEAD
+          git rev-parse 'HEAD^{tree}'
+          git status --short
+      - name: Package complete checkout without secrets
+        run: |
+          tar --exclude='./node_modules' --exclude='./.git/hooks' -czf "$RUNNER_TEMP/boki-v42-full-checkout.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v42-full-checkout-authenticated
+          path: ${{ runner.temp }}/boki-v42-full-checkout.tar.gz
+          retention-days: 1
+          if-no-files-found: error
