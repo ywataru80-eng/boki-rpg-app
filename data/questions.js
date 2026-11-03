@@ -17200,6 +17200,69 @@ for (const [id, month, endDay, account, plus, minus, incoming, outgoing] of [
   };
 }
 
+// Release234 editorial candidate — separate from v4.2 UI and Release233.
+// Answer/grading/IDs/source materials remain unchanged. Content identity migration required.
+{
+ const oldTransfer="整理前残高に各決算整理の増減を反映し、整理後残高を損益計算書または貸借対照表へ振り分けます。";
+ const oldBalanceCheck="各決算整理額を転記した後、整理後残高の借方・貸方を照合します。";
+ const exact=(s,a,b,id,label)=>{
+   if(s.split(a).length!==2) throw new Error(id+': unexpected old '+label+'; refuse silent mutation');
+   return s.replace(a,b);
+ };
+ const taskStories={
+  "D004": "決算の作業室で、保険契約と備品台帳の数字を照合します。あなたは保険料の当期分と次期分を分け、備品の減価償却費と期末帳簿価額を計算します。",
+  "D013": "水野先輩から保険の支払記録と備品台帳を渡されました。あなたは次期へ繰り延べる保険料を求め、備品の当期減価償却費と期末帳簿価額を確認します。",
+  "D014": "保険料のうち、当期の費用に残す金額を確かめる仕事です。あなたは次期分を先に計算し、続けて備品の減価償却費と期末帳簿価額を求めます。",
+  "D015": "決算前の確認表には保険料と備品の記録が並んでいます。あなたは保険料を当期と次期に分け、備品の使用による価値の減少を計算して四つの解答欄を完成させます。",
+  "D016": "今回の備品の耐用年数を、水野先輩と資料で確認しました。あなたは指定の年数で当期の償却費を計算し、保険料の期間配分と合わせて四つの金額を整理します。",
+  "D017": "水野先輩から、計算の根拠を金額ごとに説明するよう依頼されました。あなたは保険料の前払振替額と当期費用、備品の減価償却費と期末帳簿価額を順に確認して求めます。",
+  "D018": "決算準備の最後に、保険料と備品の計算結果を照合します。あなたは次期分を差し引いた当期保険料と、減価償却後の帳簿価額を求め、二つの元の金額に戻るか確かめます。",
+  "D019": "決算整理前の残高に、保険料の繰延べと備品の減価償却を反映させる段階です。あなたは決算整理後残高試算表の各勘定を記入し、借方合計と貸方合計が一致するか確認します。",
+  "D020": "決算整理後の数字を踏まえ、いよいよ帳簿を締め切ります。あなたは売上と各費用を損益勘定へ振り替え、当期純利益を繰越利益剰余金に振り替える金額を求め、締切後の残高を確認します。"
+};
+ for(let n=2;n<=18;n++){
+   const id='D'+String(n).padStart(3,'0'),q=QuestionData[id];
+   if(q.type!=='worksheet'||q.category!=='決算整理・計算問題')throw new Error(id+': type/category drift');
+   q.explanation=exact(q.explanation,oldTransfer,
+     '整理前の保険料と備品取得原価を確認し、次期分の繰延べと当期減価償却費を調整額として計算します。保険料の整理後金額は当期費用、備品の整理後金額は期末帳簿価額として各欄に記入します。',id,'transfer rule');
+   q.explanation=exact(q.explanation,oldBalanceCheck,
+     '前払振替額と当期保険料の合計が整理前の保険料と一致するか確認します。また、当期減価償却費と期末帳簿価額の合計が備品の取得原価に戻るか検算します。',id,'balance check');
+   if(taskStories[id])q.story=taskStories[id];
+ }
+ for(const id of ['D019','D020']){
+   const q=QuestionData[id];q.story=taskStories[id];
+   if(id==='D019'){
+     q.explanation=exact(q.explanation,oldTransfer,
+       '前払保険料への振替40,000円と減価償却費60,000円を各勘定に反映し、決算整理後残高試算表の借方・貸方欄に記入します。',id,'transfer rule');
+     q.explanation=exact(q.explanation,oldBalanceCheck,
+       '決算整理後残高試算表の借方・貸方合計がともに1,300,000円となるか確認します。',id,'balance check');
+   }else{
+     q.explanation=exact(q.explanation,oldTransfer,
+       '収益の売上800,000円は損益勘定の貸方へ、仕入400,000円・保険料160,000円・減価償却費60,000円は損益勘定の借方へ振り替えます。差額180,000円を当期純利益として繰越利益剰余金へ振り替えます。',id,'transfer rule');
+     q.explanation=exact(q.explanation,oldBalanceCheck,
+       '費用合計400,000円＋160,000円＋60,000円＝620,000円、当期純利益800,000円－620,000円＝180,000円です。最終的に損益勘定の借方・貸方が一致し、残高がゼロとなることを確認します。',id,'balance check');
+   }
+ }
+}
+
+// Release234: replace the stale authored solution summaries at the same point as the edited prose.
+// Grading data and assessment identities do NOT change: these are editorial corrections.
+{
+ const staleSummary='試算表の残高を出発点に、決算整理を反映し、損益計算書と貸借対照表へ振り分けます。';
+ const summaries={
+  worksheets:'保険料は次期分を繰り延べた後に当期費用を求めます。備品の減価償却費と期末帳簿価額は、指定の定額法と耐用年数から算定します。',
+  D019:'保険料の繰延べと減価償却を各勘定残高に反映し、決算整理後残高試算表の借方・貸方をそれぞれ集計します。',
+  D020:'売上と費用の各勘定を損益勘定に振り替え、差額の当期純利益を繰越利益剰余金へ振り替えて帳簿を締め切ります。'
+ };
+ for(let n=2;n<=20;n++){
+  const id='D'+String(n).padStart(3,'0');
+  const item=QuestionData[id];
+  if(item?.explanationModel?.summary?.length!==1 ||
+     item.explanationModel.summary[0].text!==staleSummary)throw new Error('Release234 explanation metadata mismatch: '+id);
+  item.explanationModel.summary=[{text:summaries[id]||summaries.worksheets}];
+ }
+}
+
 // Top-level `const` declarations are not added to `window` in classic scripts.
 // Expose the data explicitly because the application bootstrap reads it there.
 if (typeof window !== 'undefined') {

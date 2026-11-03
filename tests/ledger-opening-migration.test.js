@@ -104,6 +104,13 @@ test('all 300 answers and non-prose fields preserve historical identity across e
   if(id==='J148')assert.notEqual(current.story,historical.story,'J148 historic story successor retained');
   delete current.story;delete historical.story;
   delete current.explanation;delete historical.explanation;
+  // Release234 revises the *instructional prose* in the authored explanation
+  // model for D002-D020; assessed values and all other fields are still immutable.
+  const editorial234=JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234';
+  if(editorial234 && /^D(?:00[2-9]|01[0-9]|020)$/.test(id)){
+    assert.equal(Array.isArray(current.explanationModel?.summary),true,id+' revised prose model present');
+    delete current.explanationModel;delete historical.explanationModel;
+  }
   assert.deepEqual(current,historical,id+' all non-prose fields unchanged');
  }
  // Release230 changes to story/explanation are exact-bounded against accepted

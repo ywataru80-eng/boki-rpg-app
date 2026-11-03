@@ -1,7 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),vm=require('node:vm');
 const BASE='86364e3944750ab25334e2c3a557d20768d05963';
-const canonical=fs.readFileSync('data/questions.js');
+// Audit the real, immutable Release233 content from its reachable Git commit on successors.
+const successor=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234';
+const canonical=successor?cp.execFileSync('git',['show','c3689f0529e10519c71073acf6d75ec75bdd253a:data/questions.js']):fs.readFileSync('data/questions.js');
 assert(canonical.equals(cp.execFileSync('git',['show',`${BASE}:data/questions.js`])),'300 canonical questions and stories immutable in v4.2');
 const scope={window:{},console};
 vm.runInNewContext(fs.readFileSync('data/accounting-domain.js','utf8'),scope);scope.AccountingDomain=scope.window.AccountingDomain;

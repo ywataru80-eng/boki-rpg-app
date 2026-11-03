@@ -15,7 +15,8 @@ assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'histori
 // surfaces, which must be reported STALE rather than silently recertified.
 const baselineStale=['J148','L044','L045'];
 const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J120','J127','J149','L030'];
-const expectedStale=[...baselineStale,...reviewedStoryChanges].sort().map(id=>({id,status:'STALE',reasons:['SOURCE_CHANGED']}));
+const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
+const expectedStale=[...baselineStale,...reviewedStoryChanges,...successorStories].sort().map(id=>({id,status:'STALE',reasons:['SOURCE_CHANGED']}));
 const actualStale=verifyMatrix(matrix,questions).stale.slice().sort((a,b)=>a.id.localeCompare(b.id));
 assert.deepStrictEqual(actualStale,expectedStale,'historical evidence must explicitly mark superseded stories and original three stale sources');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');
@@ -34,7 +35,8 @@ const approvedValidators=Object.freeze({
   '20261101-230':'scripts/validate-reader-editorial-successor.cjs',
   '20261102-231':'scripts/validate-reader-editorial-successor-231.cjs',
   '20261102-232':'scripts/validate-reader-editorial-successor-232.cjs',
-  '20261103-233':'scripts/validate-reader-editorial-successor-233.cjs'
+  '20261103-233':'scripts/validate-reader-editorial-successor-233.cjs',
+  '20261103-234':'scripts/validate-editorial-successor-234.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);

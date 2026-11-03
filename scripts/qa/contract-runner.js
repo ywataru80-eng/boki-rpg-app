@@ -72,7 +72,16 @@ const typeQuestionChecks={
  ledger:{LEDGER_SUBTYPE:q=>Boolean(q.category&&q.table),LEDGER_CALCULATION_METHOD:q=>q.format==='bookkeeping-account-rule'?[/資産/u,/負債/u,/借方/u,/貸方/u,/(?:貸借平均|一致)/u].every(pattern=>pattern.test(q.question+q.explanation)):/残高|先入先出|移動平均|転記|計算/.test(q.question+q.explanation),LEDGER_EXPECTED_CELLS:q=>q.table.inputCells.every(key=>key in q.answer.cells),LEDGER_UNITS:q=>Object.values(q.table.inputMetadata||{}).every(meta=>meta.semanticType),LEDGER_CALCULATION_PROCESS:q=>answerValues(q).every(v=>mentionsValue(q.explanation,v))},
  trial_balance:{TRIAL_BALANCE_DEBIT:q=>hasAnswerKey(q,/debit/i),TRIAL_BALANCE_CREDIT:q=>hasAnswerKey(q,/credit/i),TRIAL_BALANCE_EXPLICIT_ADDITION:q=>/\+|加え|合計/.test(q.explanation),TRIAL_BALANCE_EQUAL:q=>trialBalanceTotals(q).debit===trialBalanceTotals(q).credit},
  correction:{CORRECTION_RECORDED:q=>q.materials?.some(m=>m.recorded),CORRECTION_EVIDENCE:q=>q.materials?.some(m=>m.evidence),CORRECTION_ENTRY:q=>['debitAccount','debitAmount','creditAccount','creditAmount'].every(key=>key in q.answer.cells)},
- worksheet:{WORKSHEET_PRE_ADJUSTMENT:q=>/使用する資料|整理前|試算表/.test(q.explanation),WORKSHEET_ADJUSTMENT:q=>/修正|整理|調整/.test(q.explanation),WORKSHEET_POST_ADJUSTMENT:q=>answerValues(q).length>0&&answerValues(q).every(v=>mentionsValue(q.explanation,v)),WORKSHEET_PL_BS:q=>/損益|P\/L/.test(q.explanation)&&/貸借|B\/S/.test(q.explanation)},
+ worksheet:{WORKSHEET_PRE_ADJUSTMENT:q=>/使用する資料|整理前|試算表/.test(q.explanation),WORKSHEET_ADJUSTMENT:q=>q.format==='closing-entries'?/売上/.test(q.explanation)&&/損益勘定/.test(q.explanation)&&/振替/.test(q.explanation):/修正|整理|調整/.test(q.explanation),WORKSHEET_POST_ADJUSTMENT:q=>answerValues(q).length>0&&answerValues(q).every(v=>mentionsValue(q.explanation,v)),WORKSHEET_PL_BS:q=>{
+   // Worksheet-type checking MUST follow the actual exercise. D002-D018
+   // asks for four insurance/depreciation values, D019 an adjusted trial
+   // balance, and D020 closing transfers. Requiring P/L and B/S on those
+   // exercises would reward incorrect teaching about unrelated forms.
+   if(q.format==='closing-entries')return /損益勘定/.test(q.explanation)&&/繰越利益剰余金/.test(q.explanation)&&/当期純利益/.test(q.explanation);
+   if(q.format==='adjusted-trial-balance')return /決算整理後残高試算表/.test(q.explanation)&&/借方/.test(q.explanation)&&/貸方/.test(q.explanation);
+   if(q.category==='決算整理・計算問題'&&!q.format)return /保険料/.test(q.explanation)&&/前払振替額/.test(q.explanation)&&/減価償却費/.test(q.explanation)&&/期末帳簿価額/.test(q.explanation);
+   return /損益|P\/L/.test(q.explanation)&&/貸借|B\/S/.test(q.explanation);
+  }},
  financial_statement:{FINANCIAL_STATEMENT_SPECIFIC_VALUES:q=>answerValues(q).every(v=>mentionsValue(q.explanation,v)),FINANCIAL_STATEMENT_FORMULA:q=>/＝|=|差し引|合計/.test(q.explanation),FINANCIAL_STATEMENT_CONSISTENCY:q=>answerValues(q).every(Number.isFinite)},
  comprehensive:{COMPREHENSIVE_CROSS_SOURCE:q=>q.materials?.length>1,COMPREHENSIVE_JUDGMENT:q=>/判断|ため|ので|示し|一致|等しく|当期|前受/.test(q.explanation),COMPREHENSIVE_CALCULATION:q=>/＝|=|計算|合計/.test(q.explanation),COMPREHENSIVE_FINAL_ANSWER:q=>answerValues(q).every(v=>mentionsValue(q.explanation,v))}
 };

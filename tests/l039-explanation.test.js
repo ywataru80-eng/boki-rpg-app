@@ -22,9 +22,14 @@ const project=data=>{
  delete result.J148.story; // J148's approved story-only successor is tested independently.
  // The baseline is preserved in Git history. Release230's exact prose-only
  // diff is independently bounded by tests/editorial-review-230.test.js.
- for(const item of Object.values(result)){
+ const editedProse=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234';
+ for(const [id,item] of Object.entries(result)){
    delete item.explanation;
    delete item.story;
+   // Release234 changes only narrative text in the authored teaching model.
+   // Its exact 19-item allowlist and unchanged assessed fields are separately
+   // verified by editorial-review-234.test.js.
+   if(editedProse&&/^D(?:00[2-9]|01[0-9]|020)$/.test(id))delete item.explanationModel;
  }
  return result;
 };
