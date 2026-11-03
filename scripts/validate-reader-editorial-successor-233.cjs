@@ -10,6 +10,7 @@ const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8'}).trim();
 assert.equal(git('merge-base',BASE,'HEAD'),BASE,'Release233 requires historical Release232 ancestry');
 const allowed=new Set([
  'form-a.html','index.html','js/view.js','package.json','pwa-release-manifest.json','service-worker.js',
+ '.github/workflows/question-quality-ledger-audit.yml',
  'scripts/validate-reader-editorial-successor-233.cjs','tests/audit-matrix.test.js','tests/user-facing-copy-contract.test.js',
  'tests/editorial-review-233.test.js','tests/account-nature-teaching.test.js',GEN,
  'tests/exam-review-structured.test.js','tests/exam-review-content.test.js','tests/exam-review-authored.test.js',
