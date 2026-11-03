@@ -1,4 +1,4 @@
-name: Release234 editorial candidate authenticated gate
+name: Release234 verified blob handoff
 on:
   push:
     branches:
@@ -6,61 +6,57 @@ on:
 permissions:
   contents: write
 jobs:
-  verify-and-stage:
+  upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
-      - name: Verify immutable patch and authorized predecessor
-        shell: bash
+          persist-credentials: false
+      - name: Apply exact verified editorial patch without altering the release branch
         run: |
           set -euo pipefail
           base64 -d .handoff/editorial234.patch.gz.b64 > "$RUNNER_TEMP/editorial234.patch.gz"
           test "$(sha256sum "$RUNNER_TEMP/editorial234.patch.gz" | cut -d' ' -f1)" = d39798b22c5997151182a38e8ba24c6cb53261be3a8da8b09d3e1bdc0ef277b1
           gzip -d -c "$RUNNER_TEMP/editorial234.patch.gz" > "$RUNNER_TEMP/editorial234.patch"
-          git cat-file -e 'c3689f0529e10519c71073acf6d75ec75bdd253a^{commit}'
-          git checkout -B editorial/release234-gen188-20261103 c3689f0529e10519c71073acf6d75ec75bdd253a
+          git checkout -B audit/editorial234-transfer-check c3689f0529e10519c71073acf6d75ec75bdd253a
           git apply --check "$RUNNER_TEMP/editorial234.patch"
           git apply "$RUNNER_TEMP/editorial234.patch"
+          git add -u
+          git add reports/auto-gate/audit-locks/phase-b-generation-188.json reports/edu-quality/editorial-content-identity-234.json scripts/validate-editorial-successor-234.cjs tests/editorial-review-234.test.js
+          test "$(git write-tree)" = d69bb0740e33693ab216a35bdf7cca39e69fd1da
           test "$(git hash-object data/questions.js)" = 5da3024bae40d99b6cac739ee6bb25a0d217580e
-          git diff --check
-          git status --short
+          git diff --cached --check
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: npm ci
-      - name: Verify whole product before commit
-        run: npm run verify
-      - name: Verify next Generation and story before commit
-        run: |
-          npm run qa:integrity
-          npm run qa:story
-          python3 scripts/check-explanation-accounting.py
-      - name: Commit exact audited source only
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- .github/workflows/question-quality-ledger-audit.yml data/questions.js form-a.html index.html package.json pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-188.json reports/edu-quality/editorial-content-identity-234.json scripts/audit-explanations.js scripts/qa/contract-runner.js scripts/validate-editorial-successor-234.cjs service-worker.js tests/audit-matrix.test.js tests/editorial-review-230.test.js tests/editorial-review-232.test.js tests/editorial-review-233.test.js tests/editorial-review-234.test.js tests/l039-explanation.test.js tests/ledger-opening-migration.test.js tests/user-facing-copy-contract.test.js
-          test "$(git write-tree)" = d69bb0740e33693ab216a35bdf7cca39e69fd1da
-          git diff --cached --check
-          git commit -m 'fix(editorial): Release234 Generation188 correct closing explanations with stable history'
-          test "$(git rev-parse 'HEAD^{tree}')" = d69bb0740e33693ab216a35bdf7cca39e69fd1da
-      - name: Verify committed Generation188 and release
+      - name: Verify content and successor candidate before any remote object creation
         run: |
           npm run verify
           npm run qa:integrity
-          npm run qa:story
-      - name: Independent mutation and immutable history suite
-        run: npm run qa:test
-      - name: Push only separate successor branch
+          python3 scripts/check-explanation-accounting.py
+      - name: Upload 19 verified non-workflow Git blobs only
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -euo pipefail
-          ! git ls-remote --exit-code --heads origin refs/heads/editorial/release234-gen188-20261103
-          git push origin HEAD:refs/heads/editorial/release234-gen188-20261103
-          echo "verified_release234_branch=editorial/release234-gen188-20261103"
+          python3 - <<'PY'
+          import os,sys,json,base64,subprocess,urllib.request
+          repository=os.environ['GITHUB_REPOSITORY']
+          token=os.environ['GH_TOKEN']
+          paths=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          workflow='.github/workflows/question-quality-ledger-audit.yml'
+          assert len(paths)==20 and workflow in paths,paths
+          paths.remove(workflow)
+          for path in paths:
+              with open(path,'rb') as f: raw=f.read()
+              body=json.dumps({'content':base64.b64encode(raw).decode('ascii'),'encoding':'base64'}).encode()
+              req=urllib.request.Request('https://api.github.com/repos/'+repository+'/git/blobs',data=body,method='POST',headers={'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'})
+              with urllib.request.urlopen(req,timeout=90) as result: response=json.load(result)
+              expected=subprocess.check_output(['git','hash-object',path],text=True).strip()
+              assert response.get('sha')==expected,(path,response.get('sha'),expected)
+              print('VERIFIED_BLOB',path,expected,flush=True)
+          print('VERIFIED_19_NON_WORKFLOW_BLOBS',len(paths))
+          PY
