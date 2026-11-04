@@ -16,7 +16,8 @@ const allowed=new Set([
   'scripts/validate-worksheet-successor-235.cjs','tests/worksheet-comparison-routing.test.js',
   'tests/audit-matrix.test.js','tests/editorial-review-230.test.js',
   'tests/editorial-review-232.test.js','tests/editorial-review-233.test.js',
-  'tests/user-facing-copy-contract.test.js'
+  'tests/user-facing-copy-contract.test.js',
+  'tests/ledger-opening-migration.test.js'
 ]);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean);
 const fixture='historical-quality/';
