@@ -17,7 +17,8 @@ const allowed=new Set([
   'tests/audit-matrix.test.js','tests/editorial-review-230.test.js',
   'tests/editorial-review-232.test.js','tests/editorial-review-233.test.js',
   'tests/user-facing-copy-contract.test.js',
-  'tests/ledger-opening-migration.test.js'
+  'tests/ledger-opening-migration.test.js',
+  'tests/l039-explanation.test.js'
 ]);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean);
 const fixture='historical-quality/';

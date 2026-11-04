@@ -22,7 +22,7 @@ const project=data=>{
  delete result.J148.story; // J148's approved story-only successor is tested independently.
  // The baseline is preserved in Git history. Release230's exact prose-only
  // diff is independently bounded by tests/editorial-review-230.test.js.
- const editedProse=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234';
+ const editedProse=['20261103-234','20261105-235'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
  for(const [id,item] of Object.entries(result)){
    delete item.explanation;
    delete item.story;
