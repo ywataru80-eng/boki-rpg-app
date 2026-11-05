@@ -4,7 +4,7 @@ const read=f=>fs.readFileSync(f,'utf8');
 const head=read('index.html'),form=read('form-a.html'),app=read('js/form-a.js'),ctl=read('js/controller.js');
 const fixture=read('data/form-a.json');
 const manifest=JSON.parse(read('pwa-release-manifest.json'));
-assert.equal(manifest.release,'20261102-232','only the reviewed Release231 is accepted');
+assert.equal(manifest.release,'20261103-233','the audited successor Release233 is required');
 assert(head.includes('3伝票制の実務演習'));
 assert(!head.includes('Form A') && !form.includes('Form A'),'Form A cannot be a user-facing label');
 assert(!form.includes('取引ID'));

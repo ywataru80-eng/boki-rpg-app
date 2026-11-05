@@ -46,7 +46,8 @@ jobs:
             '20261029-229': 'scripts/validate-all300-copy-successor.cjs',
              '20261101-230': 'scripts/validate-reader-editorial-successor.cjs',
             '20261102-231': 'scripts/validate-reader-editorial-successor-231.cjs',
-            '20261102-232': 'scripts/validate-reader-editorial-successor-232.cjs'
+            '20261102-232': 'scripts/validate-reader-editorial-successor-232.cjs',
+            '20261103-233': 'scripts/validate-reader-editorial-successor-233.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);

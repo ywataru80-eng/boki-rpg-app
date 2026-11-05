@@ -144,6 +144,16 @@
       const visibleCategory = accountCategorySpoiler ? '仕訳問題' : question.category;
       this.byId('q-category').textContent = `第${question.chapter}章｜${visibleCategory}`;
       const story = this.byId('q-story'); story.hidden = mode !== 'story';
+      // Authored lines are pre-answer coaching, never exam spoilers or victory quotes.
+      let npc = this.byId('q-npc-dialogue');
+      if (!npc) {
+        npc = this.document.createElement('blockquote');
+        npc.id = 'q-npc-dialogue';
+        npc.className = 'npc-dialogue';
+        story.append(npc);
+      }
+      npc.hidden = mode !== 'story' || !question.npcDialogue;
+      npc.textContent = npc.hidden ? '' : String(question.npcDialogue);
       if (!story.hidden) {
         // Keep the story meaningful without exposing the exact answer account
         // through a category label embedded in the narrative.
@@ -1400,8 +1410,8 @@
           extra = items.filter(item => item.evidenceRef !== 'explanation');
         }
         if (key === 'mistakes') {
-          primary = score.correct ? [] : items.slice(0, 1);
-          extra = items.slice(primary.length);
+          primary = score.correct || userAnswer == null ? [] : items.slice(0, 1);
+          extra = userAnswer == null ? [] : items.slice(primary.length);
         }
         if (primary.length) flow.append(renderSection(key === 'mistakes' ? 'まず確認する点（原因の候補）' : label, key, primary, primaryIndex++));
         if (extra.length) supplementary.append(renderSection(key === 'summary' && primary.length ? '考え方の補足' : key === 'checks' && primary.length ? '追加の検算' : label, key, extra, null));
@@ -1440,6 +1450,39 @@
           }
         }
       });
+      // Preserve source-grounded reasoning without repeating it above the fold.
+      const authoredIntro = String(question.explanation || '').split('【')[0].trim();
+      const alreadyExplained = [
+        ...(model.summary || []).map(item => item.text),
+        ...(model.calculation || []).flatMap(item => [item.expression, item.note]),
+        ...(model.transfer || []).map(item => item.decision),
+        ...(model.checks || []).flatMap(item => [item.expected, item.note])
+      ].filter(Boolean).join(' ');
+      const stillUseful = (authoredIntro.match(/[^。！？]+[。！？]?/gu) || [])
+        .map(sentence => sentence.trim())
+        .filter(sentence => sentence.length >= 12 && !alreadyExplained.includes(sentence));
+      if (stillUseful.length) {
+        const note = element('section', 'explanation-flow-section explanation-authored-detail');
+        note.append(element('h5', '', '取引と計算の補足'), element('p', 'explanation-authored-detail-text', authoredIntro));
+        supplementary.append(note);
+      }
+      // Rare but pedagogically important named notes are not reconstructed by
+      // answer-derived templates. Keep them accessible without duplicating the
+      // main solution or disclosing them before submission.
+      const protectedNotes = new Set([
+        '表示上の注意','処理の範囲','補給時点','負担の区別','月末の確認',
+        '納付期限日の処理','納付総額の確認','決算時の処理',
+        '収益の振替','費用の振替','当期純利益の振替','判断の順序'
+      ]);
+      const notePattern = /【([^】]+)】\s*([\s\S]*?)(?=【[^】]+】|$)/gu;
+      for (const match of String(question.explanation || '').matchAll(notePattern)) {
+        const label = match[1].trim(), body = match[2].trim();
+        if (!protectedNotes.has(label) || !body) continue;
+        if (alreadyExplained.includes(body)) continue;
+        const note = element('section','explanation-flow-section explanation-special-note');
+        note.append(element('h5','',label),element('p','explanation-special-note-text',body));
+        supplementary.append(note);
+      }
       if (supplementary.children.length > 1) flow.append(supplementary);
       return flow;
     }
@@ -1546,7 +1589,6 @@
         ? '正解です。この問題の処理と答えの根拠を確認しましょう。'
         : 'この問題の処理と答えの根拠を確認しましょう。回答との差だけで、間違えた原因は断定できません。';
       container.append(lead);
-      this.renderAccountNature(question, container);
       const supplementary = this.explanationDisclosure('解答の道筋・学習のポイントを確認');
       if (root.ExplanationDesignSystem?.planFor && root.ExplanationDesignSystem?.render) {
         const routeModel = question.explanationModel && root.ExplanationModel?.build
@@ -1559,7 +1601,8 @@
         supplementary.append(root.ExplanationDesignSystem.render(this.document, route));
       }
       const structured = this.renderStructuredExplanation(question, userAnswer, score);
-      if (structured) { container.append(structured); this.renderLearningTakeaway(question, supplementary); container.append(supplementary); return; }
+      if (structured) { this.renderAccountNature(question, supplementary); container.append(structured); this.renderLearningTakeaway(question, supplementary); container.append(supplementary); return; }
+      this.renderAccountNature(question, container);
       const solution = this.document.createElement('section'); solution.className = 'solution-steps';
       const solutionHeading = this.document.createElement('h4'); solutionHeading.textContent = '解き方（この順番で考える）';
       const list = this.document.createElement('ol');
@@ -1610,6 +1653,20 @@
       }
       return `回答欄${index + 1}`;
     }
+    renderExamReviewExplanation(question, userAnswer, correct) {
+      // Reuse the study explanation only AFTER grading; preserve legacy content as fallback.
+      const structured = this.renderStructuredExplanation(question, userAnswer, {correct: correct === true});
+      if (structured) {
+        const section = this.document.createElement('section');
+        section.className = 'exam-review-explanation';
+        section.append(structured);
+        return section;
+      }
+      const fallback = this.document.createElement('p');
+      fallback.className = 'exam-review-explanation';
+      fallback.textContent = String(question.explanation || '');
+      return fallback;
+    }
     examResult(review, questions, history, achievement = {}) {
       const standardActions = this.byId('standard-result-actions'); const examActions = this.byId('exam-result-actions');
       if (standardActions) standardActions.hidden = true; if (examActions) examActions.hidden = false;
@@ -1619,7 +1676,12 @@
       this.byId('answer-comparison').hidden = true; this.byId('correct-journal').replaceChildren();
       const container = this.byId('explanation'); container.replaceChildren();
       const heading = this.document.createElement('h3'); heading.textContent = '問題別レビュー'; container.append(heading);
-      review.items.forEach((item, index) => { const question = questions[item.id]; const details = this.document.createElement('details'); const summary = this.document.createElement('summary'); summary.textContent = `第${index + 1}問｜${item.earned}/${item.points}点｜${item.correct ? '正解' : item.answer ? '不正解' : '未回答'}｜${item.topic}`; details.append(summary, this.answerReviewBlock('自分の回答', question, item.answer), this.answerReviewBlock('正解', question, question.answer)); const diagnostics = this.renderDiagnostics(question, item.answer, { correct: item.correct }); if (diagnostics) details.append(diagnostics); const explanation = this.document.createElement('p'); explanation.className = 'exam-review-explanation'; explanation.textContent = question.explanation; details.append(explanation); this.renderAccountNature(question, details); container.append(details); });
+      review.items.forEach((item, index) => { const question = questions[item.id]; const details = this.document.createElement('details'); const summary = this.document.createElement('summary'); summary.textContent = `第${index + 1}問｜${item.earned}/${item.points}点｜${item.correct ? '正解' : item.answer ? '不正解' : '未回答'}｜${item.topic}`; details.append(summary, this.answerReviewBlock('自分の回答', question, item.answer), this.answerReviewBlock('正解', question, question.answer)); const diagnostics = item.answer != null && !item.correct ? this.renderDiagnostics(question, item.answer, { correct: item.correct }) : null; if (diagnostics) details.append(diagnostics); details.append(this.renderExamReviewExplanation(question, item.answer, item.correct));
+        if (['journal','correction'].includes(question.type)) {
+          const nature = this.explanationDisclosure('勘定科目の区分と借方・貸方の補足');
+          this.renderAccountNature(question, nature);
+          details.append(nature);
+        } container.append(details); });
       const historyHeading = this.document.createElement('h3'); historyHeading.textContent = '直近の成績'; container.append(historyHeading);
       const list = this.document.createElement('ol'); history.slice(-5).reverse().forEach(item => { const row = this.document.createElement('li'); row.textContent = `${new Date(item.finishedAt).toLocaleString('ja-JP')}｜${item.points}点${item.unverified ? '（旧記録・未検証）' : ''}｜${item.passed ? '合格圏' : '要復習'}｜所要${Math.ceil(item.durationMs / 60000)}分｜未回答${item.unansweredCount}問`; list.append(row); }); container.append(list);
     }
