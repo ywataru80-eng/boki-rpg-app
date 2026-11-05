@@ -1,10 +1,10 @@
 {
-  "release": "20261103-233",
-  "previousRelease": "20261102-232",
+  "release": "20261103-234",
+  "previousRelease": "20261103-233",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "97b67b248b42cc0734a8ef26c244c46bf4d9748a7cd5e5ccfec0dfe16021909c",
-    "data/questions.js": "3679e5eeadc86a210a2e21b30b862e515e9dac51ab228f6293aa612b56b3f7df",
+    "data/questions.js": "0f619307f9350a284adceeaf4b25279de3aea2cb8ebf9cadaf96a9a5bd4bc5ad",
     "data/accounting-oracle.js": "4f5c58a0447f9d07fa5249202d39600369301254d728b2d7ab3d494a55caac44",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
     "js/model.js": "9fafb92960072a204fc86e489bf88dfa9cec65151c4f807654d4e93f360094ff",
@@ -24,6 +24,6 @@
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "d3fef7e164c1604e3809e707abc9d5f14f59aac67dbb423c9207f19a455a9e2b"
+    "form-a.html": "cbd439726a0e98b60993f43d872d2b0a3bc69cc7a8d96135fa7b31335661e168"
   }
 }

@@ -98,7 +98,22 @@ const tableIssues = question => {
     if (!/(借方：).*＋.*＝.*(貸方：).*＋.*＝/su.test(text)) issues.push('借方・貸方の実数加算式がない');
     if (!/借方合計.*貸方合計.*一致/su.test(text)) issues.push('貸借一致の検算がない');
   }
-  if (question.type === 'worksheet' && !/(整理前|元データ).*(調整|決算整理).*(整理後|最終値)/su.test(text)) issues.push('整理前→調整→整理後の経路がない');
+  if (question.type === 'worksheet') {
+    // An 8-column worksheet, a four-value adjustment exercise, a post-adjustment
+    // trial balance and closing entries are DIFFERENT operations. Do not demand
+    // the worksheet's PL/BS transfer steps in exercises that do not ask for them.
+    if (question.category === '帳簿締切') {
+      if (!/売上.*損益.*貸方/su.test(text)) issues.push('売上を損益の貸方へ振り替える説明がない');
+      if (!/(?:仕入|費用).*損益.*借方/su.test(text)) issues.push('費用を損益の借方へ振り替える説明がない');
+      if (!/損益.*繰越利益剰余金/su.test(text)) issues.push('当期純利益の振替先の説明がない');
+      if (!/損益勘定.*残高.*ゼロ/su.test(text)) issues.push('損益勘定の締切後残高を検算していない');
+    } else if (!/(整理前|元データ).*(調整|決算整理).*(整理後|最終値)/su.test(text)) {
+      issues.push('整理前→調整→整理後の経路がない');
+    }
+    if (question.category !== '8欄精算表（8桁精算表）' && /整理後残高を損益計算書または貸借対照表へ振り分けます/u.test(text)) {
+      issues.push('設問で要求しない精算表への振分けを指示している');
+    }
+  }
   if (question.format === 'balance-sheet') {
     const fixed = question.table.rows.filter(row => ['資産','負債','純資産'].includes(row.section) && row.amount !== '入力');
     for (const row of fixed) if (!text.includes(row.account) || !includesAmount(text, row.amount)) issues.push(`貸借対照表の根拠「${row.account} ${row.amount}」がない`);

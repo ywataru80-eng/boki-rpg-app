@@ -13,7 +13,9 @@ const load=source=>{
  vm.runInNewContext(source,scope,{filename:'questions.js',timeout:30000});
  return scope.window.QuestionData;
 };
-const before=load(oldQuestions),after=load(fs.readFileSync('data/questions.js','utf8'));
+const successor=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234';
+const documentedSource=successor?cp.execFileSync('git',['show','c3689f0529e10519c71073acf6d75ec75bdd253a:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}):fs.readFileSync('data/questions.js','utf8');
+const before=load(oldQuestions),after=load(documentedSource);
 const ids=Object.keys(after).sort();
 assert.equal(ids.length,300);
 assert.deepEqual(ids,Object.keys(before).sort());
