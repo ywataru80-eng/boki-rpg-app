@@ -1226,7 +1226,7 @@
         container.append(heading, note, this.journalTable(this.correctionJournal(userAnswer)));
         return;
       }
-      if (question.type === 'worksheet') {
+      if (question.type === 'worksheet' && question.format === 'eight-column-worksheet') {
         heading.textContent = '最初の回答を決算整理表で比較';
         const note = this.document.createElement('p'); note.textContent = '問題と同じ行・列の中で、入力した値と正解を横に見比べましょう。';
         container.append(heading, note, this.worksheetAnswerComparison(question, score, userAnswer));
