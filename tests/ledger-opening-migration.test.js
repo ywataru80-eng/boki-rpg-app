@@ -6,9 +6,15 @@ const evaluate=(source,key)=>{const s={window:{},console};vm.runInNewContext(sou
 const old=file=>cp.execFileSync('git',['show',`${BASE}:${file}`],{encoding:'utf8',maxBuffer:8*1024*1024});
 const OldModel=evaluate(old('js/model.js'),'ProgressModel');
 const oldQuestions=evaluate(old('data/questions.js'),'QuestionData'),questions=evaluate(fs.readFileSync('data/questions.js','utf8'),'QuestionData');
+const PREVIOUS_RELEASE235='177dadd83369b0c1bd0c95db4af379ea35515c67';
+const previousRelease=file=>cp.execFileSync('git',['show',PREVIOUS_RELEASE235+':'+file],{encoding:'utf8',maxBuffer:12*1024*1024});
+const V5Model=evaluate(previousRelease('js/model.js'),'ProgressModel');
+const previousQuestions=evaluate(previousRelease('data/questions.js'),'QuestionData');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const storage=(value=null)=>({value,writes:0,getItem(){return this.value;},setItem(_k,v){this.value=v;this.writes++;return true;}});
 const now=Date.UTC(2026,9,15,9);
+const issue256Successor=questions.D002.format==='decision-worksheet-v2';
+const expectedContentRevision=issue256Successor?6:5;
 function legacy(ids=['L044','L045'],correct=true){const st=storage(),m=new OldModel(oldQuestions,st);for(const id of [...ids,'J001']){m.recordAttempt(id,correct,1000,'',false,now,null,'sure',{support:'none'});m.record(id,correct,now);m.setDraft(id,clone(oldQuestions[id].answer));}return clone(m.state);}
 let passed=0,failed=0;const test=(name,fn)=>{try{fn();passed++;console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+' '+e.stack);}};
 for(const[id,opening,end,increase,decrease]of [['L044','4月1日','4月5日',50000,18000],['L045','5月1日','5月8日',300000,85000]]){
@@ -19,8 +25,6 @@ for(const[id,opening,end,increase,decrease]of [['L044','4月1日','4月5日',500
 const reload=before=>{const store=storage(JSON.stringify(before));return {store,model:new Model(questions,store)};};
 const legacyModel=()=>new OldModel(oldQuestions,storage());
 const identities=Model.currentContentVersions(questions);
-const issue256Successor=questions.D002.format==='decision-worksheet-v2';
-const expectedContentRevision=issue256Successor?6:5;
 test('new installation and untouched legacy save: no invented prior answers',()=>{
  const empty=storage(),fresh=new Model(questions,empty);assert.equal(empty.writes,0);assert.equal(fresh.state.contentRevision,expectedContentRevision);
  const before=clone(legacyModel().state),{model}=reload(before);assert.deepEqual(model.state.contentRecheckIds,[]);assert.deepEqual(model.state.contentMigrationArchive.questions,{});assert.equal(Object.keys(model.state.questionContentVersions).length,Object.keys(identities).length);
@@ -62,7 +66,7 @@ test('existing J051/L031 migration archives and legacy provenance remain byte-id
  assert.equal(model.state.legacyProvenance.original,before.legacyProvenance.original);assert.deepEqual(model.state.questionStats.L031,before.questionStats.L031);
 });
 for(const [current,oldId]of [['L044','L045'],['L045','L044']])test(current+' current + '+oldId+' legacy mixed identities migrate only old ID',()=>{
- const m=new Model(questions,storage());m.recordAttempt(current,true,1000,'',false,now);m.record(current,true,now);m.setDraft(current,clone(questions[current].answer));
+ const m=issue256Successor?new V5Model(previousQuestions,storage()):new Model(questions,storage());m.recordAttempt(current,true,1000,'',false,now);m.record(current,true,now);m.setDraft(current,clone(questions[current].answer));
  const oldState=legacy([oldId]);for(const field of ['questionStats','drafts','reviewSchedule','mistakeCounts'])if(oldState[field][oldId]!==undefined)m.state[field][oldId]=oldState[field][oldId];
  for(const field of ['answeredIds','correctIds','incorrectIds'])if(oldState[field].includes(oldId))m.state[field].push(oldId);
  m.state.attempts.push(...oldState.attempts.filter(a=>a.id===oldId));m.state.learningEffectiveness.questions[oldId]=oldState.learningEffectiveness.questions[oldId];
@@ -70,7 +74,7 @@ for(const [current,oldId]of [['L044','L045'],['L045','L044']])test(current+' cur
  // Use the normal current recording API to seal the explicit mixed map;
  // v11 binds both identities and the retained log.
  m.recordAttempt('J001',true,1000,'',false,now+1);m.refreshEvidenceIntegrity();
- assert(Model.validateBackupState(m.state,questions));const before=clone(m.state),{model}=reload(before);assert(!model.storageWriteBlocked);
+ assert((issue256Successor?V5Model:Model).validateBackupState(m.state,issue256Successor?previousQuestions:questions));const before=clone(m.state),{model}=reload(before);assert(!model.storageWriteBlocked);
  assert.deepEqual(model.state.questionStats[current],before.questionStats[current]);assert.deepEqual(model.state.learningEffectiveness.questions[current],before.learningEffectiveness.questions[current]);assert.deepEqual(model.state.drafts[current],before.drafts[current]);assert.equal(model.statsForQuestion(oldId).correctCount,0);
 });
 test('old exam session and affected historical score are retained but not current graduation evidence',()=>{
@@ -102,7 +106,8 @@ test('300 IDs and protected prior contracts plus distinct reviewed 17 successors
  for(const id of Object.keys(questions)){
    if(issue256Successor&&/^D(?:00[2-9]|01[0-8])$/.test(id)){
      assert.equal(questions[id].format,'decision-worksheet-v2',id+' explicit Release236 change');
-     assert.notDeepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' new graded schema must differ');
+     if(id==='D002'||id==='D018')assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' four values retained with new decision identity');
+     else assert.notDeepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' reduced graded schema must differ');
      continue; // unchanged 283 assessed contracts checked here; edited17 audited by Issue256 test
    }
    assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' accepted accounting answer unchanged');
