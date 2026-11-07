@@ -25,6 +25,16 @@ jobs:
           node <<'NODE'
           const fs=require('node:fs'),crypto=require('node:crypto');
           const OLD='20261105-235',NEW='20261107-236',hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          const deployed=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+          if(deployed.release===NEW){
+            const lc=require('./scripts/qa/phase-b-lifecycle');
+            const proof=lc.verifyCurrent();
+            if(!proof.ok||proof.generation!==190)throw Error('committed Generation190 invalid: '+proof.errors.join(';'));
+            for(const [p,expected] of Object.entries({...deployed.assets,...deployed.pages})){
+              if(hash(p)!==expected)throw Error('Release236 asset drift: '+p);
+            }
+            console.log('RELEASE236_GEN190_COMMITTED_SOURCE_VERIFIED');process.exit(0);
+          }
           for(const p of ['index.html','form-a.html','service-worker.js']){
             const original=fs.readFileSync(p,'utf8');
             if(!original.includes(OLD))throw Error(p+' wrong release baseline');
