@@ -22,6 +22,7 @@ const allowed=new Set([
  'reports/edu-quality/issue256-release236-review-ledger.json',
  '.github/workflows/question-quality-ledger-audit.yml',
  '.github/workflows/issue256-release236-acceptance.yml',
+ '.github/workflows/issue256-release236-commit.yml',
  'tests/issue256-release236-migration.test.js',
  'tests/ledger-opening-migration.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
