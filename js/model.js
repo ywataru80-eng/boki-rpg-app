@@ -136,7 +136,7 @@
       // and grading engine. Earlier content revisions cannot use this oracle.
       const score = state.examSession?.scores?.[id], question = questions[id];
       const engine = root.GradingEngine || (typeof require === 'function' ? require('./engine') : null);
-      if (![4,CONTENT_REVISION].includes(state.contentRevision) || !score?.answer || !question?.answer || !engine) return null;
+      if (![4,5,CONTENT_REVISION].includes(state.contentRevision) || !score?.answer || !question?.answer || !engine) return null;
       try { return engine.grade(question, score.answer); } catch (_) { return null; }
     }
     static validLegacyExamGrades(state, questions) {
@@ -258,7 +258,7 @@
         // that missing aggregates are corruption, rather than an old schema.
         return !Array.isArray(state.attempts) || !state.attempts.some(row => row && Object.hasOwn(row, 'observationNumber'));
       }
-      if (![4,CONTENT_REVISION].includes(state.contentRevision) || ![2,LEARNING_SCHEMA_VERSION].includes(state.learningSchemaVersion) ||
+      if (![4,5,CONTENT_REVISION].includes(state.contentRevision) || ![2,LEARNING_SCHEMA_VERSION].includes(state.learningSchemaVersion) ||
           !ProgressModel.validLearningEffectiveness(evidence, questions) || !Number.isFinite(state.lastLearningAt) || state.lastLearningAt < 0 ||
           !state.questionStats || typeof state.questionStats !== 'object' || Array.isArray(state.questionStats) || !Array.isArray(state.attempts) ||
           state.attempts.length > 200 || evidence.retainedAttemptsSignature !== valueSignature(state.attempts)) return false;
@@ -625,7 +625,7 @@
           }
         }
       }
-      if (alreadySealed && [4,CONTENT_REVISION].includes(original.contentRevision) &&
+      if (alreadySealed && [4,5,CONTENT_REVISION].includes(original.contentRevision) &&
           valueSignature(original.questionContentVersions ?? null) === valueSignature(ProgressModel.currentContentVersions(this.questions,original.contentRevision))) {
         // Legacy schedules start quarantined. Only a current record() creates
         // or confirms one; the preview's flawed flag migration never does.
@@ -670,7 +670,7 @@
         // The first preview did not synthesize flags from exam history. Later
         // progression previews did, so their additions need independent proof.
         // Preserve every candidate, including additions that remain unverified.
-        if (previewWithoutProgression && [4,CONTENT_REVISION].includes(original.contentRevision) && Array.isArray(original[field]))
+        if (previewWithoutProgression && [4,5,CONTENT_REVISION].includes(original.contentRevision) && Array.isArray(original[field]))
           for (const id of this.state[field]) if (!original[field].includes(id)) proven[field].add(id);
         if (field !== 'incorrectIds') this.state[field] = [...new Set([...this.state[field],...proven[field]])];
         // incorrectIds is mutable recovery state, not a cumulative wrong count.
