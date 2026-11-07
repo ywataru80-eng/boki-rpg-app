@@ -18,6 +18,21 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      - name: Export reproducible HEAD-only Git bundle for isolated test repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/repro-source
+          git bundle create artifacts/repro-source/issue256-head.bundle HEAD
+          git bundle verify artifacts/repro-source/issue256-head.bundle
+          git rev-parse HEAD > artifacts/repro-source/sha.txt
+      - name: Preserve reproducible source snapshot
+        uses: actions/upload-artifact@v5
+        with:
+          name: issue256-release236-repro-source
+          path: artifacts/repro-source/
+          if-no-files-found: error
+          retention-days: 7
       - name: Compute Release236 production asset and Generation190 bundle
         shell: bash
         run: |
