@@ -17306,6 +17306,7 @@ for (const [id, month, endDay, account, plus, minus, incoming, outgoing] of [
   const evidenceSource=docs.map(row=>Object.entries(row).map(([key,val])=>key+'：'+(typeof val==='number'?val.toLocaleString('ja-JP'):val)).join('、')).join('。');
   const chain='整理前の契約額や取得原価を資料として、決算整理の調整額を計算し、整理後に残る費用または資産の金額と照合します。';
   item.explanation='【使用する資料】'+evidenceSource+'。\n【判断の順序】'+teaching+chain+'\n【計算と転記】'+calculations+'求めた解答欄は、'+outputs+'。\n【検算】'+specificCautions[id];
+  if(id==='D002')item.explanation+='\n【表示上の注意】間接法では備品勘定の取得原価を直接減らさず、減価償却累計額を貸方に設けて帳簿価額を示します。';
   item.explanationModel={summary:[{text:teaching}]};
   item.nextHook=id==='D018'?'続いて、別途与えられる試算表の勘定残高を一から確認します。':'次の資料では、別の判断と記帳根拠を確認します。';
   item.workResult=goal+'の照合状況';
