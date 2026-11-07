@@ -4,7 +4,7 @@
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "97b67b248b42cc0734a8ef26c244c46bf4d9748a7cd5e5ccfec0dfe16021909c",
-    "data/questions.js": "8aab4633ac1342cdd298678269dac7695b5da6af7af30faeef9d189807f4d8a1",
+    "data/questions.js": "0a35d3e69e877a55c18b87bde369cd789b3069b1133387680f2aed6ebf1d96fb",
     "data/accounting-oracle.js": "4f5c58a0447f9d07fa5249202d39600369301254d728b2d7ab3d494a55caac44",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
     "js/model.js": "beda93970e0a806ab68cd052670074dc284b0787aceb09be26c9f9fa12699bb1",
@@ -13,7 +13,7 @@
     "js/feedback.js": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
     "js/explanation-formulas.js": "a637b2ed85953400a1450cdfa7450ff3dcb10dbc48911dd69bf82a38e17ccfa2",
     "js/explanation-model.js": "4a5d6ee4cd8f93e04c0a0ca29de0c7c57a54c6822bf77a594f87fafa36782d58",
-    "js/explanation-design-system.js": "4a574d98b014deef416bc5120d2da5664f95d8039142eaeb9d8bf45582b7898d",
+    "js/explanation-design-system.js": "4ed83c9430a0d9ef4d8687733a77668f5c0a09b2f92d293db748f5e1156683f6",
     "js/view.js": "81fb3b5505a2ccd577dc0fff8ada11543bb3883368ccd7e08bfc8b2360693a45",
     "js/controller.js": "6731bf90ccac57b6c3045531fca41a636b047d8c87f817ab2229ec06c1a4ea8c",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",

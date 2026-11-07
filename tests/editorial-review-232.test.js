@@ -4,7 +4,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('nod
 const BASE='61c06adf3b6a7d59b7cb54a9b74bcc0ddc519dba',domain=fs.readFileSync('data/accounting-domain.js','utf8');
 const load=src=>{const scope={window:{},console};vm.runInNewContext(domain,scope);scope.AccountingDomain=scope.window.AccountingDomain;vm.runInNewContext(src,scope);return scope.window;};
 const prev=load(cp.execFileSync('git',['show',BASE+':data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}));
-const successor=['20261103-234','20261105-235'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
+const successor=['20261103-234','20261105-235','20261107-236'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
 const documentedSource=successor?cp.execFileSync('git',['show','c3689f0529e10519c71073acf6d75ec75bdd253a:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}):fs.readFileSync('data/questions.js','utf8');
 const current=load(documentedSource);
 const ids=Object.keys(prev.QuestionData).sort();assert.equal(ids.length,300);assert.deepEqual(Object.keys(current.QuestionData).sort(),ids);

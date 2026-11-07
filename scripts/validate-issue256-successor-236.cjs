@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-190.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-191.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -19,6 +19,14 @@ const allowed=new Set([
  'index.html','form-a.html','service-worker.js','pwa-release-manifest.json',
  'scripts/validate-issue256-successor-236.cjs','scripts/check-explanation-accounting.py','package.json',
  'reports/auto-gate/audit-locks/phase-b-generation-190.json',
+ 'reports/auto-gate/audit-locks/phase-b-generation-191.json',
+ 'js/explanation-design-system.js','scripts/qa/contract-runner.js',
+ 'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
+ 'tests/issue256-release236-independent-oracle.test.js',
+ 'tests/explanation-formula-coverage.test.js','tests/fixed-asset-ledger.test.js',
+ 'tests/issue161-ch11-12-final-explanation.test.js','tests/issue161-explanation-design-system.test.js',
+ 'tests/issue161-inventory.test.js','tests/ledger-opening-history.browser.test.js',
+ 'tests/editorial-review-230.test.js','tests/editorial-review-232.test.js','tests/editorial-review-233.test.js',
  'reports/edu-quality/issue256-release236-review-ledger.json',
  '.github/workflows/question-quality-ledger-audit.yml',
  '.github/workflows/issue256-release236-acceptance.yml',
@@ -68,7 +76,7 @@ for(const id of ids){
  } else assert.equal(stable(before[id]),stable(now[id]),id+' outside 17 changed');
 }
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,190);assert.equal(gen.predecessor.generation,189);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,191);assert.equal(gen.predecessor.generation,190);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);

@@ -18,7 +18,7 @@ const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J1
 const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
 const release236=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236';
 const successorChanges=release236?Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')):[];
-const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges])].sort().map(id=>({id,status:'STALE',reasons:['SOURCE_CHANGED']}));
+const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges])].sort().map(id=>({id,status:'STALE',reasons:successorChanges.includes(id)?['SOURCE_CHANGED','ANSWER_SCHEMA_CHANGED']:['SOURCE_CHANGED']}));
 const actualStale=verifyMatrix(matrix,questions).stale.slice().sort((a,b)=>a.id.localeCompare(b.id));
 assert.deepStrictEqual(actualStale,expectedStale,'historical evidence must explicitly mark superseded stories and original three stale sources');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');

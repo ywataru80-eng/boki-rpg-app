@@ -4,7 +4,8 @@ const sandbox={window:{},console};vm.createContext(sandbox);
 for(const file of ['data/questions.js','js/explanation-design-system.js'])vm.runInContext(fs.readFileSync(file,'utf8'),sandbox,{filename:file});
 const q=sandbox.window.QuestionData,ds=sandbox.window.ExplanationDesignSystem,ids=Object.keys(q);
 assert.strictEqual(ids.length,300,'Gate 4 must cover the complete 300-question corpus');
-assert.strictEqual(Object.keys(ds.MATRIX).length,26,'all 26 concrete type/format combinations are explicit');
+assert.strictEqual(Object.keys(ds.MATRIX).length,27,'all 27 concrete type/format combinations are explicit, including the 17 Release236 decisions');
+assert.strictEqual(ds.MATRIX['worksheet/decision-worksheet-v2'],'closingDecision','new decision format must not use the legacy eight-column worksheet procedure');
 const formats=new Set(),profiles=new Set(),componentUse=new Set();
 for(const id of ids){
   const item=q[id],key=item.type+'/'+(item.format||'default'),plan=ds.planFor(item);
@@ -19,7 +20,8 @@ for(const id of ids){
   assert(plan.components.some(component=>component.id==='check'),id+': check component');
   assert(plan.components.some(component=>component.id==='takeaway'),id+': takeaway component');
 }
-assert.strictEqual(formats.size,26,'runtime corpus has exactly the classified 26 combinations');
+assert.strictEqual(formats.size,26,'runtime corpus has 26 active formats and one explicitly retained historical worksheet mapping');
+assert.deepStrictEqual(Object.keys(ds.MATRIX).filter(key=>!formats.has(key)),['worksheet/default'],'historical default worksheet remains supported but unused by Release236');
 assert.deepStrictEqual([...componentUse].sort(),Object.keys(ds.COMPONENTS).sort(),'the shared system exercises every required Gate 4 component');
 for(const id of ['L005','L010','L015','L020','L025','L030','L033','L040']){
   const plan=ds.planFor(q[id]);
