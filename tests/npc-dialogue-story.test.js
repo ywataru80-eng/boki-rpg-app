@@ -39,6 +39,13 @@ for(const q of questions){
  view.renderQuestion(q,{},'training');
  assert(npc.hidden&&!npc.textContent,q.id+': no NPC in training');trainingChecks++;
 }
-assert.equal(authored,83,'Expected 83 authored mentor lines in Release232 content');
+// Exact Release236 successor acceptance: 83 historical authored lines plus 14
+// newly authored decision worksheets (D019/D020 already had NPC lines).
+const expectedAuthored = data.D002.format==='decision-worksheet-v2' ? 97 : 83;
+assert.equal(authored,expectedAuthored,'authored NPC dialogue count must match exact release contract');
+if(expectedAuthored===97){
+  for(let n=2;n<=18;n++)assert(data['D'+String(n).padStart(3,'0')].npcDialogue.includes('水野先輩'), 'new closing judgment missing NPC');
+  assert.notEqual(data.D019.npcDialogue,data.D020.npcDialogue,'trial balance and closing NPC must differ');
+}
 assert.equal(JSON.stringify(data),before,'No canonical data modifications');
 console.log('NPC_DIALOGUE_STORY_PASS',storyChecks,'story,',examChecks,'exam,',trainingChecks,'training,',authored,'authored lines');
