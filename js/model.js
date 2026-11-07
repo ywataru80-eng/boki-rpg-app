@@ -1,9 +1,26 @@
 (function (root) {
   'use strict';
-  const CONTENT_REVISION = 5;
+  const CONTENT_REVISION = 6;
   // These identities describe reviewed content contracts, not a release
   // timestamp. A later replacement requires an explicit new identity/migration.
   const CONTENT_IDENTITIES = Object.freeze({
+    D002: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D002:closing-decision-v2',legacy:'D002:four-amount-worksheet-v1',sinceRevision:6}),
+    D003: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D003:closing-decision-v2',legacy:'D003:four-amount-worksheet-v1',sinceRevision:6}),
+    D004: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D004:closing-decision-v2',legacy:'D004:four-amount-worksheet-v1',sinceRevision:6}),
+    D005: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D005:closing-decision-v2',legacy:'D005:four-amount-worksheet-v1',sinceRevision:6}),
+    D006: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D006:closing-decision-v2',legacy:'D006:four-amount-worksheet-v1',sinceRevision:6}),
+    D007: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D007:closing-decision-v2',legacy:'D007:four-amount-worksheet-v1',sinceRevision:6}),
+    D008: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D008:closing-decision-v2',legacy:'D008:four-amount-worksheet-v1',sinceRevision:6}),
+    D009: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D009:closing-decision-v2',legacy:'D009:four-amount-worksheet-v1',sinceRevision:6}),
+    D010: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D010:closing-decision-v2',legacy:'D010:four-amount-worksheet-v1',sinceRevision:6}),
+    D011: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D011:closing-decision-v2',legacy:'D011:four-amount-worksheet-v1',sinceRevision:6}),
+    D012: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D012:closing-decision-v2',legacy:'D012:four-amount-worksheet-v1',sinceRevision:6}),
+    D013: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D013:closing-decision-v2',legacy:'D013:four-amount-worksheet-v1',sinceRevision:6}),
+    D014: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D014:closing-decision-v2',legacy:'D014:four-amount-worksheet-v1',sinceRevision:6}),
+    D015: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D015:closing-decision-v2',legacy:'D015:four-amount-worksheet-v1',sinceRevision:6}),
+    D016: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D016:closing-decision-v2',legacy:'D016:four-amount-worksheet-v1',sinceRevision:6}),
+    D017: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D017:closing-decision-v2',legacy:'D017:four-amount-worksheet-v1',sinceRevision:6}),
+    D018: Object.freeze({category:'決算整理・計算問題',type:'worksheet',identity:'D018:closing-decision-v2',legacy:'D018:four-amount-worksheet-v1',sinceRevision:6}),
     J051: Object.freeze({ category:'剰余金の配当', type:'journal', identity:'J051:dividend-declaration-v1' }),
     L031: Object.freeze({ category:'勘定記入法則', type:'ledger', identity:'L031:account-entry-rules-v1' }),
     L044: Object.freeze({ category:'現金出納帳', type:'ledger', identity:'L044:cash-book-opening-zero-v1', legacy:'L044:cash-book-opening-unspecified-v0' }),
@@ -54,7 +71,7 @@
   class ProgressModel {
     static currentContentVersions(questions = {}, revision = CONTENT_REVISION) {
       return Object.fromEntries(Object.entries(CONTENT_IDENTITIES).filter(([id, spec]) =>
-        (revision >= 5 || !spec.legacy) && questions[id]?.category === spec.category && questions[id]?.type === spec.type).map(([id, spec]) => [id, spec.identity]));
+        (revision >= (spec.sinceRevision || (spec.legacy ? 5 : 1))) && questions[id]?.category === spec.category && questions[id]?.type === spec.type).map(([id, spec]) => [id, spec.identity]));
     }
     static validContentMetadata(value, questions = {}) {
       const plain = item => item && typeof item === 'object' && !Array.isArray(item);
@@ -64,7 +81,7 @@
       if (!plain(value.questionContentVersions) || Object.keys(value.questionContentVersions).length !== Object.keys(versions).length ||
           Object.keys(versions).some(id => value.questionContentVersions[id] !== versions[id] &&
             !(value.contentRevision === 5 && CONTENT_IDENTITIES[id]?.legacy === value.questionContentVersions[id]))) return false;
-      if (value.contentRevision === 5 && value.learningEvidenceIntegrity?.schemaVersion !== 11) return false;
+      if (value.contentRevision >= 5 && value.learningEvidenceIntegrity?.schemaVersion !== 11) return false;
       if (!Array.isArray(value.contentRecheckIds) || new Set(value.contentRecheckIds).size !== value.contentRecheckIds.length ||
           value.contentRecheckIds.some(id => !Object.hasOwn(versions, id))) return false;
       const archive = value.contentMigrationArchive;
