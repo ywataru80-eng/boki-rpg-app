@@ -26,6 +26,7 @@ const allowed=new Set([
  'tests/issue256-release236-migration.test.js',
  'tests/ledger-opening-migration.test.js','tests/ledger-opening-backup.test.js','tests/l039-explanation.test.js','tests/learning-effectiveness.test.js','tests/content-progress-migration.test.js','tests/content-progress-integration.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
+ 'tests/form-a-pwa.browser.test.js', // Release236 revision-6 migration must be asserted in the actual offline browser test.
  'tests/editorial-review-234.test.js','tests/editorial-review-232.test.js',
  'tests/editorial-review-233.test.js','tests/editorial-review-230.test.js',
  'tests/editorial-review-231.test.js',
