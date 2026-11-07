@@ -116,6 +116,10 @@ test('300 IDs and protected prior contracts plus distinct reviewed 17 successors
   if(id==='J148')assert.notEqual(current.story,historical.story,'J148 historic story successor retained');
   delete current.story;delete historical.story;
   delete current.explanation;delete historical.explanation;
+  if(issue256Successor&&['D019','D020'].includes(id)){
+    delete current.npcDialogue;delete historical.npcDialogue;
+    delete current.nextHook;delete historical.nextHook;
+  }
   // Release234 revises the *instructional prose* in the authored explanation
   // model for D002-D020; assessed values and all other fields are still immutable.
   const editorial234=['20261103-234','20261105-235','20261107-236'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
