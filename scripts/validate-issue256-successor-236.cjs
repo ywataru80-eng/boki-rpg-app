@@ -24,7 +24,7 @@ const allowed=new Set([
  '.github/workflows/issue256-release236-acceptance.yml',
  '.github/workflows/issue256-release236-commit.yml',
  'tests/issue256-release236-migration.test.js',
- 'tests/ledger-opening-migration.test.js',
+ 'tests/ledger-opening-migration.test.js','tests/ledger-opening-backup.test.js','tests/l039-explanation.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
  'tests/editorial-review-234.test.js','tests/editorial-review-232.test.js',
  'tests/editorial-review-233.test.js','tests/editorial-review-230.test.js',
