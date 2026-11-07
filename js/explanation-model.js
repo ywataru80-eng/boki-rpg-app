@@ -230,6 +230,24 @@
     });
   }
   function checks(q){
+    if(q.format==='decision-worksheet-v2'){
+      const rows=Array.isArray(q.materials)?q.materials:[];
+      const insurance=rows.find(row=>row?.['資料']==='前期保険契約');
+      const equipment=rows.find(row=>row?.['資料']==='前期固定資産台帳');
+      const logged=rows.find(row=>row?.['資料']==='担当者の前払保険料帳簿'||row?.['資料']==='担当者の備品台帳');
+      const p=Number(insurance?.['支払保険料']),portion=Number(insurance?.['次期割合分母']);
+      const cost=Number(equipment?.['取得原価']),life=Number(equipment?.['耐用年数']);
+      const prepaid=p/portion,dep=cost/life,book=cost-dep,fields=q.table?.inputCells||[];
+      const values={insurance_adjustment:prepaid,insurance_expense_after:p-prepaid,
+        depreciation_expense:dep,equipment_book_value_after:book,debitAccount:'前払保険料',
+        creditAccount:'保険料',contraAccount:'減価償却累計額',
+        overstatement:Number(logged?.['誤記帳額'])-(q.id==='D005'?prepaid:book)};
+      const label=key=>q.table?.inputMetadata?.[key]?.label||key;
+      const expected=fields.map(key=>label(key)+'は'+(typeof values[key]==='number'?num(values[key])+'円':values[key])).join('、');
+      return[{label:'設問ごとの記入欄を帳簿の原資料から検算する',
+        expected:expected+'。契約書・取得台帳・誤記帳額を照合し、回答済みの欄だけを確認します。',
+        evidenceRefs:['materials','table.inputCells'],checkKind:'adjustment-reconciliation'}];
+    }
     if(q.type==='journal'){
       const d=(q.answer?.debit||[]).reduce((s,r)=>s+(Number(r.amount)||0),0),c=(q.answer?.credit||[]).reduce((s,r)=>s+(Number(r.amount)||0),0);
       return[{label:'借方合計と貸方合計が合っているか確認する',expected:(d===c?num(d)+' = '+num(c):'不一致')+'。貸借一致だけでは科目や金額の正しさは保証されないため、取引条件とも照合します。',evidenceRefs:['answer.debit','answer.credit'],checkKind:'balance-consistency'}];
@@ -367,6 +385,12 @@
     ];
     if(format==='adjusted-trial-balance')return['この問題で求めるのは、決算整理後の各勘定残高と試算表の貸借合計です。','整理事項を該当勘定へ反映し、残高の側に従って借方・貸方へ一度ずつ集計します。'];
     if(format==='closing-entries')return['この問題で求めるのは、収益・費用を損益勘定へ振り替え、当期純利益を繰越利益剰余金へ移す金額です。','収益と費用をそれぞれ締め切り、損益勘定の残高から当期純利益を求めます。'];
+    if(format==='decision-worksheet-v2'){
+      const targets=arr(q.table?.inputCells).map(k=>q.table?.inputMetadata?.[k]?.label||k);
+      const goal=targets.length?targets.join('・'):'指定された記帳';
+      return['この問題で求めるのは、'+goal+'です。',
+        '設問で指定された帳簿・証憑を先に確認し、必要な勘定の増減や当期・翌期の区分を判断してから入力します。答え合わせでは記入した欄だけを資料と照合してください。'];
+    }
     if(q.type==='worksheet'&&/決算整理・計算問題/u.test(category))return[`この問題で求めるのは、前払振替額・当期保険料・当期減価償却費・期末帳簿価額です。`,'保険料は当期分と次期分に分けます。備品は指定の耐用年数で償却し、間接法なので取得原価から累計額を差し引いて帳簿価額を求めます。'];
     if(q.type==='worksheet')return[
       `この問題で求めるのは、決算整理後の${goalSuffix}です。`,

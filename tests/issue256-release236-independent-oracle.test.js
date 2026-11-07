@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {SPECS,expectedFor}=require('../independent-audit/oracles/issue256-successor-expected');
+const runtimeOracle=require('../independent-audit/oracles/expected-answer-oracle');
+const scope={window:{},console};
+vm.runInNewContext(fs.readFileSync('data/questions.js','utf8'),scope,{filename:'data/questions.js'});
+const questions=scope.window.QuestionData;
+const ids=Array.from({length:17},(_,i)=>`D${String(i+2).padStart(3,'0')}`);
+assert.deepEqual(Object.keys(SPECS).sort(),ids,'new authority covers exactly 17 changed assessed answers');
+for(const id of ids){
+ const [paid,portion,asset,life,recorded,columns]=SPECS[id],q=questions[id];
+ const p=q.materials?.find(m=>m['資料']==='前期保険契約');
+ const a=q.materials?.find(m=>m['資料']==='前期固定資産台帳');
+ const r=q.materials?.find(m=>m['誤記帳額']!==undefined);
+ assert.equal(p?.['支払保険料']??null,paid,id+': paid premium must match the independent source');
+ assert.equal(p?.['次期割合分母']??null,portion,id+': insurance term must match the independent source');
+ assert.equal(a?.['取得原価']??null,asset,id+': acquisition must match the independent source');
+ assert.equal(a?.['耐用年数']??null,life,id+': useful life must match the independent source');
+ assert.equal(r?.['誤記帳額']??null,recorded,id+': recorded overstatement evidence must match the independent source');
+ assert.deepEqual([...q.table.inputCells],columns,id+': same fixed assessment columns, never inferred from stored answers');
+ const independentlyDerived=expectedFor(id);
+ assert.deepEqual(independentlyDerived,JSON.parse(JSON.stringify(q.answer)),id+': independent accounting result');
+ assert.deepEqual(runtimeOracle.expectedFor(id).expected,independentlyDerived,id+': production independent gate must use the successor authority');
+ const altered=structuredClone(q.answer);const first=columns[0];
+ altered.cells[first]=typeof altered.cells[first]==='number'?altered.cells[first]+1:altered.cells[first]+'改';
+ assert.notDeepEqual(independentlyDerived,altered,id+': tampered answer must not influence independent oracle');
+}
+assert.equal(expectedFor('D019'),null,'historically unchanged closing trial balance must not switch authority');
+assert.equal(expectedFor('J001'),null,'unaffected journal must keep its historical golden');
+console.log('ISSUE256_RELEASE236_INDEPENDENT_EXPECTED_17_OF_17_PASS');

@@ -1,0 +1,67 @@
+name: Issue256 Release236 generation one-time guarded candidate commit
+on:
+  push:
+    branches: [feature/issue256-release236-gen190-design-20261107]
+    paths: ['.github/workflows/issue256-release236-commit.yml']
+permissions:
+  contents: write
+jobs:
+  commit-locked-successor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Ensure branch and exact main base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "feature/issue256-release236-gen190-design-20261107"
+          git merge-base --is-ancestor 177dadd83369b0c1bd0c95db4af379ea35515c67 HEAD
+          test "$(node -p "require('./pwa-release-manifest.json').release")" = '20261105-235'
+      - name: Generate release markers and cryptographic manifest
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto'),old='20261105-235',newRelease='20261107-236';
+          const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          for(const p of ['index.html','form-a.html','service-worker.js']){
+            const value=fs.readFileSync(p,'utf8');if(!value.includes(old))throw Error(p+': wrong release source');
+            fs.writeFileSync(p,value.replaceAll(old,newRelease));
+          }
+          const m=JSON.parse(fs.readFileSync('pwa-release-manifest.json'));if(m.release!==old)throw Error('old release changed');
+          m.release=newRelease;m.previousRelease=old;
+          for(const p of Object.keys(m.assets))m.assets[p]=sha(p);
+          for(const p of Object.keys(m.pages))m.pages[p]=sha(p);
+          fs.writeFileSync('pwa-release-manifest.json',JSON.stringify(m,null,2)+'\n');
+          const lifecycle=require('./scripts/qa/phase-b-lifecycle');
+          const gen=lifecycle.createCandidate();
+          if(gen.generation!==190||gen.predecessor.generation!==189)throw Error('generation drift');
+          fs.writeFileSync('reports/auto-gate/audit-locks/phase-b-generation-190.json',JSON.stringify(gen,null,2)+'\n');
+          const r=lifecycle.verifyCandidate(gen);
+          if(!r.ok)throw Error('lifecycle blocked: '+r.errors.join(';'));
+          NODE
+      - name: Run independent v5-to-v6 and strict Release236 precommit gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/issue256-release236-migration.test.js
+          node scripts/validate-issue256-successor-236.cjs
+          npm run audit:explanations
+      - name: Commit generated immutable Release236 artifact on draft PR branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- index.html form-a.html service-worker.js pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-190.json
+          git diff --cached --quiet && { echo 'Expected generated release files absent'; exit 1; }
+          git commit -m 'release: materialize Release236 Gen190 successor manifest and immutable authority'
+          git push origin "HEAD:refs/heads/feature/issue256-release236-gen190-design-20261107"

@@ -1,0 +1,99 @@
+name: Issue256 Release236 Gen190 successor independent acceptance
+on:
+  push:
+    branches: [feature/issue256-release236-gen190-design-20261107]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Export reproducible HEAD-only Git bundle for isolated test repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/repro-source
+          git bundle create artifacts/repro-source/issue256-head.bundle HEAD
+          git bundle verify artifacts/repro-source/issue256-head.bundle
+          git rev-parse HEAD > artifacts/repro-source/sha.txt
+      - name: Preserve reproducible source snapshot
+        uses: actions/upload-artifact@v5
+        with:
+          name: issue256-release236-repro-source
+          path: artifacts/repro-source/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Compute Release236 production asset and Generation190 bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('node:fs'),crypto=require('node:crypto');
+          const OLD='20261105-235',NEW='20261107-236',hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+          const deployed=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+          if(deployed.release===NEW){
+            const lc=require('./scripts/qa/phase-b-lifecycle');
+            const proof=lc.verifyCurrent();
+            if(!proof.ok||proof.generation!==190)throw Error('committed Generation190 invalid: '+proof.errors.join(';'));
+            for(const [p,expected] of Object.entries({...deployed.assets,...deployed.pages})){
+              if(hash(p)!==expected)throw Error('Release236 asset drift: '+p);
+            }
+            console.log('RELEASE236_GEN190_COMMITTED_SOURCE_VERIFIED');process.exit(0);
+          }
+          for(const p of ['index.html','form-a.html','service-worker.js']){
+            const original=fs.readFileSync(p,'utf8');
+            if(!original.includes(OLD))throw Error(p+' wrong release baseline');
+            fs.writeFileSync(p,original.replaceAll(OLD,NEW));
+          }
+          const manifest=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+          if(manifest.release!==OLD)throw Error('wrong manifest predecessor');
+          manifest.release=NEW;manifest.previousRelease=OLD;
+          for(const p of Object.keys(manifest.assets))manifest.assets[p]=hash(p);
+          for(const p of Object.keys(manifest.pages))manifest.pages[p]=hash(p);
+          fs.writeFileSync('pwa-release-manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          const lifecycle=require('./scripts/qa/phase-b-lifecycle');
+          const candidate=lifecycle.createCandidate();
+          if(candidate.generation!==190||candidate.predecessor.generation!==189)throw Error('wrong generation');
+          const output='reports/auto-gate/audit-locks/phase-b-generation-190.json';
+          fs.writeFileSync(output,JSON.stringify(candidate,null,2)+'\n');
+          const checked=lifecycle.verifyCandidate(candidate);
+          if(!checked.ok)throw Error('Generation190 rejected: '+checked.errors.join(';'));
+          console.log('RELEASE236_GEN190_CANDIDATE_GENERATED');
+          NODE
+          mkdir -p artifacts/release236-candidate
+          for p in index.html form-a.html service-worker.js pwa-release-manifest.json reports/auto-gate/audit-locks/phase-b-generation-190.json; do
+            mkdir -p "artifacts/release236-candidate/$(dirname "$p")"
+            cp "$p" "artifacts/release236-candidate/$p"
+          done
+      - name: Preserve exact-hash Release236 bundle
+        uses: actions/upload-artifact@v5
+        with:
+          name: issue256-release236-computed-candidate
+          path: artifacts/release236-candidate/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Verify main baseline was kept intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 177dadd83369b0c1bd0c95db4af379ea35515c67 HEAD
+          test "$(git show 177dadd83369b0c1bd0c95db4af379ea35515c67:pwa-release-manifest.json | node -e 'const s=require("fs").readFileSync(0,"utf8");if(JSON.parse(s).release!=="20261105-235")process.exit(1)')" = ''
+          node -e "const old=require('child_process').execFileSync('git',['show','177dadd83369b0c1bd0c95db4af379ea35515c67:reports/auto-gate/audit-locks/phase-b-generation-189.json']);const now=require('fs').readFileSync('reports/auto-gate/audit-locks/phase-b-generation-189.json');if(!old.equals(now))process.exit(1)"
+      - name: Run independent 17-judgment/oracle and v5-to-v6 migration cases
+        run: node tests/issue256-release236-migration.test.js
+      - name: Run all 300 question structural and editorial explanation lint
+        run: npm run audit:explanations
+      - name: Run D001 versus successor worksheet wrong/correct/unanswered semantics
+        run: node tests/worksheet-comparison-routing.test.js
+      - name: Run grading and accounted math audit
+        run: node scripts/audit-data.js

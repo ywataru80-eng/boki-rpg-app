@@ -4,7 +4,7 @@ const read=f=>fs.readFileSync(f,'utf8');
 const head=read('index.html'),form=read('form-a.html'),app=read('js/form-a.js'),ctl=read('js/controller.js');
 const fixture=read('data/form-a.json');
 const manifest=JSON.parse(read('pwa-release-manifest.json'));
-assert.equal(manifest.release,'20261105-235','the validated worksheet successor Release235 is required');
+assert(['20261105-235','20261107-236'].includes(manifest.release),'only the validated Release235 baseline and explicit Release236 successor are supported');
 assert(head.includes('3伝票制の実務演習'));
 assert(!head.includes('Form A') && !form.includes('Form A'),'Form A cannot be a user-facing label');
 assert(!form.includes('取引ID'));
