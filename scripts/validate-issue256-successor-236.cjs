@@ -17,7 +17,7 @@ for(const file of ['index.html','form-a.html','service-worker.js'])assert.equal(
 const allowed=new Set([
  'data/questions.js','js/model.js','js/explanation-model.js','js/explanation-formulas.js',
  'index.html','form-a.html','service-worker.js','pwa-release-manifest.json',
- 'scripts/validate-issue256-successor-236.cjs','package.json',
+ 'scripts/validate-issue256-successor-236.cjs','scripts/check-explanation-accounting.py','package.json',
  'reports/auto-gate/audit-locks/phase-b-generation-190.json',
  'reports/edu-quality/issue256-release236-review-ledger.json',
  '.github/workflows/question-quality-ledger-audit.yml',
