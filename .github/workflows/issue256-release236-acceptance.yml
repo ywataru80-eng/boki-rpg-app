@@ -1,0 +1,35 @@
+name: Issue256 Release236 Gen190 successor independent acceptance
+on:
+  push:
+    branches: [feature/issue256-release236-gen190-design-20261107]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify main baseline was kept intact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 177dadd83369b0c1bd0c95db4af379ea35515c67 HEAD
+          test "$(git show 177dadd83369b0c1bd0c95db4af379ea35515c67:pwa-release-manifest.json | node -e 'const s=require("fs").readFileSync(0,"utf8");if(JSON.parse(s).release!=="20261105-235")process.exit(1)')" = ''
+          node -e "const old=require('child_process').execFileSync('git',['show','177dadd83369b0c1bd0c95db4af379ea35515c67:reports/auto-gate/audit-locks/phase-b-generation-189.json']);const now=require('fs').readFileSync('reports/auto-gate/audit-locks/phase-b-generation-189.json');if(!old.equals(now))process.exit(1)"
+      - name: Run independent 17-judgment/oracle and v5-to-v6 migration cases
+        run: node tests/issue256-release236-migration.test.js
+      - name: Run all 300 question structural and editorial explanation lint
+        run: npm run audit:explanations
+      - name: Run D001 versus successor worksheet wrong/correct/unanswered semantics
+        run: node tests/worksheet-comparison-routing.test.js
+      - name: Run grading and accounted math audit
+        run: node scripts/audit-data.js
