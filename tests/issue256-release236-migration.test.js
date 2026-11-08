@@ -123,4 +123,17 @@ test('malformed older data never overwrites user storage',()=>{
  assert.equal(st.writes,0);
  assert.equal(Model.prepareBackupState(original,now),null);
 });
+test('all 300 investigation counters are within bounds, supplementary decisions do not claim Story progress',()=>{
+ for(const q of Object.values(now)){
+  const markers=[...String(q.story||'').matchAll(/〔調査 (\d+)\/(\d+)〕/gu)];
+  for(const [,n,total] of markers)assert(Number(n)>=1&&Number(n)<=Number(total),q.id+': invalid Story counter '+n+'/'+total);
+ }
+ for(let number=13;number<=18;number++){
+  const id='D'+String(number).padStart(3,'0');
+  assert(now[id].story.includes('〔追加演習 '+(number-12)+'/6〕'),id+': supplementary work falsely counted as main Story');
+  assert(!now[id].story.includes('〔調査 '),id+': extra exercise must not extend locked Story cases');
+ }
+ const hooks=edited.map(id=>now[id].nextHook);
+ assert.equal(new Set(hooks).size,17,'the 17 distinct decisions require specific next-task transitions');
+});
 if(!process.exitCode)console.log('ISSUE256_RELEASE236_GEN190_INDEPENDENT_MIGRATION_PASS',checks);

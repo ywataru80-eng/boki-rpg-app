@@ -1,26 +1,31 @@
 'use strict';
 // Issue256: D001-D020 actual browser path: displayed unanswered input,
 // committed wrong attempt, committed correct attempt, rendered explanations.
-const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),cp=require('node:child_process');
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),https=require('node:https'),cp=require('node:child_process');
 const {chromium,webkit}=require('playwright');
-const ROOT=path.resolve(__dirname,'../..'),OUT=path.join(ROOT,'artifacts/issue256-closing-ui');
+const ROOT=path.resolve(__dirname,'../..'),TLS=process.argv.includes('--https-selfsigned');
+// Ephemeral runner-local HTTPS is not a public GitHub Pages or physical iPhone acceptance.
+const OUT=path.join(ROOT,TLS?'artifacts/issue256-closing-ui-tls':'artifacts/issue256-closing-ui');
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-const server=http.createServer((req,res)=>{
+const handle=(req,res)=>{
  const file=path.resolve(ROOT,new URL(req.url,'http://localhost').pathname.slice(1)||'index.html');
  if(!file.startsWith(ROOT+path.sep)||!fs.existsSync(file)||fs.statSync(file).isDirectory()){res.writeHead(404);return res.end('missing');}
  res.setHeader('content-type',mime[path.extname(file)]||'application/octet-stream');res.end(fs.readFileSync(file));
-});
-const evidence={head:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'}).trim(),status:'RUNNING',results:[],failures:[]};
+};
+const server=TLS?https.createServer({
+ key:fs.readFileSync(process.env.ISSUE256_TLS_KEY),cert:fs.readFileSync(process.env.ISSUE256_TLS_CERT)
+},handle):http.createServer(handle);
+const evidence={head:cp.execFileSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'}).trim(),transport:TLS?'HTTPS_SELF_SIGNED_LOCAL':'HTTP_LOCAL',status:'RUNNING',results:[],failures:[]};
 const save=()=>{fs.mkdirSync(OUT,{recursive:true});fs.writeFileSync(path.join(OUT,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');};
 async function main(){
- await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const origin='http://127.0.0.1:'+server.address().port+'/';save();
+ await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const origin=(TLS?'https':'http')+'://127.0.0.1:'+server.address().port+'/';save();
  try{
   for(const [engine,launcher] of Object.entries({chromium,webkit})){
    const browser=await launcher.launch();
    try{
     for(const width of [320,390])for(let n=1;n<=20;n++){
      const id='D'+String(n).padStart(3,'0');
-     const context=await browser.newContext({viewport:{width,height:900}});
+     const context=await browser.newContext({viewport:{width,height:900},ignoreHTTPSErrors:TLS});
      const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e.stack||e)));
      try{
       await page.goto(origin,{waitUntil:'load'});
@@ -87,7 +92,7 @@ async function main(){
   }
   assert.equal(evidence.results.length,80,'20 questions across 2 browsers and 2 widths');
   assert.deepEqual(evidence.failures,[],'D001-D020 browser failures');
-  evidence.status='PASS';save();console.log('ISSUE256_20x2x2_BLANK_WRONG_CORRECT_UI_PASS');
+  evidence.status='PASS';save();console.log(TLS?'ISSUE256_HTTPS_LOCAL_20x2x2_BLANK_WRONG_CORRECT_UI_PASS':'ISSUE256_20x2x2_BLANK_WRONG_CORRECT_UI_PASS');
  }catch(e){evidence.status='FAIL';evidence.error=String(e.stack||e);save();throw e;}
  finally{await new Promise(ok=>server.close(ok));}
 }

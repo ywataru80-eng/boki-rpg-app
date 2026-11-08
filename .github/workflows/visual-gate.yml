@@ -47,6 +47,18 @@ jobs:
         run: node .github/visual/run-learning-effectiveness.js
       - name: Run Issue256 D001-D020 actual form submit and explanation coverage
         run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js
+      # Temporary self-signed TLS verifies candidate behavior over HTTPS only;
+      # public GitHub Pages/iPhone acceptance must be recorded independently.
+      - name: Run Issue256 candidate in ephemeral HTTPS Chromium/WebKit
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -keyout "$RUNNER_TEMP/issue256-tls.key" -out "$RUNNER_TEMP/issue256-tls.crt" \
+            -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' >/dev/null 2>&1
+          ISSUE256_TLS_KEY="$RUNNER_TEMP/issue256-tls.key" \
+          ISSUE256_TLS_CERT="$RUNNER_TEMP/issue256-tls.crt" \
+            node .github/visual/run-issue256-d001-d020.js --https-selfsigned
       - name: Run calculator viewport resize and input retention gate
         run: node .github/visual/run-calculator-viewport.js
       - name: Run PR 212 legacy provenance and input confirmation gate
