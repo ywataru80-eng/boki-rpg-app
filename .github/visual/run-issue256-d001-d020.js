@@ -29,6 +29,17 @@ async function main(){
      const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e.stack||e)));
      try{
       await page.goto(origin,{waitUntil:'load'});
+      if(TLS){
+       const tlsState=await page.evaluate(()=>({secure:window.isSecureContext,
+        locks:typeof navigator.locks?.request==='function',
+        serviceWorker:typeof navigator.serviceWorker?.register==='function',
+        warning:document.getElementById('storage-warning')?.textContent?.slice(0,180)}));
+       evidence.tlsBootstrap=evidence.tlsBootstrap||{};
+       evidence.tlsBootstrap[engine+'-'+width]=tlsState;
+       save();
+       assert(tlsState.secure&&tlsState.locks&&tlsState.serviceWorker,
+        engine+'/'+width+': HTTPS browser trust prerequisite not met '+JSON.stringify(tlsState));
+      }
       await page.waitForFunction(()=>Boolean(window.App?.controller));
       const blank=await page.evaluate(id=>{
        const c=App.controller,q=c.questions[id];if(q?.type!=='worksheet')throw Error(id+': unknown question/type');
