@@ -41,7 +41,9 @@ const allowed=new Set([
  'tests/editorial-review-235.test.js',
  'tests/user-facing-copy-contract.test.js',
  '.github/visual/run-pwa-manual-update.js',
- '.github/visual/run-learning-effectiveness.js' // authentic revision4 migration browser regression
+ '.github/visual/run-learning-effectiveness.js' // authentic revision4 migration browser regression,
+ '.github/visual/run-issue256-d001-d020.js',
+ '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
 ]);
 const changed=git('diff','--name-only',BASE,'HEAD').split(/\n/u).filter(Boolean);
 const uncommitted=git('diff','--name-only').split(/\n/u).filter(Boolean);
