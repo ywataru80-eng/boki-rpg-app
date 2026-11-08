@@ -45,6 +45,8 @@ jobs:
         run: node tests/result-feedback-ux.browser.test.js
       - name: Run durable learning evidence and persistence gate
         run: node .github/visual/run-learning-effectiveness.js
+      - name: Run Issue256 D001-D020 actual form submit and explanation coverage
+        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js
       - name: Run calculator viewport resize and input retention gate
         run: node .github/visual/run-calculator-viewport.js
       - name: Run PR 212 legacy provenance and input confirmation gate
