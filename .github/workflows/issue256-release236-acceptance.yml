@@ -1,4 +1,4 @@
-name: Issue256 Release236 Gen190 successor independent acceptance
+name: Issue256 Release236 Gen190/191 successor independent acceptance
 on:
   push:
     branches: [feature/issue256-release236-gen190-design-20261107]
@@ -33,7 +33,7 @@ jobs:
           path: artifacts/repro-source/
           if-no-files-found: error
           retention-days: 7
-      - name: Compute Release236 production asset and Generation190 bundle
+      - name: Verify Release236 production assets and Gen190/191 authority
         shell: bash
         run: |
           set -euo pipefail
@@ -44,11 +44,11 @@ jobs:
           if(deployed.release===NEW){
             const lc=require('./scripts/qa/phase-b-lifecycle');
             const proof=lc.verifyCurrent();
-            if(!proof.ok||proof.generation!==190)throw Error('committed Generation190 invalid: '+proof.errors.join(';'));
+            if(!proof.ok||proof.generation!==191)throw Error('committed Generation191 invalid: '+proof.errors.join(';'));
             for(const [p,expected] of Object.entries({...deployed.assets,...deployed.pages})){
               if(hash(p)!==expected)throw Error('Release236 asset drift: '+p);
             }
-            console.log('RELEASE236_GEN190_COMMITTED_SOURCE_VERIFIED');process.exit(0);
+            console.log('RELEASE236_GEN191_COMMITTED_SOURCE_VERIFIED');process.exit(0);
           }
           for(const p of ['index.html','form-a.html','service-worker.js']){
             const original=fs.readFileSync(p,'utf8');

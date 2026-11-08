@@ -40,7 +40,7 @@ if(caseId==='C001'&&(!m.formulaTexts.join(' ').includes('期首商品棚卸高 +
 if(caseId==='C002'&&(!m.formulaTexts.join(' ').includes('未払消費税')||!m.formulaTexts.join(' ').includes('減価償却費')))violations.push('C002_FORMULA_GUIDANCE');
 if(caseId==='C004'&&!m.formulaTexts.join(' ').includes('340,000 + 100,000 − 102,000 + 170,000 − 24,000 = 484,000'))violations.push('C004_CASH_FORMULA');
 if(caseId==='D001'&&(!m.formulaTexts.join(' ').includes('200,000 − 40,000 = 160,000')||!m.formulaTexts.join(' ').includes('60,000')))violations.push('D001_FORMULA_GUIDANCE');
-if(caseId==='D002'&&(!m.formulaTexts.join(' ').includes('126,000 × 1 ÷ 4 = 31,500')||!m.formulaTexts.join(' ').includes('252,000 ÷ 4 = 63,000')))violations.push('D002_FORMULA_GUIDANCE');
+if(caseId==='D002'&&(!m.formulaTexts.join(' ').includes('126,000 ÷ 4 = 31,500')||!m.formulaTexts.join(' ').includes('252,000 ÷ 4 = 63,000')))violations.push('D002_FORMULA_GUIDANCE');
 if(caseId==='F001'&&!m.formulaTexts.join(' ').includes('800,000 − 400,000 − 220,000 = 180,000'))violations.push('F001_FORMULA_GUIDANCE');
 if(caseId==='F002'&&(!m.formulaTexts.join(' ').includes('1,148,000 − 496,000 − 500,000 = 152,000')||!m.formulaTexts.join(' ').includes('456,000 + 278,000 + 150,000 + 264,000 = 1,148,000')))violations.push('F002_FORMULA_GUIDANCE');
 if(caseId==='J095'&&!/810,000.*2%.*16,200/u.test(m.formulaTexts.join(' ')))violations.push('J095_FORMULA_GUIDANCE');
