@@ -44,6 +44,7 @@ const allowed=new Set([
  '.github/visual/run-learning-effectiveness.js', // authentic revision4 migration browser regression
  '.github/visual/run-explanation-integration.js', // D002 formula contract change only; assert exact baseline delta below.
  '.github/visual/run-issue256-d001-d020.js',
+ '.github/visual/run-ch11-12-final-explanations.js', // only adjust successor profile expectation; enforce exact baseline delta below.
  '.github/visual/run-content-progress-migration.js',
  '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
 ]);
@@ -59,6 +60,13 @@ const baselineVisual=old('.github/visual/run-explanation-integration.js').toStri
 assert.equal(baselineVisual.split("'126,000 × 1 ÷ 4 = 31,500'").length,2,'D002 baseline formula assertion must be unique');
 const acceptedVisual=baselineVisual.replace("'126,000 × 1 ÷ 4 = 31,500'","'126,000 ÷ 4 = 31,500'");
 assert.equal(read('.github/visual/run-explanation-integration.js').toString(),acceptedVisual,'D002 visual gate must preserve all checks apart from the exact formula rendering update');
+// Guard the Chapter 11/12 visual harness: only map the new decision worksheet format
+// to its declared closingDecision explanation profile, preserving all original cases.
+const ch11Baseline=old('.github/visual/run-ch11-12-final-explanations.js').toString();
+const ch11Old="q.type==='correction'?'correction':q.id==='D019'?",ch11New="q.type==='correction'?'correction':q.format==='decision-worksheet-v2'?'closingDecision':q.id==='D019'?";
+assert.equal(ch11Baseline.split(ch11Old).length,2,'Chapter11/12 expected profile baseline must be unique');
+assert.equal(read('.github/visual/run-ch11-12-final-explanations.js').toString(),
+ ch11Baseline.replace(ch11Old,ch11New),'Chapter11/12 visual audit must preserve all other checks');
 for(const p of ['data/accounting-domain.js','data/accounting-oracle.js','js/engine.js','js/controller.js','js/rpg.js','js/view.js','reports/auto-gate/audit-locks/phase-b-generation-189.json']){
  assert(read(p).equals(old(p)),'protected grading/state/historical bytes changed: '+p);
 }

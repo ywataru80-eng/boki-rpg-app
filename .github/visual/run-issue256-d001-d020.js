@@ -38,8 +38,15 @@ async function main(){
       assert(blank.unanswered&&blank.blank&&!blank.correct&&blank.text.length>12,id+': unsubmitted answer changed result');
       assert.equal(blank.count,blank.expected,id+': missing input');assert.equal(blank.unique,blank.expected,id+': input IDs');
       const wrong=await page.evaluate(id=>{
-       const c=App.controller,before=c.model.state.attempts.length;c.submit();
+       const c=App.controller,q=c.questions[id],first=q.table.inputCells[0],bad=structuredClone(q.answer);
+       bad.cells[first]=typeof bad.cells[first]==='number'?bad.cells[first]+1:'不正な勘定科目';
+       c.view.applyRetryDraft(q,bad);
+       const entered=c.view.readAnswer(q);
+       if(!String(entered.cells[first]??'').trim()||GradingEngine.grade(q,entered).correct)
+         throw Error(id+': intentional nonblank wrong answer was not applied');
+       const before=c.model.state.attempts.length;c.submit();
        return {phase:c.learningFlow?.phase,attempts:c.model.state.attempts.length-before,correct:c.model.state.correctIds.includes(id),
+        entered:entered.cells[first],expected:q.answer.cells[first],
         text:document.getElementById('explanation')?.textContent?.slice(0,240)||'',
         flow:!!document.querySelector('#explanation .explanation-flow'),
         comparison:!document.getElementById('answer-comparison')?.hidden};
@@ -54,13 +61,20 @@ async function main(){
         flow:!!document.querySelector('#explanation .explanation-flow')};
       },id);
       assert(correct.phase==='C'&&correct.attempts===1&&correct.correct&&correct.flow&&correct.text.length>40,id+': correct/result failure');
+      const layout=await page.evaluate(()=>{
+       const exp=document.getElementById('explanation');
+       return {width:innerWidth,pageWidth:document.documentElement.scrollWidth,
+        explanationWidth:exp?.scrollWidth??0,explanationClient:exp?.clientWidth??0};
+      });
+      assert(layout.pageWidth<=layout.width+1,id+': horizontal page overflow '+JSON.stringify(layout));
+      assert(layout.explanationWidth<=layout.explanationClient+1,id+': horizontal explanation overflow '+JSON.stringify(layout));
       assert.equal(errors.length,0,id+': script errors '+errors.join(';'));
       if(engine==='chromium'&&width===390){
        const dialog=page.locator('#app-notice-dialog');
        if(await dialog.count()&&await dialog.evaluate(el=>el.open))await dialog.evaluate(el=>el.close());
        await page.screenshot({path:path.join(OUT,id+'-correct.png'),fullPage:true});
       }
-      evidence.results.push({engine,width,id,blank,wrong,correct});save();
+      evidence.results.push({engine,width,id,blank,wrong,correct,layout});save();
      }catch(e){
       evidence.failures.push({engine,width,id,error:String(e.stack||e)});save();
       try{await page.screenshot({path:path.join(OUT,engine+'-'+width+'-'+id+'-error.png'),fullPage:true,timeout:5000});}catch(_){}
