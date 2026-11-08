@@ -63,7 +63,10 @@ async function main(){
       evidence.results.push({engine,width,id,blank,wrong,correct});save();
      }catch(e){
       evidence.failures.push({engine,width,id,error:String(e.stack||e)});save();
-      try{await page.screenshot({path:path.join(OUT,engine+'-'+width+'-'+id+'-error.png'),fullPage:true});}catch(_){}
+      try{await page.screenshot({path:path.join(OUT,engine+'-'+width+'-'+id+'-error.png'),fullPage:true,timeout:5000});}catch(_){}
+      // Fail at the first violated contract; repeating the same failure for all
+      // 80 browser cases would obscure the root cause and exhaust the CI job.
+      throw e;
      }finally{await context.close();}
     }
    }finally{await browser.close();}
