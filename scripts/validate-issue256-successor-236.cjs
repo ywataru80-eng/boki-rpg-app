@@ -42,6 +42,7 @@ const allowed=new Set([
  'tests/user-facing-copy-contract.test.js',
  '.github/visual/run-pwa-manual-update.js',
  '.github/visual/run-learning-effectiveness.js', // authentic revision4 migration browser regression
+ '.github/visual/run-explanation-integration.js', // D002 formula contract change only; assert exact baseline delta below.
  '.github/visual/run-issue256-d001-d020.js',
  '.github/visual/run-content-progress-migration.js',
  '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
@@ -53,6 +54,11 @@ const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).fil
 const all=[...new Set([...changed,...uncommitted,...untracked])].sort();
 assert(all.includes('data/questions.js')&&all.includes('js/model.js')&&all.includes(GEN),'required graded successor and Generation lock missing');
 assert(all.every(p=>allowed.has(p)),'Release236 out-of-scope files: '+all.filter(p=>!allowed.has(p)).join(','));
+// Guard the visual harness: only update the previously obsolete D002 arithmetic rendering assertion.
+const baselineVisual=old('.github/visual/run-explanation-integration.js').toString();
+assert.equal(baselineVisual.split("'126,000 × 1 ÷ 4 = 31,500'").length,2,'D002 baseline formula assertion must be unique');
+const acceptedVisual=baselineVisual.replace("'126,000 × 1 ÷ 4 = 31,500'","'126,000 ÷ 4 = 31,500'");
+assert.equal(read('.github/visual/run-explanation-integration.js').toString(),acceptedVisual,'D002 visual gate must preserve all checks apart from the exact formula rendering update');
 for(const p of ['data/accounting-domain.js','data/accounting-oracle.js','js/engine.js','js/controller.js','js/rpg.js','js/view.js','reports/auto-gate/audit-locks/phase-b-generation-189.json']){
  assert(read(p).equals(old(p)),'protected grading/state/historical bytes changed: '+p);
 }
@@ -84,6 +90,6 @@ const gen=JSON.parse(read(GEN));assert.equal(gen.generation,191);assert.equal(ge
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation190 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation191 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');
