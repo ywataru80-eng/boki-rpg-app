@@ -44,11 +44,11 @@ jobs:
           if(deployed.release===NEW){
             const lc=require('./scripts/qa/phase-b-lifecycle');
             const proof=lc.verifyCurrent();
-            if(!proof.ok||proof.generation!==192)throw Error('committed Generation192 invalid: '+proof.errors.join(';'));
+            if(!proof.ok||proof.generation!==193)throw Error('committed Generation193 invalid: '+proof.errors.join(';'));
             for(const [p,expected] of Object.entries({...deployed.assets,...deployed.pages})){
               if(hash(p)!==expected)throw Error('Release236 asset drift: '+p);
             }
-            console.log('RELEASE236_GEN192_COMMITTED_SOURCE_VERIFIED');process.exit(0);
+            console.log('RELEASE236_GEN193_COMMITTED_SOURCE_VERIFIED');process.exit(0);
           }
           for(const p of ['index.html','form-a.html','service-worker.js']){
             const original=fs.readFileSync(p,'utf8');

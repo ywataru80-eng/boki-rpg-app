@@ -18,7 +18,17 @@ const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J1
 const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
 const release236=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236';
 const successorChanges=release236?Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')):[];
-const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges])].sort().map(id=>({id,status:'STALE',reasons:successorChanges.includes(id)?['SOURCE_CHANGED','ANSWER_SCHEMA_CHANGED']:['SOURCE_CHANGED']}));
+// Release236 Gen193 only removes obsolete learner-visible 〔評価資料 n〕 stamps.
+// Derive this finite source-delta from the immutable *pre-change* Git object,
+// never from the modified candidate or from the stale-matrix findings themselves.
+const preGen193='702d723e0a00c8a2c0a8f9d4fd8dac6a068d2f36';
+const approvedPreStory={window:{}};
+vm.runInNewContext(cp.execFileSync('git',['show',preGen193+':data/questions.js'],{encoding:'utf8',maxBuffer:8*1024*1024}),approvedPreStory);
+const obsoleteSupplementalLabels=release236
+ ? Object.values(approvedPreStory.window.QuestionData).filter(q=>/〔評価資料 \d+〕$/u.test(q.story)).map(q=>q.id).sort()
+ : [];
+if(release236)assert.strictEqual(obsoleteSupplementalLabels.length,126,'approved historical supplemental story labels must stay fixed at 126');
+const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels])].sort().map(id=>({id,status:'STALE',reasons:successorChanges.includes(id)?['SOURCE_CHANGED','ANSWER_SCHEMA_CHANGED']:['SOURCE_CHANGED']}));
 const actualStale=verifyMatrix(matrix,questions).stale.slice().sort((a,b)=>a.id.localeCompare(b.id));
 assert.deepStrictEqual(actualStale,expectedStale,'historical evidence must explicitly mark superseded stories and original three stale sources');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');

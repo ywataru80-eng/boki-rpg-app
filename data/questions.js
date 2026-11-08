@@ -16963,6 +16963,34 @@ const storyNpcDialogue = (chapter, phase) => {
   };
   return (phase === 0 ? opening : closing)[stage] || '';
 };
+// Each extra practice question is allowed to have a genuinely different scene cue.
+// Do not expose evaluation row numbers to learners merely to make stories unique.
+const SupplementaryStoryDetails = Object.freeze({
+  J136:'他店券を換金できる条件を確かめます。',
+  J089:'買掛金の支払記録の差額を調べます。',
+  J138:'消耗品費の誤分類を見直します。',
+  J139:'買掛金の支払額を再照合します。',
+  J140:'受領済みの掛売上を確認します。',
+  L032:'売上と回収を分けて追います。',
+  T034:'前払分と当期費用を区別します。',
+  T035:'未払費用の残高を確かめます。',
+  T036:'前受収益の残高を確かめます。',
+  T037:'収益と費用の帰属期を確かめます。',
+  T038:'資産の借方残高を点検します。',
+  T039:'負債の貸方残高を点検します。',
+  T040:'最後に借方と貸方の合計を照合します。',
+  E016:'収入印紙の処理科目を確かめます。',
+  E017:'振込手数料の誤分類を正します。',
+  E018:'長期使用する備品の記帳を正します。',
+  E019:'現金回収を預金としていないか確認します。',
+  E020:'給与総額と実際の支払額を照合します。',
+  F003:'負債と純資産の残高を確認します。',
+  F009:'貸借対照表の純資産を確かめます。',
+  F010:'資産合計と負債・純資産を照合します。',
+  C007:'現金の取引後残高を追います。',
+  C009:'売上と費用を別々に集計します。',
+  C010:'月末の現金残高と利益を照合します。',
+});
 Object.values(QuestionData).forEach(item => {
   // Authored chapter is the educational/story authority. Object insertion order
   // must never reassign semantic chapters; unequal chapter volume is handled by
@@ -17037,7 +17065,7 @@ Object.values(QuestionData).forEach(item => {
     ? `${finalEpilogueScene.before}〔最終報告〕`
     : authoredWorkCase
       ? `${authoredWorkCase.before}〔調査 ${chapterPosition + 1}/${storyCount}〕`
-      : `${ReaderFacingBeats[phase](arc, item, instruction, item.bossCase)}${isStoryEligible ? `〔調査 ${chapterPosition + 1}/${storyCount}〕` : `〔評価資料 ${item.caseNumber}〕`}`;
+      : `${ReaderFacingBeats[phase](arc, item, instruction, item.bossCase)}${isStoryEligible ? `〔調査 ${chapterPosition + 1}/${storyCount}〕` : (SupplementaryStoryDetails[item.id] || '')}`;
   if (item.bossCase && BossClosingCopy[item.id]) {
     item.story = `${BossClosingCopy[item.id]}〔調査 ${chapterPosition + 1}/${storyCount}〕`;
   }
@@ -17247,7 +17275,7 @@ for (const [id, month, endDay, account, plus, minus, incoming, outgoing] of [
   "D017": "水野先輩から、計算の根拠を金額ごとに説明するよう依頼されました。あなたは保険料の前払振替額と当期費用、備品の減価償却費と期末帳簿価額を順に確認して求めます。",
   "D018": "決算準備の最後に、保険料と備品の計算結果を照合します。あなたは次期分を差し引いた当期保険料と、減価償却後の帳簿価額を求め、二つの元の金額に戻るか確かめます。",
   "D019": "決算整理前の残高に、保険料の繰延べと備品の減価償却を反映させる段階です。あなたは決算整理後残高試算表の各勘定を記入し、借方合計と貸方合計が一致するか確認します。",
-  "D020": "決算整理後の数字を踏まえ、いよいよ帳簿を締め切ります。あなたは売上と各費用を損益勘定へ振り替え、当期純利益を繰越利益剰余金に振り替える金額を求め、締切後の残高を確認します。"
+  "D020": "決算整理後試算表の確認を終えると、水野先輩は別件の帳簿締切資料を渡しました。前の試算表の数字は引き継がず、この資料の売上と費用だけを使います。あなたは各勘定を損益へ振り替え、当期純利益を繰越利益剰余金へ振り替えて締切額を確認してください。"
 };
  for(let n=2;n<=18;n++){
    const id='D'+String(n).padStart(3,'0'),q=QuestionData[id];
@@ -17343,7 +17371,7 @@ for (const [id, month, endDay, account, plus, minus, incoming, outgoing] of [
   item.workResult=goal+'の照合状況';
  }
  QuestionData.D019.npcDialogue='水野先輩「ここからは全勘定の残高を借方と貸方で検証しよう。」';
- QuestionData.D020.npcDialogue='水野先輩「次は収益と費用の締切だ。整理後試算表とは役割が異なるね。」';
+ QuestionData.D020.npcDialogue='水野先輩「さっきの試算表とは別の資料だ。こちらの売上と費用だけで締切額を確かめよう。」';
  QuestionData.D019.nextHook='次の作業では、別に示される売上・費用の与件で損益振替を確認します。';
 }
 // Top-level `const` declarations are not added to `window` in classic scripts.

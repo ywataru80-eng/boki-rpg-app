@@ -28,6 +28,38 @@ test('exactly 300 original IDs, unchanged D019 D020 assessed contracts',()=>{
   equivalent(keep(a),keep(b));
  }
 });
+test('all supplementary story labels are removed without changing assessments or content identity',()=>{
+ let removed=0;
+ for(const id of ids.filter(x=>!edited.includes(x)&&!['D019','D020'].includes(x))){
+  const a=before[id],b=now[id];
+  const wasLabelled=/〔評価資料 \d+〕$/.test(a.story);
+  if(wasLabelled){
+   const original=a.story.replace(/〔評価資料 \d+〕$/,'');
+   const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
+   assert(b.story.startsWith(original),id+': preserve original evidence-bearing scene');
+   const suffix=b.story.slice(original.length);
+   if(allowedNotes.has(id))assert(suffix.length>=10&&suffix.length<=28&&suffix.endsWith('。'),id+': needs a concrete unique cue');
+   else assert.equal(suffix,'',id+': only remove the internal marker');
+   removed++;
+  }else assert.equal(b.story,a.story,id+': unchanged authored scene');
+ }
+ assert.equal(removed,126,'reviewed supplementary metadata marker count drift');
+ for(const id of ids)assert(!now[id].story.includes('〔評価資料 '),id+': internal evaluation label must not reach the screen');
+ assert.equal(new Set(ids.map(id=>now[id].story)).size,300,'all 300 scenes must remain unique after removing row numbers');
+ assert(ids.every(id=>now[id].story.length<=120),'mobile one-read length should remain <=120');
+ const migrated=new Model(now,store(),'progress');
+ for(const id of ids.filter(x=>!edited.includes(x))){
+  assert.equal(migrated.state.questionContentVersions[id],new Old(before,store(),'progress').state.questionContentVersions[id],id+': editorial-only copy cannot invalidate past grading');
+ }
+});
+test('D019 and D020 use different supplied worksheets without implying numeric continuity',()=>{
+ const closing=now.D020,trial=now.D019;
+ assert(closing.story.includes('前の試算表の数字は引き継がず'));
+ assert(closing.npcDialogue.includes('別の資料'));
+ assert(trial.nextHook.includes('別に示される'));
+ assert.equal(closing.answer.cells.purchases,400000);
+ assert(!trial.table.rows.some(r=>r.account==='仕入'),'D019 does not supply the D020 purchases figure');
+});
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();
  for(const id of edited){
