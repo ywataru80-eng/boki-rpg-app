@@ -20,7 +20,7 @@ async function main(){
    try{
     for(const width of [320,390])for(let n=1;n<=20;n++){
      const id='D'+String(n).padStart(3,'0');
-     const context=await browser.newContext({viewport:{width,height:900},serviceWorkers:'block'});
+     const context=await browser.newContext({viewport:{width,height:900}});
      const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(String(e.stack||e)));
      try{
       await page.goto(origin,{waitUntil:'load'});
