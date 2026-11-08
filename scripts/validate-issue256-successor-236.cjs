@@ -40,7 +40,8 @@ const allowed=new Set([
  'tests/editorial-review-231.test.js',
  'tests/editorial-review-235.test.js',
  'tests/user-facing-copy-contract.test.js',
- '.github/visual/run-pwa-manual-update.js'
+ '.github/visual/run-pwa-manual-update.js',
+ '.github/visual/run-learning-effectiveness.js' // authentic revision4 migration browser regression
 ]);
 const changed=git('diff','--name-only',BASE,'HEAD').split(/\n/u).filter(Boolean);
 const uncommitted=git('diff','--name-only').split(/\n/u).filter(Boolean);
