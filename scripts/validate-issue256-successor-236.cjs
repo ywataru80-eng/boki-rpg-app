@@ -39,6 +39,7 @@ const allowed=new Set([
  'tests/issue256-release236-migration.test.js',
  'tests/story-work-case-narrative-s5e.test.js', // historical Gen194 snapshot stays fixed, Gen195 source corrections additive
  'tests/story-work-case-narrative-s5f.test.js', // same historical fixture acceptance with source-only successor
+ 'tests/story-work-case-narrative-s5d2.test.js', // exact Gen195 E011 source-bound successor, prior acceptance immutable
  'tests/audit-matrix.test.js', // explicitly record source drift against immutable historical audit matrix
  'tests/ledger-opening-migration.test.js','tests/ledger-opening-backup.test.js','tests/l039-explanation.test.js','tests/learning-effectiveness.test.js','tests/content-progress-migration.test.js','tests/content-progress-integration.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
