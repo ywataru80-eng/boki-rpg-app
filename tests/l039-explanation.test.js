@@ -16,7 +16,7 @@ for(const correct of [true,false]){
 // L044/L045 prompt/explanation fields; all remaining fields are byte-equivalent.
 const cp=require('node:child_process'),old={window:{}};
 vm.runInNewContext(cp.execFileSync('git',['show','37086c6ae6511a249218533375bf6f19dac231d1:data/questions.js'],{encoding:'utf8',maxBuffer:8*1024*1024}),old);
-const project=data=>{
+const project=(data,isCurrent=false)=>{
  const result=JSON.parse(JSON.stringify(data));
  for(const id of ['L044','L045'])for(const key of ['question','explanation','explanationModel'])delete result[id][key];
  delete result.J148.story; // J148's approved story-only successor is tested independently.
@@ -24,6 +24,13 @@ const project=data=>{
  // diff is independently bounded by tests/editorial-review-230.test.js.
  const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
  const editedProse=['20261103-234','20261105-235','20261107-236'].includes(release);
+ if(isCurrent&&release==='20261107-236'){
+   const now=result.E011,prev=old.window.QuestionData.E011;
+   assert.equal(now.materials.length,1,'E011 single bank record');
+   assert.equal(now.materials[0].recorded,prev.materials[0].recorded,'E011 recorded journal retained');
+   assert.equal(now.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",'E011 exact approved documentary correction');
+   now.materials=prev.materials; // normalize only the independently verified evidence sentence
+ }
  if(release==='20261107-236'){
    for(let n=2;n<=18;n++)delete result['D'+String(n).padStart(3,'0')];
    for(const id of ['D019','D020']){delete result[id].npcDialogue;delete result[id].nextHook;}
@@ -40,5 +47,5 @@ const project=data=>{
 };
 assert.notStrictEqual(s.window.QuestionData.J148.story,old.window.QuestionData.J148.story,'J148 successor must differ from historical story');
 assert.match(s.window.QuestionData.J148.story,/商品販売.*約束手形/,'J148 story must align with the promissory-note sale');
-assert.deepStrictEqual(project(s.window.QuestionData),project(old.window.QuestionData),'all 283 unchanged successor contracts stay identical to historical ledger baseline; 17 are separately bounded by Issue256 migration/Oracle');
+assert.deepStrictEqual(project(s.window.QuestionData,true),project(old.window.QuestionData),'all 283 unchanged successor contracts stay identical to historical ledger baseline; 17 are separately bounded by Issue256 migration/Oracle');
 console.log('L039 period allocation, teaching and protected data: PASS');

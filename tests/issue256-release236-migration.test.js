@@ -129,8 +129,14 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
   }
   assert(now[id].story.length<=120,id+': mobile prose limit');
  }
- for(const id of ids.filter(id=>!Object.hasOwn(scopeChanges,id)))
+ for(const id of ids.filter(id=>!Object.hasOwn(scopeChanges,id))){
+  if(id==='E011'){
+   assert.equal(prior.WorkCaseNarratives.E011.before,"店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。");
+   assert.equal(current.WorkCaseNarratives.E011.before,"店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。");
+   continue;
+  }
   equivalent(prior.WorkCaseNarratives[id],current.WorkCaseNarratives[id]);
+ }
  assert.equal(new Set(ids.map(id=>now[id].story)).size,300,'no duplicate scenes');
 });
 test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
