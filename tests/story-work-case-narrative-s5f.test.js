@@ -20,7 +20,7 @@ const authority=sandbox.window.WorkCaseNarratives;
 const historical={window:{},console};
 vm.runInNewContext(cp.execFileSync('git',['show','d8b406a5142f7b01c42e680df853de1bd0666120:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),historical);
 const originalAuthority=historical.window.WorkCaseNarratives;
-const sourceOnlyCorrections=new Set(['D003','D005','D006','D007','D008','D009','D010']);
+const sourceOnlyCorrections=new Set(['D003','D005','D006','D007','D008','D009','D010','E011']);
 
 const acceptedS5E=require('./fixtures/story-work-case-s5e-accepted.json');
 

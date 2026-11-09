@@ -36,7 +36,12 @@ test('exactly 300 original IDs, unchanged D019 D020 assessed contracts',()=>{
  for(const id of ids.filter(x=>!edited.includes(x))){
   const a=now[id],b=before[id];
   const keep=q=>({id:q.id,type:q.type,category:q.category,format:q.format,table:q.table,answer:q.answer,question:q.question,materials:q.materials});
-  equivalent(keep(a),keep(b));
+  if(id==='E011'){
+   assert.equal(a.materials.length,1);
+   assert.equal(a.materials[0].recorded,b.materials[0].recorded);
+   assert.equal(a.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録");
+   equivalent({...keep(a),materials:b.materials},keep(b));
+  } else equivalent(keep(a),keep(b));
  }
 });
 test('all supplementary story labels are removed without changing assessments or content identity',()=>{
@@ -53,6 +58,8 @@ test('all supplementary story labels are removed without changing assessments or
    if(allowedNotes.has(id))assert(suffix.length>=10&&suffix.length<=28&&suffix.endsWith('。'),id+': needs a concrete unique cue');
    else assert.equal(suffix,'',id+': only remove the internal marker');
    removed++;
+  }else if(id==='E011'){
+   assert(b.story.startsWith("店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"),'E011 must use completed bank transfer in Story preface');
   }else assert.equal(b.story,approvedStory(id,a.story),id+': unchanged authored scene except exact approved chronology');
  }
  assert.equal(removed,126,'reviewed supplementary metadata marker count drift');
@@ -101,10 +108,10 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
  for(const id of ids){
   const q=now[id],previous=prior.QuestionData[id];
   for(const k of new Set([...Object.keys(previous),...Object.keys(q)])){
-   if(k==='story')continue;
+   if(k==='story'||(id==='E011'&&k==='materials'))continue;
    equivalent(previous[k],q[k]);
   }
-  if(previous.story!==q.story)touched.push(id);
+  if(previous.story!==q.story&&id!=='E011')touched.push(id);
  }
  equivalent(touched.sort(),Object.keys(scopeChanges).sort());
  for(const [id,source] of Object.entries(scopeChanges)){
@@ -125,6 +132,28 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
  for(const id of ids.filter(id=>!Object.hasOwn(scopeChanges,id)))
   equivalent(prior.WorkCaseNarratives[id],current.WorkCaseNarratives[id]);
  assert.equal(new Set(ids.map(id=>now[id].story)).size,300,'no duplicate scenes');
+});
+test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
+ const prev=load(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
+ for(const id of ids){
+  const q=now[id],p=prev.QuestionData[id];
+  for(const key of new Set([...Object.keys(q),...Object.keys(p)])){
+   if(id==='E011'&&['materials','story'].includes(key))continue;
+   equivalent(q[key],p[key]);
+  }
+  if(id!=='E011')equivalent(q,p);
+ }
+ const q=now.E011,p=prev.QuestionData.E011;
+ assert.equal(q.materials.length,1);
+ assert.equal(q.materials[0].recorded,p.materials[0].recorded);
+ assert.equal(q.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録");
+ assert(p.story.startsWith("店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"));
+ assert.equal(q.story,"店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"+p.story.slice("店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。".length));
+ equivalent(q.answer,p.answer);
+ equivalent(q.table,p.table);
+ equivalent(q.question,p.question);
+ equivalent(q.explanation,p.explanation);
+ assert.deepEqual(JSON.parse(JSON.stringify(q.answer)),{cells:{debitAccount:'保険料',debitAmount:24000,creditAccount:'支払家賃',creditAmount:24000}});
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();
