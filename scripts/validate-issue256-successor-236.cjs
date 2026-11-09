@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-193.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-194.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -21,7 +21,8 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-190.json',
  'reports/auto-gate/audit-locks/phase-b-generation-191.json',
  'reports/auto-gate/audit-locks/phase-b-generation-192.json', // immutable successor after fixing supplementary Story progress
- 'reports/auto-gate/audit-locks/phase-b-generation-193.json', // only remove nonassessment labels and separate the final closing worksheet
+ 'reports/auto-gate/audit-locks/phase-b-generation-193.json', // immutable post-editorial authority
+ 'reports/auto-gate/audit-locks/phase-b-generation-194.json', // six exact chronology-only story fixes
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -82,6 +83,18 @@ const before=context(old('data/questions.js').toString()),now=context(read('data
 const ids=Object.keys(before).sort(),edited=new Set(Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')));
 assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
 const stable=o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
+const chronologyPlaces=Object.freeze({
+ J030:'給与支給後の経理室。',J079:'給与支給後の経理室。',
+ J080:'社会保険料の納付期限日の経理室。',J081:'固定資産税の納付書を確認する経理室。',
+ J129:'給与支給後の経理室。',J130:'給与支給後の経理室。'
+});
+const applyChronology=(id,story)=>{
+ if(!Object.hasOwn(chronologyPlaces,id))return story;
+ const original='給与振込前日の経理室。';
+ assert(story.startsWith(original),id+' original story has unexpectedly changed');
+ return chronologyPlaces[id]+story.slice(original.length);
+};
+
 for(const id of ids){
  if(edited.has(id)){
   const q=now[id];assert.equal(q.type,'worksheet');assert.equal(q.format,'decision-worksheet-v2');
@@ -104,11 +117,16 @@ for(const id of ids){
    if(k==='story'&&/〔評価資料 \d+〕$/.test(a.story)){
     const original=a.story.replace(/〔評価資料 \d+〕$/,'');
     const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
-    assert(b.story.startsWith(original),id+' must preserve original authored scene');
-    const note=b.story.slice(original.length);
+    const chronologyOriginal=applyChronology(id,original);
+    assert(b.story.startsWith(chronologyOriginal),id+' must preserve original authored scene');
+    const note=b.story.slice(chronologyOriginal.length);
     if(allowedNotes.has(id))assert(note.length>=10&&note.length<=28&&note.endsWith('。'),id+' must have an authored evidence-specific scene cue');
     else assert.equal(note,'',id+' must only remove obsolete supplementary metadata label');
     assert(b.story.length<=120,id+' too long for mobile');
+    continue;
+   }
+   if(k==='story'&&Object.hasOwn(chronologyPlaces,id)){
+    assert.equal(b.story,applyChronology(id,a.story),id+' chronology-only sentence change');
     continue;
    }
    assert.equal(stable(a[k]),stable(b[k]),id+' non-story data changed unexpectedly: '+k);
@@ -121,13 +139,13 @@ const matrixBaseline=cp.execFileSync('git',['show','702d723e0a00c8a2c0a8f9d4fd8d
 const matrixNow=read('tests/audit-matrix.test.js').toString();
 assert.equal(matrixNow.includes('approvedPreStory.window.QuestionData'),true,'matrix source provenance delta must be pinned');
 assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'matrix drift must require the exact 126 approved source records');
-assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels])'),true,'matrix stale scope must include only authorized supplemental changes');
+assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,193);assert.equal(gen.predecessor.generation,192);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,194);assert.equal(gen.predecessor.generation,193);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation193 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation194 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');

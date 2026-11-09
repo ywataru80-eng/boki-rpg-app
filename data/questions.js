@@ -17392,3 +17392,23 @@ if (typeof window !== 'undefined') {
   window.independentlyDerivedTableCells = independentlyDerivedTableCells;
   window.independentlyDerivedJournal = independentlyDerivedJournal;
 }
+// Release236 / Gen194: fix six proven chronological scene errors identified
+// by the effective 300-question learner-visible professional prose audit.
+// These edits affect pre-answer story only; no answer, grade, explanation,
+// question content identity, or learning history may be altered.
+{
+ const outdated='給与振込前日の経理室。';
+ const corrected=Object.freeze({
+  J030:'給与支給後の経理室。',
+  J079:'給与支給後の経理室。',
+  J080:'社会保険料の納付期限日の経理室。',
+  J081:'固定資産税の納付書を確認する経理室。',
+  J129:'給与支給後の経理室。',
+  J130:'給与支給後の経理室。'
+ });
+ for(const [id,place] of Object.entries(corrected)){
+  const q=QuestionData[id];
+  if(!q||!q.story.startsWith(outdated))throw new Error('Gen194 story baseline drift: '+id);
+  q.story=place+q.story.slice(outdated.length);
+ }
+}

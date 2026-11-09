@@ -15,6 +15,17 @@ const previous=load(old('data/questions.js'),old('js/model.js'),old('js/rpg.js')
 const now=current.QuestionData,before=previous.QuestionData,Model=current.ProgressModel,Old=previous.ProgressModel;
 const ids=Object.keys(before).sort();
 const edited=Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0'));
+const chronologyPlaces=Object.freeze({
+ J030:'給与支給後の経理室。',J079:'給与支給後の経理室。',
+ J080:'社会保険料の納付期限日の経理室。',J081:'固定資産税の納付書を確認する経理室。',
+ J129:'給与支給後の経理室。',J130:'給与支給後の経理室。'
+});
+const approvedStory=(id,original)=>{
+ if(!Object.hasOwn(chronologyPlaces,id))return original;
+ assert(original.startsWith('給与振込前日の経理室。'),id+': expected chronology source');
+ return chronologyPlaces[id]+original.slice('給与振込前日の経理室。'.length);
+};
+
 let checks=0;
 function test(name,fn){try{fn();checks++;console.log('PASS '+name)}catch(e){console.error('FAIL '+name+' '+e.stack);process.exitCode=1}}
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -36,12 +47,13 @@ test('all supplementary story labels are removed without changing assessments or
   if(wasLabelled){
    const original=a.story.replace(/〔評価資料 \d+〕$/,'');
    const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
-   assert(b.story.startsWith(original),id+': preserve original evidence-bearing scene');
-   const suffix=b.story.slice(original.length);
+   const correctedOriginal=approvedStory(id,original);
+   assert(b.story.startsWith(correctedOriginal),id+': preserve original evidence-bearing scene');
+   const suffix=b.story.slice(correctedOriginal.length);
    if(allowedNotes.has(id))assert(suffix.length>=10&&suffix.length<=28&&suffix.endsWith('。'),id+': needs a concrete unique cue');
    else assert.equal(suffix,'',id+': only remove the internal marker');
    removed++;
-  }else assert.equal(b.story,a.story,id+': unchanged authored scene');
+  }else assert.equal(b.story,approvedStory(id,a.story),id+': unchanged authored scene except exact approved chronology');
  }
  assert.equal(removed,126,'reviewed supplementary metadata marker count drift');
  for(const id of ids)assert(!now[id].story.includes('〔評価資料 '),id+': internal evaluation label must not reach the screen');
@@ -59,6 +71,23 @@ test('D019 and D020 use different supplied worksheets without implying numeric c
  assert(trial.nextHook.includes('別に示される'));
  assert.equal(closing.answer.cells.purchases,400000);
  assert(!trial.table.rows.some(r=>r.account==='仕入'),'D019 does not supply the D020 purchases figure');
+});
+test('Gen194 chronology fixes exactly six user-visible stories while preserving all 300 assessments',()=>{
+ const sourceSHA='b7e7f6b7a676cddc59fd0a25fce47132d7adfd3d';
+ const previousGen193=load(cp.execFileSync('git',['show',sourceSHA+':data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
+ const changed=[];
+ for(const id of ids){
+  const original=previousGen193.QuestionData[id],next=now[id];
+  for(const field of ['question','answer','explanation','materials','table','category','type','chapter','explanationModel']){
+   equivalent(original[field],next[field]);
+  }
+  if(original.story!==next.story)changed.push(id);
+ }
+ equivalent(changed.sort(),Object.keys(chronologyPlaces).sort());
+ for(const id of changed){
+  assert(!now[id].story.startsWith('給与振込前日の経理室。'),id+': payment day is not payroll eve');
+  assert.equal(now[id].story,approvedStory(id,previousGen193.QuestionData[id].story),id+': extra story mutation');
+ }
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();
