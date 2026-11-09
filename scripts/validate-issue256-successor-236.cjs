@@ -85,7 +85,7 @@ const context=src=>{
 };
 const before=context(old('data/questions.js').toString()),now=context(read('data/questions.js').toString());
 const gen195=context(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}));
-const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_BEFORE="店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
+const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_PREVIOUS_EVIDENCE="店舗の火災保険料24,000円の支払通知",E011_BEFORE="店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
 const ids=Object.keys(before).sort(),edited=new Set(Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')));
 assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
 const stable=o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
@@ -124,6 +124,10 @@ for(const id of ids){
     assert.equal(stable(b.materials),stable([{...gen195.E011.materials[0],evidence:E011_EVIDENCE}]),'E011 only evidence text may change');
     continue;
    }
+   if(id==='E011'&&k==='explanation'){
+    assert.equal(b.explanation,gen195.E011.explanation.replaceAll(E011_PREVIOUS_EVIDENCE,E011_EVIDENCE),'E011 generated explanation changes only where evidence is quoted');
+    continue;
+   }
    if(id==='E011'&&k==='story'){
     assert(gen195.E011.story.startsWith(E011_OLD_BEFORE),'E011 approved Gen195 preface must exist');
     assert.equal(b.story,E011_BEFORE+gen195.E011.story.slice(E011_OLD_BEFORE.length),'E011 exact preface-only correction');
@@ -154,13 +158,13 @@ const matrixBaseline=cp.execFileSync('git',['show','702d723e0a00c8a2c0a8f9d4fd8d
 const matrixNow=read('tests/audit-matrix.test.js').toString();
 assert.equal(matrixNow.includes('approvedPreStory.window.QuestionData'),true,'matrix source provenance delta must be pinned');
 assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'matrix drift must require the exact 126 approved source records');
-assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges])'),true,'matrix stale scope must include only authorized supplemental changes');
+assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
 const gen=JSON.parse(read(GEN));assert.equal(gen.generation,196);assert.equal(gen.predecessor.generation,195);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation195 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation196 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');

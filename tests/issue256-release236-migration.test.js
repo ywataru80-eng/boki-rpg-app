@@ -108,7 +108,7 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
  for(const id of ids){
   const q=now[id],previous=prior.QuestionData[id];
   for(const k of new Set([...Object.keys(previous),...Object.keys(q)])){
-   if(k==='story'||(id==='E011'&&k==='materials'))continue;
+   if(k==='story'||(id==='E011'&&['materials','explanation'].includes(k)))continue;
    equivalent(previous[k],q[k]);
   }
   if(previous.story!==q.story&&id!=='E011')touched.push(id);
@@ -138,7 +138,7 @@ test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
  for(const id of ids){
   const q=now[id],p=prev.QuestionData[id];
   for(const key of new Set([...Object.keys(q),...Object.keys(p)])){
-   if(id==='E011'&&['materials','story'].includes(key))continue;
+   if(id==='E011'&&['materials','story','explanation'].includes(key))continue;
    equivalent(q[key],p[key]);
   }
   if(id!=='E011')equivalent(q,p);
@@ -152,7 +152,7 @@ test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
  equivalent(q.answer,p.answer);
  equivalent(q.table,p.table);
  equivalent(q.question,p.question);
- equivalent(q.explanation,p.explanation);
+ assert.equal(q.explanation,p.explanation.replaceAll("店舗の火災保険料24,000円の支払通知","銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録"),'generated explanation must quote only corrected evidence');
  assert.deepEqual(JSON.parse(JSON.stringify(q.answer)),{cells:{debitAccount:'保険料',debitAmount:24000,creditAccount:'支払家賃',creditAmount:24000}});
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{

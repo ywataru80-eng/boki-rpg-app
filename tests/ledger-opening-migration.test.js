@@ -116,6 +116,12 @@ test('300 IDs and protected prior contracts plus distinct reviewed 17 successors
   if(id==='J148')assert.notEqual(current.story,historical.story,'J148 historic story successor retained');
   delete current.story;delete historical.story;
   delete current.explanation;delete historical.explanation;
+  if(issue256Successor&&id==='E011'){
+    assert.equal(current.materials?.length,1,'E011 evidence entry exists');
+    assert.equal(current.materials[0].recorded,historical.materials[0].recorded,'E011 original journal retained');
+    assert.equal(current.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",'E011 documentary bank settlement only');
+    current.materials=historical.materials; // only the exact approved source evidence differs
+  }
   if(issue256Successor&&['D019','D020'].includes(id)){
     delete current.npcDialogue;delete historical.npcDialogue;
     delete current.nextHook;delete historical.nextHook;
