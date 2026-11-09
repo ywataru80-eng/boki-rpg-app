@@ -29,7 +29,7 @@ const project=(data,isCurrent=false)=>{
    assert.equal(now.materials.length,1,'E011 single bank record');
    assert.equal(now.materials[0].recorded,prev.materials[0].recorded,'E011 recorded journal retained');
    assert.equal(now.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",'E011 exact approved documentary correction');
-   now.materials=prev.materials; // normalize only the independently verified evidence sentence
+   now.materials=JSON.parse(JSON.stringify(prev.materials)); // normalize only the independently verified evidence sentence
  }
  if(release==='20261107-236'){
    for(let n=2;n<=18;n++)delete result['D'+String(n).padStart(3,'0')];
