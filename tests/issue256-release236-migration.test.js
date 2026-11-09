@@ -75,9 +75,10 @@ test('D019 and D020 use different supplied worksheets without implying numeric c
 test('Gen194 chronology fixes exactly six user-visible stories while preserving all 300 assessments',()=>{
  const sourceSHA='b7e7f6b7a676cddc59fd0a25fce47132d7adfd3d';
  const previousGen193=load(cp.execFileSync('git',['show',sourceSHA+':data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
+ const approvedGen194=load(cp.execFileSync('git',['show','d8b406a5142f7b01c42e680df853de1bd0666120:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
  const changed=[];
  for(const id of ids){
-  const original=previousGen193.QuestionData[id],next=now[id];
+  const original=previousGen193.QuestionData[id],next=approvedGen194.QuestionData[id];
   for(const field of ['question','answer','explanation','materials','table','category','type','chapter','explanationModel']){
    equivalent(original[field],next[field]);
   }
@@ -85,9 +86,45 @@ test('Gen194 chronology fixes exactly six user-visible stories while preserving 
  }
  equivalent(changed.sort(),Object.keys(chronologyPlaces).sort());
  for(const id of changed){
-  assert(!now[id].story.startsWith('給与振込前日の経理室。'),id+': payment day is not payroll eve');
-  assert.equal(now[id].story,approvedStory(id,previousGen193.QuestionData[id].story),id+': extra story mutation');
+  assert(!approvedGen194.QuestionData[id].story.startsWith('給与振込前日の経理室。'),id+': payment day is not payroll eve');
+  assert.equal(approvedGen194.QuestionData[id].story,approvedStory(id,previousGen193.QuestionData[id].story),id+': extra story mutation');
  }
+});
+test('Gen195 source-specific decision narratives have no phantom documents and preserve the grading contract',()=>{
+ const priorSHA='d8b406a5142f7b01c42e680df853de1bd0666120';
+ const prior=load(cp.execFileSync('git',['show',priorSHA+':data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
+ const scopeChanges=Object.freeze({
+  D003:'insurance',D005:'insurance',D006:'equipment',D007:'equipment',
+  D008:'equipment',D009:'insurance',D010:'equipment'
+ });
+ const touched=[];
+ for(const id of ids){
+  const q=now[id],previous=prior.QuestionData[id];
+  for(const k of new Set([...Object.keys(previous),...Object.keys(q)])){
+   if(k==='story')continue;
+   equivalent(previous[k],q[k]);
+  }
+  if(previous.story!==q.story)touched.push(id);
+ }
+ equivalent(touched.sort(),Object.keys(scopeChanges).sort());
+ for(const [id,source] of Object.entries(scopeChanges)){
+  const oldBefore=prior.WorkCaseNarratives[id].before,newBefore=current.WorkCaseNarratives[id].before;
+  assert(prior.QuestionData[id].story.startsWith(oldBefore),id+': immutable source preface');
+  assert(now[id].story.startsWith(newBefore),id+': corrected preface must be visible');
+  assert.equal(now[id].story.slice(newBefore.length),prior.QuestionData[id].story.slice(oldBefore.length),id+': preserve authored progress/next action');
+  assert(!newBefore.includes(source==='insurance'?'備品':'保険'),id+': should not suggest missing evidence');
+  assert(newBefore.includes(source==='insurance'?'保険':'備品'),id+': mention actual source');
+  const materials=JSON.stringify(now[id].materials);
+  assert(materials.includes(source==='insurance'?'前期保険契約':'前期固定資産台帳'));
+  assert(!materials.includes(source==='insurance'?'前期固定資産台帳':'前期保険契約'));
+  for(const k of new Set([...Object.keys(prior.WorkCaseNarratives[id]),...Object.keys(current.WorkCaseNarratives[id])])){
+   if(k!=='before')equivalent(prior.WorkCaseNarratives[id][k],current.WorkCaseNarratives[id][k]);
+  }
+  assert(now[id].story.length<=120,id+': mobile prose limit');
+ }
+ for(const id of ids.filter(id=>!Object.hasOwn(scopeChanges,id)))
+  equivalent(prior.WorkCaseNarratives[id],current.WorkCaseNarratives[id]);
+ assert.equal(new Set(ids.map(id=>now[id].story)).size,300,'no duplicate scenes');
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();
@@ -107,6 +144,71 @@ test('17 distinct assessment contracts, 17 independent material oracles',()=>{
   patterns.add(q.table.inputCells.join('|'));
  }
  assert(patterns.size>=9,'insufficient variation in actual required judgments');
+});
+test('T001-T040: independent trial balance sums are derived from printed account rows, not stored answers',()=>{
+ for(let n=1;n<=40;n++){
+  const id='T'+String(n).padStart(3,'0'),q=now[id];
+  assert.equal(q.type,'trial_balance',id+' type');
+  assert.equal(q.table.rows.at(-1).account,'合計',id+' total row');
+  const entries=q.table.rows.slice(0,-1);
+  const debit=entries.reduce((sum,row)=>sum+(typeof row.debit==='number'?row.debit:0),0);
+  const credit=entries.reduce((sum,row)=>sum+(typeof row.credit==='number'?row.credit:0),0);
+  assert(entries.every(row=>[row.debit,row.credit].filter(v=>typeof v==='number'&&v!==0).length===1),id+' trial balance entry must occupy one side');
+  assert.equal(debit,credit,id+': source trial balance out of balance');
+  assert.equal(q.answer.cells.total_debit,debit,id+': expected debit is not independent row sum');
+  assert.equal(q.answer.cells.total_credit,credit,id+': expected credit is not independent row sum');
+  assert(q.explanation.includes(debit.toLocaleString('en-US')),id+': rendered explanation omits actual sum');
+ }
+});
+test('E001-E020: manual evidence-based correct journals minus recorded journals yield exact correction',()=>{
+ // This independent expected journal ledger is authored from the evidence and question,
+ // not from app QuestionData[].answer or accounting-oracle expected answer maps.
+ const rules={
+  E001:['広告掲載料22,500円','広告宣伝費','現金',22500],
+  E002:['買掛金25,000円','買掛金','普通預金',25000],
+  E003:['事務用品18,000円','消耗品費','現金',18000],
+  E004:['売掛金80,000円を回収','普通預金','売掛金',80000],
+  E005:['業務用複合機120,000円','備品','未払金',120000],
+  E006:['買掛金60,000円を普通預金','買掛金','普通預金',60000],
+  E007:['商品90,000円を掛け','売掛金','売上',90000],
+  E008:['貸付金利息12,000円','普通預金','受取利息',12000],
+  E009:['通信費30,000円','通信費','現金',30000],
+  E010:['借入金元本100,000円','借入金','普通預金',100000],
+  E011:['火災保険料24,000円','保険料','普通預金',24000], // Bank debit presumed correct from pre-recorded journal. Source "支払通知" does NOT independently establish settlement.
+  E012:['商品引渡前','現金','前受金',50000],
+  E013:['商品受領前','前払金','普通預金',70000],
+  E014:['概算前渡し','仮払金','現金',60000],
+  E015:['立替払い','立替金','現金',18000],
+  E016:['収入印紙10,000円','租税公課','現金',10000],
+  E017:['振込手数料3,000円','支払手数料','普通預金',3000],
+  E018:['業務用パソコン280,000円','備品','未払金',280000],
+  E019:['現金で回収','現金','売掛金',40000],
+  E020:['給与総額300,000円','給料','普通預金',300000]
+ };
+ const parse=record=>{
+  const m=record.match(/^（借）(.+?) ([\d,]+)／（貸）(.+?) ([\d,]+)$/u);
+  assert(m,'recorded journal not parseable: '+record);
+  assert.equal(Number(m[2].replaceAll(',','')),Number(m[4].replaceAll(',','')));
+  return {debit:m[1],credit:m[3],amount:Number(m[2].replaceAll(',',''))};
+ };
+ for(const [id,[clue,debit,credit,amount]] of Object.entries(rules)){
+  const q=now[id];assert.equal(q.type,'correction',id+' type');
+  assert.equal(q.materials.length,1,id+' source documents count');
+  assert(q.materials[0].evidence.includes(clue),id+' source evidence changed: '+clue);
+  const old=parse(q.materials[0].recorded),ledger=new Map();
+  const set=(acc,val)=>ledger.set(acc,(ledger.get(acc)||0)+val);
+  set(debit,amount);set(credit,-amount);set(old.debit,-old.amount);set(old.credit,old.amount);
+  const outstanding=[...ledger].filter(([acc,balance])=>balance!==0);
+  const correctionsDebit=outstanding.filter(([_,value])=>value>0);
+  const correctionsCredit=outstanding.filter(([_,value])=>value<0);
+  assert.equal(correctionsDebit.length,1,id+' one debit correction');
+  assert.equal(correctionsCredit.length,1,id+' one credit correction');
+  const [debitAcc,debitValue]=correctionsDebit[0],[creditAcc,creditValue]=correctionsCredit[0];
+  assert.equal(debitValue,-creditValue,id+' correction entry balance');
+  equivalent(q.answer.cells,{debitAccount:debitAcc,debitAmount:debitValue,creditAccount:creditAcc,creditAmount:-creditValue});
+  assert(q.explanation.includes(debitAcc)&&q.explanation.includes(creditAcc),id+': missing corrected account explanation');
+ }
+ assert.equal(Object.keys(rules).length,20);
 });
 test('model revision6 covers exact 17 successor content identities plus existing identities',()=>{
  const model=new Model(now,store(),'progress');assert.equal(model.state.contentRevision,6);

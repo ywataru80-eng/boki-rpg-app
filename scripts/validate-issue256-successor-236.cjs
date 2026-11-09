@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-194.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-195.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -22,7 +22,8 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-191.json',
  'reports/auto-gate/audit-locks/phase-b-generation-192.json', // immutable successor after fixing supplementary Story progress
  'reports/auto-gate/audit-locks/phase-b-generation-193.json', // immutable post-editorial authority
- 'reports/auto-gate/audit-locks/phase-b-generation-194.json', // six exact chronology-only story fixes
+ 'reports/auto-gate/audit-locks/phase-b-generation-194.json', // immutable six chronology fixes
+ 'reports/auto-gate/audit-locks/phase-b-generation-195.json', // seven exact source-bound chapter 10 Story fixes
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -35,6 +36,8 @@ const allowed=new Set([
  '.github/workflows/issue256-release236-acceptance.yml',
  '.github/workflows/issue256-release236-commit.yml',
  'tests/issue256-release236-migration.test.js',
+ 'tests/story-work-case-narrative-s5e.test.js', // historical Gen194 snapshot stays fixed, Gen195 source corrections additive
+ 'tests/story-work-case-narrative-s5f.test.js', // same historical fixture acceptance with source-only successor
  'tests/audit-matrix.test.js', // explicitly record source drift against immutable historical audit matrix
  'tests/ledger-opening-migration.test.js','tests/ledger-opening-backup.test.js','tests/l039-explanation.test.js','tests/learning-effectiveness.test.js','tests/content-progress-migration.test.js','tests/content-progress-integration.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
@@ -142,10 +145,10 @@ assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'m
 assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,194);assert.equal(gen.predecessor.generation,193);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,195);assert.equal(gen.predecessor.generation,194);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation194 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation195 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');
