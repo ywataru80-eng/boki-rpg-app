@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-196.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-197.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -25,6 +25,7 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-194.json', // immutable six chronology fixes
  'reports/auto-gate/audit-locks/phase-b-generation-195.json', // seven exact source-bound chapter 10 Story fixes
  'reports/auto-gate/audit-locks/phase-b-generation-196.json', // E011 documentary proof correction
+ 'reports/auto-gate/audit-locks/phase-b-generation-197.json', // E011 story omits answer account name
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -86,7 +87,7 @@ const context=src=>{
 };
 const before=context(old('data/questions.js').toString()),now=context(read('data/questions.js').toString());
 const gen195=context(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}));
-const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_PREVIOUS_EVIDENCE="店舗の火災保険料24,000円の支払通知",E011_BEFORE="店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
+const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_PREVIOUS_EVIDENCE="店舗の火災保険料24,000円の支払通知",E011_BEFORE="店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
 const ids=Object.keys(before).sort(),edited=new Set(Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')));
 assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
 const stable=o=>JSON.stringify(o,(k,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
@@ -162,10 +163,10 @@ assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'m
 assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,196);assert.equal(gen.predecessor.generation,195);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,197);assert.equal(gen.predecessor.generation,196);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation196 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation197 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');

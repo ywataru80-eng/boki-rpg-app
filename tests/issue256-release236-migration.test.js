@@ -59,7 +59,7 @@ test('all supplementary story labels are removed without changing assessments or
    else assert.equal(suffix,'',id+': only remove the internal marker');
    removed++;
   }else if(id==='E011'){
-   assert(b.story.startsWith("店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"),'E011 must use completed bank transfer in Story preface');
+   assert(b.story.startsWith("店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"),'E011 must use completed bank transfer in Story preface');
   }else assert.equal(b.story,approvedStory(id,a.story),id+': unchanged authored scene except exact approved chronology');
  }
  assert.equal(removed,126,'reviewed supplementary metadata marker count drift');
@@ -132,14 +132,14 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
  for(const id of ids.filter(id=>!Object.hasOwn(scopeChanges,id))){
   if(id==='E011'){
    assert.equal(prior.WorkCaseNarratives.E011.before,"店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。");
-   assert.equal(current.WorkCaseNarratives.E011.before,"店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。");
+   assert.equal(current.WorkCaseNarratives.E011.before,"店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。");
    continue;
   }
   equivalent(prior.WorkCaseNarratives[id],current.WorkCaseNarratives[id]);
  }
  assert.equal(new Set(ids.map(id=>now[id].story)).size,300,'no duplicate scenes');
 });
-test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
+test('Gen197 E011 source proof, Gen196 history, and Gen195 original unchanged',()=>{
  const prev=load(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
  for(const id of ids){
   const q=now[id],p=prev.QuestionData[id];
@@ -154,7 +154,7 @@ test('Gen196 E011 source proof and Gen195 immutable comparison',()=>{
  assert.equal(q.materials[0].recorded,p.materials[0].recorded);
  assert.equal(q.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録");
  assert(p.story.startsWith("店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"));
- assert.equal(q.story,"店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"+p.story.slice("店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。".length));
+ assert.equal(q.story,"店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"+p.story.slice("店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。".length));
  equivalent(q.answer,p.answer);
  equivalent(q.table,p.table);
  equivalent(q.question,p.question);

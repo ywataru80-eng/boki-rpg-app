@@ -42,7 +42,7 @@ for(const [id,before] of Object.entries(acceptedS5D2)){
     const historical={window:{},console};
     vm.runInNewContext(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),historical);
     assert.strictEqual(historical.window.WorkCaseNarratives.E011.before,before,'E011 historical S5D2 snapshot remains immutable');
-    assert.strictEqual(authority.E011.before,'店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。','E011 Gen196 bank debit source correction');
+    assert.strictEqual(authority.E011.before,'店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。','E011 Gen196 bank debit source correction');
   } else assert.strictEqual(
     authority[id].before,
     before,
@@ -66,7 +66,7 @@ for(const [id,before] of Object.entries(acceptedS5D1)){
     const prior={window:{},console};
     vm.runInNewContext(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),prior);
     assert.strictEqual(prior.window.WorkCaseNarratives.E011.before,before,'E011 historical S5D1 accepted Before remains unchanged');
-    assert.strictEqual(authority.E011.before,'店舗の火災保険料の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。','E011 successor bank debit introduction');
+    assert.strictEqual(authority.E011.before,'店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。','E011 successor bank debit introduction');
   }else assert.strictEqual(
     authority[id]?.before,
     before,
