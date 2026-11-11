@@ -56,6 +56,7 @@ const allowed=new Set([
  '.github/visual/run-learning-effectiveness.js', // authentic revision4 migration browser regression
  '.github/visual/run-explanation-integration.js', // D002 formula contract change only; assert exact baseline delta below.
  '.github/visual/run-issue256-d001-d020.js',
+ '.github/visual/run-story-narrative-result.js', // Gen198 browser verified-answer gate
  '.github/visual/run-ch11-12-final-explanations.js', // only adjust successor profile expectation; enforce exact baseline delta below.
  '.github/visual/run-content-progress-migration.js',
  '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
@@ -92,6 +93,15 @@ for(const [beforeText,afterText] of approvedControllerPatches){
  expectedController=expectedController.replace(beforeText,afterText);
 }
 assert.equal(read('js/controller.js').toString(),expectedController,'Gen198 Controller must contain only approved Story mastery guards');
+// The Gen198 browser harness must preserve all historical checks and add
+// three authorization states (unanswered, C005 only, complete verified set).
+const initialStoryBrowser=cp.execFileSync('git',['show','018d949117222983b91f9e7f072060be9e1d6bd7:.github/visual/run-story-narrative-result.js'],{encoding:'utf8',maxBuffer:8*1024*1024});
+let expectedStoryBrowser=initialStoryBrowser;
+for(const [beforeText,afterText] of [["runtimeController.model={state:{mode:'story'}};","runtimeController.model={state:{mode:'story',correctIds:['J050','F005','C005']},verifiedCorrectIds(){return this.state.correctIds;},isUnverified(){return false;}};"],["              const storyResolved=view.renderNarrativeResult(finaleScenes,{mode:'story',resolved:true,epilogueFacts});","              // Exercise the actual Controller authorization boundary in the browser,\n              // not only the View's ability to render a supplied answer key.\n              const gated=[];\n              runtimeController.view={renderNarrativeResult(_scenes,options){gated.push({resolved:options.resolved,sourceIds:options.epilogueFacts.map(x=>x.sourceQuestionId)});return true;}};\n              const resolve=window.AppController.prototype.renderNarrativeResolution;\n              runtimeController.model.state.correctIds=[];\n              resolve.call(runtimeController,questions.C005,true);\n              runtimeController.model.state.correctIds=['C005'];\n              resolve.call(runtimeController,questions.C005,true);\n              runtimeController.model.state.correctIds=['J050','F005','C005'];\n              resolve.call(runtimeController,questions.C005,true);\n              runtimeController.view=view;\n              const storyResolved=view.renderNarrativeResult(finaleScenes,{mode:'story',resolved:true,epilogueFacts});"],["return{storyResolved,visibleText,sceneId,epilogueClass,epilogueFacts,finalReportMarker","return{gated,storyResolved,visibleText,sceneId,epilogueClass,epilogueFacts,finalReportMarker"],["            if(!report.storyResolved)report.violations.push('STORY_RESULT_NOT_RENDERED');","            if(JSON.stringify(report.gated)!==JSON.stringify([\n              {resolved:false,sourceIds:[]},\n              {resolved:true,sourceIds:['C005','C005']},\n              {resolved:true,sourceIds:['J050','F005','C005','C005']}\n            ]))report.violations.push('UNVERIFIED_FINAL_ACCOUNT_FACTS_VISIBLE');\n            if(!report.storyResolved)report.violations.push('STORY_RESULT_NOT_RENDERED');"]]){
+ assert.equal(expectedStoryBrowser.split(beforeText).length,2,'unique approved Gen198 browser harness delta');
+ expectedStoryBrowser=expectedStoryBrowser.replace(beforeText,afterText);
+}
+assert.equal(read('.github/visual/run-story-narrative-result.js').toString(),expectedStoryBrowser,'Gen198 browser harness may only add verified-learner regression coverage');
 const context=src=>{
  const scope={window:{},console};const domain=read('data/accounting-domain.js').toString();
  vm.runInNewContext(domain,scope);scope.AccountingDomain=scope.window.AccountingDomain;
