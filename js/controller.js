@@ -116,7 +116,10 @@
     }
     epilogueFactsForScene(scene) {
       if (scene?.epilogue !== true || !Array.isArray(scene.epilogueFacts)) return [];
+      // Answer keys alone do not prove the learner has verified the work.
+      const verified = new Set(this.model?.verifiedCorrectIds?.() || this.model?.state?.correctIds || []);
       return scene.epilogueFacts.map(fact => {
+        if (!verified.has(fact.questionId) || this.model?.isUnverified?.('correctIds', fact.questionId) === true) return null;
         let value = this.questions?.[fact.questionId]?.answer;
         for (const key of fact.answerPath || []) value = value?.[key];
         return Number.isFinite(value)
@@ -132,7 +135,9 @@
       }
       const scenes = Controller.prototype.narrativeScenesForQuestion.call(this, question);
       const epilogueScene = scenes.find(scene => scene.epilogue === true);
-      const isResolved = resolved === true;
+      const verified = new Set(this.model?.verifiedCorrectIds?.() || this.model?.state?.correctIds || []);
+      const isResolved = resolved === true && Boolean(question?.id) && verified.has(question.id) &&
+        this.model?.isUnverified?.('correctIds', question.id) !== true;
       return this.view?.renderNarrativeResult?.(
         scenes,
         {
@@ -1357,14 +1362,15 @@
       flow.phase = 'D';
       this.view.hideProtectedResult?.();
       this.view.result(question, score, answer, flow.confidence, flow.achievement, false);
-      Controller.prototype.renderNarrativeResolution.call(this, question, true);
+      // Coached correction is learning evidence, not an independently verified first answer.
+      Controller.prototype.renderNarrativeResolution.call(this, question, false);
       this.view.renderAnswerComparison?.(question, flow.authoritativeScore, flow.authoritativeAnswer);
       const status = this.document.getElementById('result-status');
       const note = this.document.createElement('span'); note.className = 'coaching-success'; note.textContent = '練習で修正できました。最初の回答は誤答として記録されています。'; status?.append(note); this.view.show('view-result'); status?.focus?.(); this.dispatchPendingGameOver(); return true;
     }
     revealAnswer() {
       const flow = this.learningFlow; if (!flow || !['W','R'].includes(flow.phase)) return false;
-      flow.phase = 'D'; this.view.hideProtectedResult?.(); this.view.result(this.questions[this.currentId], flow.authoritativeScore, flow.authoritativeAnswer, flow.confidence, flow.achievement, false); Controller.prototype.renderNarrativeResolution.call(this, this.questions[this.currentId], true); this.view.show('view-result'); this.document.getElementById?.('result-status')?.focus(); this.dispatchPendingGameOver(); return true;
+      flow.phase = 'D'; this.view.hideProtectedResult?.(); this.view.result(this.questions[this.currentId], flow.authoritativeScore, flow.authoritativeAnswer, flow.confidence, flow.achievement, false); Controller.prototype.renderNarrativeResolution.call(this, this.questions[this.currentId], false); this.view.show('view-result'); this.document.getElementById?.('result-status')?.focus(); this.dispatchPendingGameOver(); return true;
     }
     dispatchPendingGameOver() { const flow = this.learningFlow; if (flow?.gameOverPending && !flow.gameOverDispatched) { flow.gameOverDispatched = true; this.showGameOver(); } }
     next() {

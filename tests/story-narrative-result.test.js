@@ -155,8 +155,49 @@ assert(controllerSource.includes('renderNarrativeResolution(question, resolved =
 assert(controllerSource.includes('Controller.prototype.renderNarrativeResolution.call(this, question, false)'),'wrong path must keep narrative unresolved');
 assert(controllerSource.includes('Controller.prototype.renderNarrativeResolution.call(this, question, true)'),'correct path must resolve narrative');
 assert(
-  /revealAnswer\(\)[\s\S]{0,1200}renderNarrativeResolution\.call\(this, this\.questions\[this\.currentId\], true\)/u.test(controllerSource),
-  'explicit answer reveal must preserve Story continuity by rendering the narrative consequence'
+  /revealAnswer\(\)[\s\S]{0,1200}renderNarrativeResolution\.call\(this, this\.questions\[this\.currentId\], false\)/u.test(controllerSource),
+  'answer reveal may explain the solution but must not mark an unsolved Story case completed'
 );
+
+
+// Release236 Gen198: a revealed answer or coached retry must never certify
+// Story success; only an independently verified correct attempt can resolve it.
+const governed=Object.create(AppController.prototype);
+governed.questions=questions;
+governed.model={
+  state:{mode:'story',correctIds:[]},
+  verifiedCorrectIds(){return this.state.correctIds;},
+  isUnverified(){return false;},
+  recordAssistedRecovery(){return true;}
+};
+const renderCalls=[];
+governed.view={
+  renderNarrativeResult(scenes,options){renderCalls.push({scenes,options});return true;},
+  hideProtectedResult(){},result(){},show(){},renderAnswerComparison(){}
+};
+governed.document={
+  getElementById(){return {focus(){},append(){}};},
+  createElement(){return {className:'',textContent:''};}
+};
+governed.currentId='C005';
+governed.learningFlow={
+  phase:'W',authoritativeScore:{correct:false},authoritativeAnswer:{cells:{}},
+  confidence:'sure',achievement:{},retryCount:0,gameOverPending:false
+};
+assert.strictEqual(AppController.prototype.renderNarrativeResolution.call(governed,questions.C005,true),true);
+assert.strictEqual(renderCalls.at(-1).options.resolved,false,'unverified success flag cannot resolve a Story scene');
+assert.deepStrictEqual(Array.from(renderCalls.at(-1).options.epilogueFacts),[],'unverified finale cannot expose achievements');
+assert.strictEqual(AppController.prototype.revealAnswer.call(governed),true);
+assert.strictEqual(renderCalls.at(-1).options.resolved,false,'answer reveal never completes a wrong case');
+governed.learningFlow.phase='R';
+assert.strictEqual(AppController.prototype.finishCoachingRetry.call(governed,questions.C005,{}, {correct:true}),true);
+assert.strictEqual(renderCalls.at(-1).options.resolved,false,'guided repair cannot credit the initial wrong attempt');
+governed.model.state.correctIds=['C005'];
+assert.strictEqual(AppController.prototype.renderNarrativeResolution.call(governed,questions.C005,true),true);
+assert.strictEqual(renderCalls.at(-1).options.resolved,true,'genuinely verified correct response resolves finale');
+assert.strictEqual(renderCalls.at(-1).options.epilogueFacts.length,2,'only current verified C005 values may be summarized');
+governed.model.isUnverified=(_field,id)=>id==='C005';
+assert.strictEqual(AppController.prototype.renderNarrativeResolution.call(governed,questions.C005,true),true);
+assert.strictEqual(renderCalls.at(-1).options.resolved,false,'unverified legacy record may not certify finale');
 
 console.log('ISSUE179_S3_NARRATIVE_RESULT_PASS');

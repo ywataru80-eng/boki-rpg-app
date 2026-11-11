@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-197.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-198.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -15,7 +15,7 @@ assert.deepEqual(Object.keys(manifest.pages).sort(),Object.keys(prior.pages).sor
 for(const [p,v]of Object.entries({...manifest.assets,...manifest.pages}))assert.equal(hash(p),v,p+' served-asset digest');
 for(const file of ['index.html','form-a.html','service-worker.js'])assert.equal(read(file).toString(),old(file).toString().replaceAll(PREV,RELEASE),file+' marker-only update');
 const allowed=new Set([
- 'data/questions.js','js/model.js','js/explanation-model.js','js/explanation-formulas.js',
+ 'data/questions.js','js/model.js','js/explanation-model.js','js/explanation-formulas.js','js/controller.js',
  'index.html','form-a.html','service-worker.js','pwa-release-manifest.json',
  'scripts/validate-issue256-successor-236.cjs','scripts/check-explanation-accounting.py','package.json',
  'reports/auto-gate/audit-locks/phase-b-generation-190.json',
@@ -26,6 +26,7 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-195.json', // seven exact source-bound chapter 10 Story fixes
  'reports/auto-gate/audit-locks/phase-b-generation-196.json', // E011 documentary proof correction
  'reports/auto-gate/audit-locks/phase-b-generation-197.json', // E011 story omits answer account name
+ 'reports/auto-gate/audit-locks/phase-b-generation-198.json', // verified Story progress cannot be faked by answer reveal
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -41,6 +42,7 @@ const allowed=new Set([
  'tests/story-work-case-narrative-s5e.test.js', // historical Gen194 snapshot stays fixed, Gen195 source corrections additive
  'tests/story-work-case-narrative-s5f.test.js', // same historical fixture acceptance with source-only successor
  'tests/story-work-case-narrative-s5d2.test.js', // exact Gen195 E011 source-bound successor, prior acceptance immutable
+ 'tests/story-narrative-result.test.js','tests/story-final-epilogue-s6.test.js', // Gen198 actual Story success authorization
  'tests/audit-matrix.test.js', // explicitly record source drift against immutable historical audit matrix
  'tests/ledger-opening-migration.test.js','tests/ledger-opening-backup.test.js','tests/l039-explanation.test.js','tests/learning-effectiveness.test.js','tests/content-progress-migration.test.js','tests/content-progress-integration.test.js',
  'tests/exam-points-visible.test.js','tests/npc-dialogue-story.test.js','tests/audit-matrix.test.js',
@@ -77,9 +79,19 @@ const ch11Old="q.type==='correction'?'correction':q.id==='D019'?",ch11New="q.typ
 assert.equal(ch11Baseline.split(ch11Old).length,2,'Chapter11/12 expected profile baseline must be unique');
 assert.equal(read('.github/visual/run-ch11-12-final-explanations.js').toString(),
  ch11Baseline.replace(ch11Old,ch11New),'Chapter11/12 visual audit must preserve all other checks');
-for(const p of ['data/accounting-domain.js','data/accounting-oracle.js','js/engine.js','js/controller.js','js/rpg.js','js/view.js','reports/auto-gate/audit-locks/phase-b-generation-189.json']){
+for(const p of ['data/accounting-domain.js','data/accounting-oracle.js','js/engine.js','js/rpg.js','js/view.js','reports/auto-gate/audit-locks/phase-b-generation-189.json']){
  assert(read(p).equals(old(p)),'protected grading/state/historical bytes changed: '+p);
 }
+// Fixed predecessor SHA and exact transformed byte sequence are the ONLY allowed
+// changes to the otherwise-protected Controller. This preserves scoring/state.
+const controller197=cp.execFileSync('git',['show','a3a4f1b7575d4e1c4d81e8151513552c56d635c7:js/controller.js'],{encoding:'utf8',maxBuffer:16*1024*1024});
+const approvedControllerPatches=[["      if (scene?.epilogue !== true || !Array.isArray(scene.epilogueFacts)) return [];\n      return scene.epilogueFacts.map(fact => {","      if (scene?.epilogue !== true || !Array.isArray(scene.epilogueFacts)) return [];\n      // Answer keys alone do not prove the learner has verified the work.\n      const verified = new Set(this.model?.verifiedCorrectIds?.() || this.model?.state?.correctIds || []);\n      return scene.epilogueFacts.map(fact => {\n        if (!verified.has(fact.questionId) || this.model?.isUnverified?.('correctIds', fact.questionId) === true) return null;"],["      const isResolved = resolved === true;","      const verified = new Set(this.model?.verifiedCorrectIds?.() || this.model?.state?.correctIds || []);\n      const isResolved = resolved === true && Boolean(question?.id) && verified.has(question.id) &&\n        this.model?.isUnverified?.('correctIds', question.id) !== true;"],["      Controller.prototype.renderNarrativeResolution.call(this, question, true);\n      this.view.renderAnswerComparison?.(question, flow.authoritativeScore, flow.authoritativeAnswer);","      // Coached correction is learning evidence, not an independently verified first answer.\n      Controller.prototype.renderNarrativeResolution.call(this, question, false);\n      this.view.renderAnswerComparison?.(question, flow.authoritativeScore, flow.authoritativeAnswer);"],["Controller.prototype.renderNarrativeResolution.call(this, this.questions[this.currentId], true); this.view.show('view-result'); this.document.getElementById?.('result-status')?.focus(); this.dispatchPendingGameOver(); return true;","Controller.prototype.renderNarrativeResolution.call(this, this.questions[this.currentId], false); this.view.show('view-result'); this.document.getElementById?.('result-status')?.focus(); this.dispatchPendingGameOver(); return true;"]];
+let expectedController=controller197;
+for(const [beforeText,afterText] of approvedControllerPatches){
+ assert.equal(expectedController.split(beforeText).length,2,'Gen198 approved Controller replacement must be unique');
+ expectedController=expectedController.replace(beforeText,afterText);
+}
+assert.equal(read('js/controller.js').toString(),expectedController,'Gen198 Controller must contain only approved Story mastery guards');
 const context=src=>{
  const scope={window:{},console};const domain=read('data/accounting-domain.js').toString();
  vm.runInNewContext(domain,scope);scope.AccountingDomain=scope.window.AccountingDomain;
@@ -163,10 +175,10 @@ assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'m
 assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,197);assert.equal(gen.predecessor.generation,196);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,198);assert.equal(gen.predecessor.generation,197);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation197 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation198 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');
