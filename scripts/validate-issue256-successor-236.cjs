@@ -56,11 +56,18 @@ const allowed=new Set([
  '.github/visual/run-learning-effectiveness.js', // authentic revision4 migration browser regression
  '.github/visual/run-explanation-integration.js', // D002 formula contract change only; assert exact baseline delta below.
  '.github/visual/run-issue256-d001-d020.js',
+ '.github/visual/run-issue256-all300.js', // 300 actual browser form states across 2 engines
  '.github/visual/run-story-narrative-result.js', // Gen198 browser verified-answer gate
  '.github/visual/run-ch11-12-final-explanations.js', // only adjust successor profile expectation; enforce exact baseline delta below.
  '.github/visual/run-content-progress-migration.js',
  '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
 ]);
+// Gen198 test-only supplement: exact reviewed file hash and workflow delta.
+assert.equal(git('hash-object','.github/visual/run-issue256-all300.js'),'7fb70916f3ec890ed3b4f9ac3a76a8d4c658e64f','All300 browser harness content drift');
+const approvedAll300Before=cp.execFileSync('git',['show','e24ab88bc5d3755ed691f74d69513ce23e29d1f0:.github/workflows/visual-gate.yml'],{encoding:'utf8',maxBuffer:8*1024*1024});
+const approvedAll300Old="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js",approvedAll300New="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js\n      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js";
+assert.equal(approvedAll300Before.split(approvedAll300Old).length,2,'All300 workflow baseline anchor drift');
+assert.equal(read('.github/workflows/visual-gate.yml').toString(),approvedAll300Before.replace(approvedAll300Old,approvedAll300New),'All300 workflow must preserve all previously approved steps');
 const changed=git('diff','--name-only',BASE,'HEAD').split(/\n/u).filter(Boolean);
 const uncommitted=git('diff','--name-only').split(/\n/u).filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean)
