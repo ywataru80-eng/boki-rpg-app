@@ -63,7 +63,7 @@ const allowed=new Set([
  '.github/workflows/visual-gate.yml' // bounded Issue256 browser acceptance additions
 ]);
 // Gen198 test-only supplement: exact reviewed file hash and workflow delta.
-assert.equal(git('hash-object','.github/visual/run-issue256-all300.js'),'7fb70916f3ec890ed3b4f9ac3a76a8d4c658e64f','All300 browser harness content drift');
+assert.equal(git('hash-object','.github/visual/run-issue256-all300.js'),'b47f9676adbf90e57eb71b7b3c2c9fedd8c52316','All300 browser harness content drift');
 const approvedAll300Before=cp.execFileSync('git',['show','e24ab88bc5d3755ed691f74d69513ce23e29d1f0:.github/workflows/visual-gate.yml'],{encoding:'utf8',maxBuffer:8*1024*1024});
 const approvedAll300Old="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js",approvedAll300New="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js\n      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js";
 assert.equal(approvedAll300Before.split(approvedAll300Old).length,2,'All300 workflow baseline anchor drift');

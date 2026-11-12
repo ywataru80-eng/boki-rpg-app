@@ -42,8 +42,13 @@ async function main(){
         if(document.getElementById('q-text')?.textContent!==q.question||c.model.state.attempts.length!==before)
          throw Error(id+': unanswered display failed or start wrote attempt');
         const empty=c.view.readAnswer(q);
+        // Journal readAnswer intentionally omits untouched rows, while
+        // table readAnswer retains blank cells keyed by input ID.
         const values=q.type==='journal'?[...empty.debit,...empty.credit].flatMap(x=>[x.account,x.amount]):Object.values(empty.cells||{});
-        if(values.length===0||values.some(x=>String(x??'').trim()!==''))throw Error(id+': unanswered inputs are not blank');
+        const isBlank=q.type==='journal'
+          ?empty.debit.length===0&&empty.credit.length===0
+          :values.length>0&&values.every(x=>String(x??'').trim()==='');
+        if(!isBlank)throw Error(id+': unanswered inputs are not blank');
         const fields=[...document.querySelectorAll('#question-form '+(q.type==='journal'?'.debit-account, .credit-account, .debit-amount, .credit-amount':'.table-input'))];
         const minimum=q.type==='journal'?Math.max(q.answer.debit.length,q.answer.credit.length)*4:q.table.inputCells.length;
         if(fields.length<minimum)throw Error(id+': some answer form fields are missing');
