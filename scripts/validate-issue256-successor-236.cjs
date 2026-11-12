@@ -57,6 +57,7 @@ const allowed=new Set([
  '.github/visual/run-explanation-integration.js', // D002 formula contract change only; assert exact baseline delta below.
  '.github/visual/run-issue256-d001-d020.js',
  '.github/visual/run-issue256-all300.js', // 300 actual browser form states across 2 engines
+ '.github/visual/run-issue256-story36.js', // 36 actual wrong/correct Story gameplay beats
  '.github/visual/run-story-narrative-result.js', // Gen198 browser verified-answer gate
  '.github/visual/run-ch11-12-final-explanations.js', // only adjust successor profile expectation; enforce exact baseline delta below.
  '.github/visual/run-content-progress-migration.js',
@@ -68,6 +69,12 @@ const approvedAll300Before=cp.execFileSync('git',['show','e24ab88bc5d3755ed691f7
 const approvedAll300Old="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js",approvedAll300New="      - name: Run Issue256 D001-D020 actual form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js\n      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js";
 assert.equal(approvedAll300Before.split(approvedAll300Old).length,2,'All300 workflow baseline anchor drift');
 assert.equal(read('.github/workflows/visual-gate.yml').toString(),approvedAll300Before.replace(approvedAll300Old,approvedAll300New),'All300 workflow must preserve all previously approved steps');
+// Gen198 Story 36 actual learner-form acceptance is an exact reviewed test-only change.
+assert.equal(git('hash-object','.github/visual/run-issue256-story36.js'),'7681ee5e969770f5d73edc80bb4f21145bbced17','Story36 actual browser harness content drift');
+const beforeStory36=cp.execFileSync('git',['show','f219d903cf0e891b5f61cf8d8715a5e4c41087c4:.github/workflows/visual-gate.yml'],{encoding:'utf8',maxBuffer:8*1024*1024});
+const oldStory36Step="      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js",newStory36Step="      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js\n      - name: Run 36 Story anchors through real wrong and correct form submissions\n        run: node --check .github/visual/run-issue256-story36.js && node .github/visual/run-issue256-story36.js";
+assert.equal(beforeStory36.split(oldStory36Step).length,2,'Story36 workflow baseline step drift');
+assert.equal(read('.github/workflows/visual-gate.yml').toString(),beforeStory36.replace(oldStory36Step,newStory36Step),'Story36 browser workflow delta not approved');
 const changed=git('diff','--name-only',BASE,'HEAD').split(/\n/u).filter(Boolean);
 const uncommitted=git('diff','--name-only').split(/\n/u).filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean)
