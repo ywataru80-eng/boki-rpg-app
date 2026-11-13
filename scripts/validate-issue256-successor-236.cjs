@@ -39,6 +39,7 @@ const allowed=new Set([
  '.github/workflows/question-quality-ledger-audit.yml',
  '.github/workflows/issue256-release236-acceptance.yml',
  '.github/workflows/issue256-release236-commit.yml',
+ '.github/workflows/verify.yml', // CI image pinned after ubuntu-latest migration to unsupported Ubuntu 26.04
  'tests/issue256-release236-migration.test.js',
  'tests/story-work-case-narrative-s5e.test.js', // historical Gen194 snapshot stays fixed, Gen195 source corrections additive
  'tests/story-work-case-narrative-s5f.test.js', // same historical fixture acceptance with source-only successor
@@ -76,7 +77,13 @@ const beforeStory36=cp.execFileSync('git',['show','f219d903cf0e891b5f61cf8d8715a
 const oldStory36Step="      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js",newStory36Step="      - name: Run all 300 actual browser form submit and explanation coverage\n        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js\n      - name: Run 36 Story anchors through real wrong and correct form submissions\n        run: node --check .github/visual/run-issue256-story36.js && node .github/visual/run-issue256-story36.js";
 assert.equal(beforeStory36,approvedAll300Result,'Story36 predecessor must be the exact accepted All300 visual workflow');
 assert.equal(beforeStory36.split(oldStory36Step).length,2,'Story36 workflow baseline step drift');
-assert.equal(read('.github/workflows/visual-gate.yml').toString(),beforeStory36.replace(oldStory36Step,newStory36Step),'Story36 browser workflow delta not approved');
+const approvedVisualBeforeRunnerPin=beforeStory36.replace(oldStory36Step,newStory36Step);
+const ubuntuRunnerBefore='    runs-on: ubuntu-latest\n',ubuntuRunnerAfter='    runs-on: ubuntu-24.04\n';
+assert.equal(approvedVisualBeforeRunnerPin.split(ubuntuRunnerBefore).length,2,'visual workflow must have exactly one original Ubuntu runner');
+assert.equal(read('.github/workflows/visual-gate.yml').toString(),approvedVisualBeforeRunnerPin.replace(ubuntuRunnerBefore,ubuntuRunnerAfter),'visual workflow may only add accepted Story36 test and pin the Ubuntu24 runner; no test assertion changes');
+const originalVerifyWorkflow=cp.execFileSync('git',['show','e40d9b9743178f355bd7998c20ba194569520b09:.github/workflows/verify.yml'],{encoding:'utf8'});
+assert.equal(originalVerifyWorkflow.split(ubuntuRunnerBefore).length,2,'verify workflow must have exactly one original Ubuntu runner');
+assert.equal(read('.github/workflows/verify.yml').toString(),originalVerifyWorkflow.replace(ubuntuRunnerBefore,ubuntuRunnerAfter),'verify workflow may only pin the Ubuntu24 runner; cannot suppress checks');
 const changed=git('diff','--name-only',BASE,'HEAD').split(/\n/u).filter(Boolean);
 const uncommitted=git('diff','--name-only').split(/\n/u).filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(Boolean)
