@@ -17412,3 +17412,13 @@ if (typeof window !== 'undefined') {
   q.story=place+q.story.slice(outdated.length);
  }
 }
+
+// Generation199 candidate: J067's supplemental scene must not invert the
+// accounting treatment of an unresolved cash shortage. Preserve the assessed
+// transaction, score, materials, explanation, reward and historical identities.
+{
+ const expected='現金実査後の経理室。まだ現金過不足と小口現金を証拠から確認し、未判明の差額は調査中として残すことができません。あなたは次の現金過不足の確認を任されました。取引の増減を整理し、借方・貸方の科目と金額を決めてください。';
+ const corrected='現金実査後の経理室。帳簿と実際の現金に差があり、原因はまだ分かりません。あなたは原因を推測で決めず、証拠を確認して差額を適切に仮処理します。';
+ if(QuestionData.J067.story!==expected)throw new Error('Gen199 J067 historical story drift');
+ QuestionData.J067.story=corrected;
+}

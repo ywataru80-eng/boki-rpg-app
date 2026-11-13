@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-198.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-199.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -27,6 +27,7 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-196.json', // E011 documentary proof correction
  'reports/auto-gate/audit-locks/phase-b-generation-197.json', // E011 story omits answer account name
  'reports/auto-gate/audit-locks/phase-b-generation-198.json', // verified Story progress cannot be faked by answer reveal
+ 'reports/auto-gate/audit-locks/phase-b-generation-199.json', // J067 cash-shortage prose-only fix; assessment unchanged
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -124,6 +125,12 @@ const context=src=>{
 };
 const before=context(old('data/questions.js').toString()),now=context(read('data/questions.js').toString());
 const gen195=context(cp.execFileSync('git',['show','594db5a397cbc90d4da8d241192e4f1db0af2540:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}));
+const gen198=context(cp.execFileSync('git',['show','e40d9b9743178f355bd7998c20ba194569520b09:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}));
+const gen199J067='現金実査後の経理室。帳簿と実際の現金に差があり、原因はまだ分かりません。あなたは原因を推測で決めず、証拠を確認して差額を適切に仮処理します。';
+assert(gen198.J067.story.includes('未判明の差額は調査中として残すことができません'));
+assert.equal(now.J067.story,gen199J067,'Gen199 exact J067 editorial correction');
+for(const key of new Set([...Object.keys(gen198.J067),...Object.keys(now.J067)])){if(key!=='story')assert.equal(JSON.stringify(now.J067[key]),JSON.stringify(gen198.J067[key]),'J067 only user-facing story may change: '+key);}
+
 const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_PREVIOUS_EVIDENCE="店舗の火災保険料24,000円の支払通知",E011_BEFORE="店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
 const ids=Object.keys(before).sort(),edited=new Set(Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')));
 assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
@@ -172,6 +179,7 @@ for(const id of ids){
     assert.equal(b.story,E011_BEFORE+gen195.E011.story.slice(E011_OLD_BEFORE.length),'E011 exact preface-only correction');
     continue;
    }
+   if(k==='story'&&id==='J067'){assert.equal(b.story,gen199J067,'Gen199 exact J067 story-only scope');continue;}
    if(k==='story'&&/〔評価資料 \d+〕$/.test(a.story)){
     const original=a.story.replace(/〔評価資料 \d+〕$/,'');
     const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
@@ -200,10 +208,10 @@ assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'m
 assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,198);assert.equal(gen.predecessor.generation,197);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,199);assert.equal(gen.predecessor.generation,198);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation198 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation199 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');

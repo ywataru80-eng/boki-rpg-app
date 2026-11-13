@@ -52,6 +52,12 @@ test('all supplementary story labels are removed without changing assessments or
   if(wasLabelled){
    const original=a.story.replace(/〔評価資料 \d+〕$/,'');
    const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
+   if(id==='J067'){
+    assert(original.includes('未判明の差額は調査中として残すことができません'),'J067 immutable historical contradiction');
+    assert.equal(b.story,'現金実査後の経理室。帳簿と実際の現金に差があり、原因はまだ分かりません。あなたは原因を推測で決めず、証拠を確認して差額を適切に仮処理します。','Gen199 source-bound J067 repair');
+    removed++;
+    continue;
+   }
    const correctedOriginal=approvedStory(id,original);
    assert(b.story.startsWith(correctedOriginal),id+': preserve original evidence-bearing scene');
    const suffix=b.story.slice(correctedOriginal.length);
@@ -111,7 +117,7 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
    if(k==='story'||(id==='E011'&&['materials','explanation'].includes(k)))continue;
    equivalent(previous[k],q[k]);
   }
-  if(previous.story!==q.story&&id!=='E011')touched.push(id);
+  if(previous.story!==q.story&&!['E011','J067'].includes(id))touched.push(id);
  }
  equivalent(touched.sort(),Object.keys(scopeChanges).sort());
  for(const [id,source] of Object.entries(scopeChanges)){
@@ -144,10 +150,10 @@ test('Gen197 E011 source proof, Gen196 history, and Gen195 original unchanged',(
  for(const id of ids){
   const q=now[id],p=prev.QuestionData[id];
   for(const key of new Set([...Object.keys(q),...Object.keys(p)])){
-   if(id==='E011'&&['materials','story','explanation'].includes(key))continue;
+   if((id==='E011'&&['materials','story','explanation'].includes(key))||(id==='J067'&&key==='story'))continue;
    equivalent(q[key],p[key]);
   }
-  if(id!=='E011')equivalent(q,p);
+  if(!['E011','J067'].includes(id))equivalent(q,p);
  }
  const q=now.E011,p=prev.QuestionData.E011;
  assert.equal(q.materials.length,1);
@@ -160,6 +166,24 @@ test('Gen197 E011 source proof, Gen196 history, and Gen195 original unchanged',(
  equivalent(q.question,p.question);
  assert.equal(q.explanation,p.explanation.replaceAll("店舗の火災保険料24,000円の支払通知","銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録"),'generated explanation must quote only corrected evidence');
  assert.deepEqual(JSON.parse(JSON.stringify(q.answer)),{cells:{debitAccount:'保険料',debitAmount:24000,creditAccount:'支払家賃',creditAmount:24000}});
+});
+test('Gen199 J067 source-only correction and no-answer preface preserve all 300 assessed contracts',()=>{
+ const gen198=load(cp.execFileSync('git',['show','e40d9b9743178f355bd7998c20ba194569520b09:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
+ const oldQ=gen198.QuestionData,newQ=now;
+ const changed=ids.filter(id=>oldQ[id].story!==newQ[id].story);
+ equivalent(changed,['J067']);
+ for(const id of ids){
+  for(const key of new Set([...Object.keys(oldQ[id]),...Object.keys(newQ[id])])){
+   if(id==='J067'&&key==='story')continue;
+   equivalent(newQ[id][key],oldQ[id][key]);
+  }
+ }
+ assert(oldQ.J067.story.includes('未判明の差額は調査中として残すことができません'));
+ assert(newQ.J067.story.includes('原因はまだ分かりません'));
+ assert(newQ.J067.story.includes('証拠を確認'));
+ assert(!newQ.J067.story.includes('現金過不足'),'question must not expose correct account in narrative before answering');
+ assert(newQ.J067.story.length<=120,'mobile readability');
+ assert.equal(JSON.stringify(Model.currentContentVersions(newQ)),JSON.stringify(Model.currentContentVersions(oldQ)),'story-only changes do not invalidate assessment evidence');
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();
