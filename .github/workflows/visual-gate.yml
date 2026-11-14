@@ -51,6 +51,8 @@ jobs:
         run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js
       - name: Run 36 Story anchors through real wrong and correct form submissions
         run: node --check .github/visual/run-issue256-story36.js && node .github/visual/run-issue256-story36.js
+      - name: Run all 166 Story cases sequentially in one browser session per engine
+        run: node --check .github/visual/run-issue256-story166.js && node .github/visual/run-issue256-story166.js
       # Temporary self-signed TLS verifies candidate behavior over HTTPS only;
       # public GitHub Pages/iPhone acceptance must be recorded independently.
       - name: Run Issue256 candidate in ephemeral HTTPS Chromium/WebKit

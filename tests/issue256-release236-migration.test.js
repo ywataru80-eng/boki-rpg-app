@@ -14,6 +14,8 @@ const current=load(fs.readFileSync('data/questions.js','utf8'),fs.readFileSync('
 const previous=load(old('data/questions.js'),old('js/model.js'),old('js/rpg.js'));
 const now=current.QuestionData,before=previous.QuestionData,Model=current.ProgressModel,Old=previous.ProgressModel;
 const ids=Object.keys(before).sort();
+const gen200Edits=require('../data/story-gen200-contract.json');
+const gen199=load(cp.execFileSync('git',['show','642e595806b784be13a1126cad231085455c036e:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
 const edited=Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0'));
 const chronologyPlaces=Object.freeze({
  J030:'給与支給後の経理室。',J079:'給与支給後の経理室。',
@@ -52,6 +54,7 @@ test('all supplementary story labels are removed without changing assessments or
   if(wasLabelled){
    const original=a.story.replace(/〔評価資料 \d+〕$/,'');
    const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
+   if(Object.hasOwn(gen200Edits,id)){assert.equal(b.story,gen200Edits[id].after,id+': Gen200 source-bound story repair');removed++;continue;}
    if(id==='J067'){
     assert(original.includes('未判明の差額は調査中として残すことができません'),'J067 immutable historical contradiction');
     assert.equal(b.story,'現金実査後の経理室。帳簿と実際の現金に差があり、原因はまだ分かりません。あなたは原因を推測で決めず、証拠を確認して差額を適切に仮処理します。','Gen199 source-bound J067 repair');
@@ -64,6 +67,7 @@ test('all supplementary story labels are removed without changing assessments or
    if(allowedNotes.has(id))assert(suffix.length>=10&&suffix.length<=28&&suffix.endsWith('。'),id+': needs a concrete unique cue');
    else assert.equal(suffix,'',id+': only remove the internal marker');
    removed++;
+  }else if(Object.hasOwn(gen200Edits,id)){assert.equal(b.story,gen200Edits[id].after,id+': Gen200 no-marker story repair');
   }else if(id==='E011'){
    assert(b.story.startsWith("店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。"),'E011 must use completed bank transfer in Story preface');
   }else assert.equal(b.story,approvedStory(id,a.story),id+': unchanged authored scene except exact approved chronology');
@@ -117,7 +121,7 @@ test('Gen195 source-specific decision narratives have no phantom documents and p
    if(k==='story'||(id==='E011'&&['materials','explanation'].includes(k)))continue;
    equivalent(previous[k],q[k]);
   }
-  if(previous.story!==q.story&&!['E011','J067'].includes(id))touched.push(id);
+  if(previous.story!==q.story&&!['E011','J067',...Object.keys(gen200Edits)].includes(id))touched.push(id);
  }
  equivalent(touched.sort(),Object.keys(scopeChanges).sort());
  for(const [id,source] of Object.entries(scopeChanges)){
@@ -150,10 +154,10 @@ test('Gen197 E011 source proof, Gen196 history, and Gen195 original unchanged',(
  for(const id of ids){
   const q=now[id],p=prev.QuestionData[id];
   for(const key of new Set([...Object.keys(q),...Object.keys(p)])){
-   if((id==='E011'&&['materials','story','explanation'].includes(key))||(id==='J067'&&key==='story'))continue;
+   if((id==='E011'&&['materials','story','explanation'].includes(key))||(['J067',...Object.keys(gen200Edits)].includes(id)&&key==='story'))continue;
    equivalent(q[key],p[key]);
   }
-  if(!['E011','J067'].includes(id))equivalent(q,p);
+  if(!['E011','J067',...Object.keys(gen200Edits)].includes(id))equivalent(q,p);
  }
  const q=now.E011,p=prev.QuestionData.E011;
  assert.equal(q.materials.length,1);
@@ -169,7 +173,7 @@ test('Gen197 E011 source proof, Gen196 history, and Gen195 original unchanged',(
 });
 test('Gen199 J067 source-only correction and no-answer preface preserve all 300 assessed contracts',()=>{
  const gen198=load(cp.execFileSync('git',['show','e40d9b9743178f355bd7998c20ba194569520b09:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),fs.readFileSync('js/model.js','utf8'));
- const oldQ=gen198.QuestionData,newQ=now;
+ const oldQ=gen198.QuestionData,newQ=gen199.QuestionData;
  const changed=ids.filter(id=>oldQ[id].story!==newQ[id].story);
  equivalent(changed,['J067']);
  for(const id of ids){
@@ -184,6 +188,26 @@ test('Gen199 J067 source-only correction and no-answer preface preserve all 300 
  assert(!newQ.J067.story.includes('現金過不足'),'question must not expose correct account in narrative before answering');
  assert(newQ.J067.story.length<=120,'mobile readability');
  assert.equal(JSON.stringify(Model.currentContentVersions(newQ)),JSON.stringify(Model.currentContentVersions(oldQ)),'story-only changes do not invalidate assessment evidence');
+});
+test('Gen200 exactly 34 source-bound stories, all 300 assessment and progress identities unchanged',()=>{
+ assert.equal(Object.keys(gen200Edits).length,34);
+ const oldQuestions=gen199.QuestionData;
+ for(const id of ids){
+  const old=oldQuestions[id],next=now[id],edit=gen200Edits[id];
+  if(edit){
+   assert.equal(old.story,edit.before,id+' historical scene origin');
+   assert.equal(next.story,edit.after,id+' exact corrected story');
+   assert(edit.after.length<=120&&!edit.after.includes('ことができません'),id+' natural language and small-screen fit');
+  }else assert.equal(next.story,old.story,id+' unapproved scene modification');
+  for(const key of new Set([...Object.keys(old),...Object.keys(next)])){
+   if(key==='story')continue;
+   equivalent(next[key],old[key]);
+  }
+ }
+ assert(!Object.values(now).some(q=>q.story.includes('ことができません')));
+ assert(now.J147.story.includes('一勘定制'),'one-account-method context must be visible before scoring J147');
+ equivalent(Model.currentContentVersions(now),Model.currentContentVersions(oldQuestions));
+ assert.equal(new Set(Object.values(now).map(q=>q.story)).size,300);
 });
 test('17 distinct assessment contracts, 17 independent material oracles',()=>{
  const patterns=new Set();

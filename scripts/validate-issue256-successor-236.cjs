@@ -3,7 +3,7 @@
 // Historic Release235 must be independently validated, never overwritten.
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),vm=require('node:vm');
 const BASE='177dadd83369b0c1bd0c95db4af379ea35515c67',PREV='20261105-235',RELEASE='20261107-236';
-const GEN='reports/auto-gate/audit-locks/phase-b-generation-199.json';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-200.json';
 const git=(...args)=>cp.execFileSync('git',args,{encoding:'utf8',maxBuffer:16*1024*1024}).trim();
 const old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:16*1024*1024});
 const read=p=>fs.readFileSync(p),hash=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
@@ -27,7 +27,9 @@ const allowed=new Set([
  'reports/auto-gate/audit-locks/phase-b-generation-196.json', // E011 documentary proof correction
  'reports/auto-gate/audit-locks/phase-b-generation-197.json', // E011 story omits answer account name
  'reports/auto-gate/audit-locks/phase-b-generation-198.json', // verified Story progress cannot be faked by answer reveal
- 'reports/auto-gate/audit-locks/phase-b-generation-199.json', // J067 cash-shortage prose-only fix; assessment unchanged
+ 'reports/auto-gate/audit-locks/phase-b-generation-199.json', // immutable J067 cash-shortage prose-only predecessor
+ 'reports/auto-gate/audit-locks/phase-b-generation-200.json', // 34 source-bound scene corrections, assessment unchanged
+ 'data/story-gen200-contract.json', // literal before/after text is a reviewable scope-lock
  'js/explanation-design-system.js','scripts/qa/contract-runner.js',
  'independent-audit/oracles/expected-answer-oracle.js','independent-audit/oracles/issue256-successor-expected.js',
  'tests/issue256-release236-independent-oracle.test.js',
@@ -60,6 +62,7 @@ const allowed=new Set([
  '.github/visual/run-issue256-d001-d020.js',
  '.github/visual/run-issue256-all300.js', // 300 actual browser form states across 2 engines
  '.github/visual/run-issue256-story36.js', // 36 actual wrong/correct Story gameplay beats
+ '.github/visual/run-issue256-story166.js', // cumulative 12-chapter real-browser input regression
  '.github/visual/run-story-narrative-result.js', // Gen198 browser verified-answer gate
  '.github/visual/run-ch11-12-final-explanations.js', // only adjust successor profile expectation; enforce exact baseline delta below.
  '.github/visual/run-content-progress-migration.js',
@@ -80,7 +83,14 @@ assert.equal(beforeStory36.split(oldStory36Step).length,2,'Story36 workflow base
 const approvedVisualBeforeRunnerPin=beforeStory36.replace(oldStory36Step,newStory36Step);
 const ubuntuRunnerBefore='    runs-on: ubuntu-latest\n',ubuntuRunnerAfter='    runs-on: ubuntu-24.04\n';
 assert.equal(approvedVisualBeforeRunnerPin.split(ubuntuRunnerBefore).length,2,'visual workflow must have exactly one original Ubuntu runner');
-assert.equal(read('.github/workflows/visual-gate.yml').toString(),approvedVisualBeforeRunnerPin.replace(ubuntuRunnerBefore,ubuntuRunnerAfter),'visual workflow may only add accepted Story36 test and pin the Ubuntu24 runner; no test assertion changes');
+// Gen200 adds a full-route Story browser gate after the independently accepted
+// 36-anchor gate, without removing, skipping, or weakening any previous step.
+const reviewedVisualRunner=approvedVisualBeforeRunnerPin.replace(ubuntuRunnerBefore,ubuntuRunnerAfter);
+const accepted36Step="      - name: Run 36 Story anchors through real wrong and correct form submissions\n        run: node --check .github/visual/run-issue256-story36.js && node .github/visual/run-issue256-story36.js\n";
+const added166Step="      - name: Run all 166 Story cases sequentially in one browser session per engine\n        run: node --check .github/visual/run-issue256-story166.js && node .github/visual/run-issue256-story166.js\n";
+assert.equal(reviewedVisualRunner.split(accepted36Step).length,2,'Gen200 Story166 gate predecessor step must occur exactly once');
+assert.equal(git('hash-object','.github/visual/run-issue256-story166.js'),'4a6c2eef9c43744c690f0c2a0a71045502021884','exact Story166 browser harness content drift');
+assert.equal(read('.github/workflows/visual-gate.yml').toString(),reviewedVisualRunner.replace(accepted36Step,accepted36Step+added166Step),'visual workflow may only pin Ubuntu24 and append the reviewed Story166 test after Story36; no older gates may be removed');
 const originalVerifyWorkflow=cp.execFileSync('git',['show','e40d9b9743178f355bd7998c20ba194569520b09:.github/workflows/verify.yml'],{encoding:'utf8'});
 assert.equal(originalVerifyWorkflow.split(ubuntuRunnerBefore).length,2,'verify workflow must have exactly one original Ubuntu runner');
 assert.equal(read('.github/workflows/verify.yml').toString(),originalVerifyWorkflow.replace(ubuntuRunnerBefore,ubuntuRunnerAfter),'verify workflow may only pin the Ubuntu24 runner; cannot suppress checks');
@@ -138,6 +148,28 @@ assert(gen198.J067.story.includes('未判明の差額は調査中として残す
 assert.equal(now.J067.story,gen199J067,'Gen199 exact J067 editorial correction');
 for(const key of new Set([...Object.keys(gen198.J067),...Object.keys(now.J067)])){if(key!=='story')assert.equal(JSON.stringify(now.J067[key]),JSON.stringify(gen198.J067[key]),'J067 only user-facing story may change: '+key);}
 
+// Generation200 is a bounded revision of the next 34 user-facing scenes.
+// Validate against committed Generation199 bytes, never just a self-authored after-map.
+const gen199=context(cp.execFileSync('git',['show','642e595806b784be13a1126cad231085455c036e:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}));
+const story200=JSON.parse(read('data/story-gen200-contract.json'));
+assert.equal(Object.keys(story200).length,34,'Gen200 scope is exactly 34 scenes');
+assert.deepEqual(Object.keys(story200).sort(),['F002','F003','J042','J054','J060','J071','J078','J084','J085','J086','J087','J091','J092','J097','J098','J133','J134','J135','J136','J137','J145','J146','J147','L027','L028','L029','L031','L032','L033','L034','L035','L036','L037','L040']);
+for(const id of Object.keys(gen199)){
+ const oldQ=gen199[id],newQ=now[id],edit=story200[id];
+ if(edit){
+  assert.equal(oldQ.story,edit.before,id+' previous immutable story drift');
+  assert(edit.before.includes('ことができません'),id+' not a targeted template');
+  assert.equal(newQ.story,edit.after,id+' exact reviewed editorial text');
+  assert(edit.after.length<=120&&!edit.after.includes('ことができません'),id+' no unreviewed template/overflow');
+ }else assert.equal(newQ.story,oldQ.story,id+' unauthorized story edit');
+ for(const key of new Set([...Object.keys(oldQ),...Object.keys(newQ)])){
+  if(key==='story')continue;
+  assert.equal(JSON.stringify(newQ[key]),JSON.stringify(oldQ[key]),id+' non-story assessment/learning evidence drift: '+key);
+ }
+}
+assert(Object.values(now).every(q=>!q.story.includes('ことができません')),'all 34 robotic story phrases must be absent');
+assert(now.J147.story.includes('一勘定制'),'J147 must state the assumption used to award credit');
+assert.equal(new Set(Object.values(now).map(q=>q.story)).size,300,'all scenes remain unique');
 const E011_EVIDENCE="銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",E011_PREVIOUS_EVIDENCE="店舗の火災保険料24,000円の支払通知",E011_BEFORE="店舗の火災保険の口座引落記録と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。",E011_OLD_BEFORE="店舗の火災保険に関する支払通知と帳簿を比べると、別の費用として処理されています。あなたは、支出目的の違いを確認します。";
 const ids=Object.keys(before).sort(),edited=new Set(Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')));
 assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
@@ -187,6 +219,7 @@ for(const id of ids){
     continue;
    }
    if(k==='story'&&id==='J067'){assert.equal(b.story,gen199J067,'Gen199 exact J067 story-only scope');continue;}
+   if(k==='story'&&Object.hasOwn(story200,id)){assert.equal(b.story,story200[id].after,id+' Gen200 authorized scene');continue;}
    if(k==='story'&&/〔評価資料 \d+〕$/.test(a.story)){
     const original=a.story.replace(/〔評価資料 \d+〕$/,'');
     const allowedNotes=new Set(["J136", "J089", "J138", "J139", "J140", "L032", "T034", "T035", "T036", "T037", "T038", "T039", "T040", "E016", "E017", "E018", "E019", "E020", "F003", "F009", "F010", "C007", "C009", "C010"]);
@@ -210,15 +243,16 @@ for(const id of ids){
 // falsely recertifying historical evidence or weakening its semantic assertions.
 const matrixBaseline=cp.execFileSync('git',['show','702d723e0a00c8a2c0a8f9d4fd8dac6a068d2f36:tests/audit-matrix.test.js'],{encoding:'utf8',maxBuffer:8*1024*1024});
 const matrixNow=read('tests/audit-matrix.test.js').toString();
+assert(matrixNow.includes("const gen200StoryChanges=release236?Object.keys(JSON.parse(fs.readFileSync('data/story-gen200-contract.json','utf8'))):[]"),'historical stale matrix must source Gen200 changed IDs from source-bound contract');
 assert.equal(matrixNow.includes('approvedPreStory.window.QuestionData'),true,'matrix source provenance delta must be pinned');
 assert.equal(matrixNow.includes('obsoleteSupplementalLabels.length,126'),true,'matrix drift must require the exact 126 approved source records');
-assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])'),true,'matrix stale scope must include only authorized supplemental changes');
+assert.equal(matrixNow.includes('const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification,...gen200StoryChanges])'),true,'matrix stale scope must include only authorized supplemental changes');
 assert.equal(matrixNow.includes("old.window.QuestionData).ok,true"),true,'historical evidence must remain validated');
 const model=require('../js/model');assert.equal(Object.keys(model.currentContentVersions(now)).length,21);
-const gen=JSON.parse(read(GEN));assert.equal(gen.generation,199);assert.equal(gen.predecessor.generation,198);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,200);assert.equal(gen.predecessor.generation,199);
 const lifecycle=require('./qa/phase-b-lifecycle');
 const committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN],{encoding:'utf8'}).status===0;
 const r=committed?lifecycle.verifyCurrent():lifecycle.verifyCandidate(gen);
-assert(r.ok,'Generation199 ledger integrity: '+r.errors.join('; '));
+assert(r.ok,'Generation200 ledger integrity: '+r.errors.join('; '));
 cp.execFileSync(process.execPath,['tests/issue256-release236-migration.test.js'],{stdio:'inherit'});
 console.log('RELEASE236_GEN190_17_AUTHORED_DECISIONS_STRICT_SCOPE_PASS');

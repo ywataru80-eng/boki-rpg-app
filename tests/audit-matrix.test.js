@@ -30,7 +30,10 @@ const obsoleteSupplementalLabels=release236
 if(release236)assert.strictEqual(obsoleteSupplementalLabels.length,126,'approved historical supplemental story labels must stay fixed at 126');
 const chronologySourceChanges=release236?['J030','J079','J080','J081','J129','J130']:[];
 const e011EvidenceClarification=release236?['E011']:[];
-const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification])].sort().map(id=>({id,status:'STALE',reasons:successorChanges.includes(id)?['SOURCE_CHANGED','ANSWER_SCHEMA_CHANGED']:['SOURCE_CHANGED']}));
+// Gen200 prose changes invalidate the historical source fingerprint, never the answer or the historical evidence.
+const gen200StoryChanges=release236?Object.keys(JSON.parse(fs.readFileSync('data/story-gen200-contract.json','utf8'))):[];
+if(release236)assert.strictEqual(gen200StoryChanges.length,34,'Gen200 historical evidence staleness is exact and finite');
+const expectedStale=[...new Set([...baselineStale,...reviewedStoryChanges,...successorStories,...successorChanges,...obsoleteSupplementalLabels,...chronologySourceChanges,...e011EvidenceClarification,...gen200StoryChanges])].sort().map(id=>({id,status:'STALE',reasons:successorChanges.includes(id)?['SOURCE_CHANGED','ANSWER_SCHEMA_CHANGED']:['SOURCE_CHANGED']}));
 const actualStale=verifyMatrix(matrix,questions).stale.slice().sort((a,b)=>a.id.localeCompare(b.id));
 assert.deepStrictEqual(actualStale,expectedStale,'historical evidence must explicitly mark superseded stories and original three stale sources');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(questions.J148.answer)),JSON.parse(JSON.stringify(old.window.QuestionData.J148.answer)),'J148 accepted accounting answer is unchanged');
