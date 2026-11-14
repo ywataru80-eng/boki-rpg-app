@@ -6,22 +6,28 @@ const evaluate=(source,key)=>{const s={window:{},console};vm.runInNewContext(sou
 const old=file=>cp.execFileSync('git',['show',`${BASE}:${file}`],{encoding:'utf8',maxBuffer:8*1024*1024});
 const OldModel=evaluate(old('js/model.js'),'ProgressModel');
 const oldQuestions=evaluate(old('data/questions.js'),'QuestionData'),questions=evaluate(fs.readFileSync('data/questions.js','utf8'),'QuestionData');
+const PREVIOUS_RELEASE235='177dadd83369b0c1bd0c95db4af379ea35515c67';
+const previousRelease=file=>cp.execFileSync('git',['show',PREVIOUS_RELEASE235+':'+file],{encoding:'utf8',maxBuffer:12*1024*1024});
+const V5Model=evaluate(previousRelease('js/model.js'),'ProgressModel');
+const previousQuestions=evaluate(previousRelease('data/questions.js'),'QuestionData');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const storage=(value=null)=>({value,writes:0,getItem(){return this.value;},setItem(_k,v){this.value=v;this.writes++;return true;}});
 const now=Date.UTC(2026,9,15,9);
+const issue256Successor=questions.D002.format==='decision-worksheet-v2';
+const expectedContentRevision=issue256Successor?6:5;
 function legacy(ids=['L044','L045'],correct=true){const st=storage(),m=new OldModel(oldQuestions,st);for(const id of [...ids,'J001']){m.recordAttempt(id,correct,1000,'',false,now,null,'sure',{support:'none'});m.record(id,correct,now);m.setDraft(id,clone(oldQuestions[id].answer));}return clone(m.state);}
 let passed=0,failed=0;const test=(name,fn)=>{try{fn();passed++;console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+' '+e.stack);}};
 for(const[id,opening,end,increase,decrease]of [['L044','4月1日','4月5日',50000,18000],['L045','5月1日','5月8日',300000,85000]]){
  test(id+' explicit opening, interval and complete transactions',()=>{const q=questions[id];assert(q.question.includes(opening)&&q.question.includes(end));assert.match(q.question,/記帳開始時点.*0円/);assert.match(q.question,/2件がすべて/);assert.match(q.question,/過去/);assert(q.explanation.includes(`0 ＋ ${increase.toLocaleString('en-US')} − ${decrease.toLocaleString('en-US')} = ${(increase-decrease).toLocaleString('en-US')}`));assert.deepEqual(clone(q.answer),clone(oldQuestions[id].answer));});
- test(id+' actual old marker10 first answer is archived, not new mastery',()=>{const before=legacy([id]),st=storage(JSON.stringify(before)),m=new Model(questions,st);assert.equal(m.storageWriteBlocked,undefined);assert.equal(m.state.contentRevision,5);assert.equal(m.state.learningEvidenceIntegrity.schemaVersion,11);assert.equal(m.learningMastery(id).score,0);assert.equal(m.state.learningEffectiveness.questions[id],undefined);const a=m.state.contentMigrationArchive.questions[id];assert.deepEqual(a.learningEvidence,before.learningEffectiveness.questions[id]);assert.deepEqual(a.questionStats,before.questionStats[id]);assert.deepEqual(a.draft,before.drafts[id]);assert.deepEqual(a.reviewSchedule,before.reviewSchedule[id]);assert(m.state.contentRecheckIds.includes(id));assert.deepEqual(m.state.questionStats.J001,before.questionStats.J001);assert.deepEqual(m.state.learningContinuityState,before.learningContinuityState);assert.deepEqual(m.state.learningDayHistory,before.learningDayHistory);assert(Model.validateBackupState(m.state,questions));assert.deepEqual(clone(new Model(questions,st).state),clone(m.state));assert.equal(st.writes,1);});
+ test(id+' actual old marker10 first answer is archived, not new mastery',()=>{const before=legacy([id]),st=storage(JSON.stringify(before)),m=new Model(questions,st);assert.equal(m.storageWriteBlocked,undefined);assert.equal(m.state.contentRevision,expectedContentRevision);assert.equal(m.state.learningEvidenceIntegrity.schemaVersion,11);assert.equal(m.learningMastery(id).score,0);assert.equal(m.state.learningEffectiveness.questions[id],undefined);const a=m.state.contentMigrationArchive.questions[id];assert.deepEqual(a.learningEvidence,before.learningEffectiveness.questions[id]);assert.deepEqual(a.questionStats,before.questionStats[id]);assert.deepEqual(a.draft,before.drafts[id]);assert.deepEqual(a.reviewSchedule,before.reviewSchedule[id]);assert(m.state.contentRecheckIds.includes(id));assert.deepEqual(m.state.questionStats.J001,before.questionStats.J001);assert.deepEqual(m.state.learningContinuityState,before.learningContinuityState);assert.deepEqual(m.state.learningDayHistory,before.learningDayHistory);assert(Model.validateBackupState(m.state,questions));assert.deepEqual(clone(new Model(questions,st).state),clone(m.state));assert.equal(st.writes,1);});
 }
 
 const reload=before=>{const store=storage(JSON.stringify(before));return {store,model:new Model(questions,store)};};
 const legacyModel=()=>new OldModel(oldQuestions,storage());
 const identities=Model.currentContentVersions(questions);
 test('new installation and untouched legacy save: no invented prior answers',()=>{
- const empty=storage(),fresh=new Model(questions,empty);assert.equal(empty.writes,0);assert.equal(fresh.state.contentRevision,5);
- const before=clone(legacyModel().state),{model}=reload(before);assert.deepEqual(model.state.contentRecheckIds,[]);assert.deepEqual(model.state.contentMigrationArchive.questions,{});assert.equal(Object.keys(model.state.questionContentVersions).length,4);
+ const empty=storage(),fresh=new Model(questions,empty);assert.equal(empty.writes,0);assert.equal(fresh.state.contentRevision,expectedContentRevision);
+ const before=clone(legacyModel().state),{model}=reload(before);assert.deepEqual(model.state.contentRecheckIds,[]);assert.deepEqual(model.state.contentMigrationArchive.questions,{});assert.equal(Object.keys(model.state.questionContentVersions).length,Object.keys(identities).length);
 });
 for(const id of ['L044','L045']){
  test(id+' wrong-only history and saved unfinished input survive in archive',()=>{
@@ -60,7 +66,7 @@ test('existing J051/L031 migration archives and legacy provenance remain byte-id
  assert.equal(model.state.legacyProvenance.original,before.legacyProvenance.original);assert.deepEqual(model.state.questionStats.L031,before.questionStats.L031);
 });
 for(const [current,oldId]of [['L044','L045'],['L045','L044']])test(current+' current + '+oldId+' legacy mixed identities migrate only old ID',()=>{
- const m=new Model(questions,storage());m.recordAttempt(current,true,1000,'',false,now);m.record(current,true,now);m.setDraft(current,clone(questions[current].answer));
+ const m=issue256Successor?new V5Model(previousQuestions,storage()):new Model(questions,storage());m.recordAttempt(current,true,1000,'',false,now);m.record(current,true,now);m.setDraft(current,clone(questions[current].answer));
  const oldState=legacy([oldId]);for(const field of ['questionStats','drafts','reviewSchedule','mistakeCounts'])if(oldState[field][oldId]!==undefined)m.state[field][oldId]=oldState[field][oldId];
  for(const field of ['answeredIds','correctIds','incorrectIds'])if(oldState[field].includes(oldId))m.state[field].push(oldId);
  m.state.attempts.push(...oldState.attempts.filter(a=>a.id===oldId));m.state.learningEffectiveness.questions[oldId]=oldState.learningEffectiveness.questions[oldId];
@@ -68,7 +74,7 @@ for(const [current,oldId]of [['L044','L045'],['L045','L044']])test(current+' cur
  // Use the normal current recording API to seal the explicit mixed map;
  // v11 binds both identities and the retained log.
  m.recordAttempt('J001',true,1000,'',false,now+1);m.refreshEvidenceIntegrity();
- assert(Model.validateBackupState(m.state,questions));const before=clone(m.state),{model}=reload(before);assert(!model.storageWriteBlocked);
+ assert((issue256Successor?V5Model:Model).validateBackupState(m.state,issue256Successor?previousQuestions:questions));const before=clone(m.state),{model}=reload(before);assert(!model.storageWriteBlocked);
  assert.deepEqual(model.state.questionStats[current],before.questionStats[current]);assert.deepEqual(model.state.learningEffectiveness.questions[current],before.learningEffectiveness.questions[current]);assert.deepEqual(model.state.drafts[current],before.drafts[current]);assert.equal(model.statsForQuestion(oldId).correctCount,0);
 });
 test('old exam session and affected historical score are retained but not current graduation evidence',()=>{
@@ -90,23 +96,39 @@ test('save failure preserves original bytes and can retry without duplicate migr
 });
 test('malformed, unknown identity, future revision and altered seal never write',()=>{
  const valid=clone(reload(legacy()).model.state);
- for(const change of [v=>v.contentRevision=6,v=>v.questionContentVersions.L044='future',v=>delete v.questionContentVersions.L044,v=>v.questionStats.J001.correctCount++,v=>v.contentMigrationArchive.questions.L044.learningEvidence.correctCount++,v=>v.contentMigrationArchive.questions.J051={toIdentity:'bad'},v=>v.learningEvidenceIntegrity.schemaVersion=12]){
+ for(const change of [v=>v.contentRevision=expectedContentRevision+1,v=>v.questionContentVersions.L044='future',v=>delete v.questionContentVersions.L044,v=>v.questionStats.J001.correctCount++,v=>v.contentMigrationArchive.questions.L044.learningEvidence.correctCount++,v=>v.contentMigrationArchive.questions.J051={toIdentity:'bad'},v=>v.learningEvidenceIntegrity.schemaVersion=12]){
   const value=clone(valid);change(value);assert.equal(Model.validateBackupState(value,questions),false);assert.equal(Model.prepareBackupState(value,questions),null);const bytes=JSON.stringify(value),st=storage(bytes),m=new Model(questions,st);assert.equal(m.save(),false);assert.equal(st.writes,0);assert.equal(st.value,bytes);
  }
  for(const bytes of ['{broken','[]','null']){const st=storage(bytes),m=new Model(questions,st);assert.equal(m.save(),false);assert.equal(st.value,bytes);}
 });
-test('all 300 answers and non-prose fields preserve historical identity across editorial revisions',()=>{
+test('300 IDs and protected prior contracts plus distinct reviewed 17 successors',()=>{
  assert.deepEqual(Object.keys(questions),Object.keys(oldQuestions));assert.equal(Object.keys(questions).length,300);
  for(const id of Object.keys(questions)){
-  assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' accepted accounting answer unchanged');
+   if(issue256Successor&&/^D(?:00[2-9]|01[0-8])$/.test(id)){
+     assert.equal(questions[id].format,'decision-worksheet-v2',id+' explicit Release236 change');
+     if(id==='D002'||id==='D018')assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' four values retained with new decision identity');
+     else assert.notDeepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' reduced graded schema must differ');
+     continue; // unchanged 283 assessed contracts checked here; edited17 audited by Issue256 test
+   }
+   assert.deepEqual(clone(questions[id].answer),clone(oldQuestions[id].answer),id+' accepted accounting answer unchanged');
   if(['L044','L045'].includes(id))continue; // protected past source corrections
   const current=clone(questions[id]),historical=clone(oldQuestions[id]);
   if(id==='J148')assert.notEqual(current.story,historical.story,'J148 historic story successor retained');
   delete current.story;delete historical.story;
   delete current.explanation;delete historical.explanation;
+  if(issue256Successor&&id==='E011'){
+    assert.equal(current.materials?.length,1,'E011 evidence entry exists');
+    assert.equal(current.materials[0].recorded,historical.materials[0].recorded,'E011 original journal retained');
+    assert.equal(current.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",'E011 documentary bank settlement only');
+    current.materials=historical.materials; // only the exact approved source evidence differs
+  }
+  if(issue256Successor&&['D019','D020'].includes(id)){
+    delete current.npcDialogue;delete historical.npcDialogue;
+    delete current.nextHook;delete historical.nextHook;
+  }
   // Release234 revises the *instructional prose* in the authored explanation
   // model for D002-D020; assessed values and all other fields are still immutable.
-  const editorial234=['20261103-234','20261105-235'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
+  const editorial234=['20261103-234','20261105-235','20261107-236'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
   if(editorial234 && /^D(?:00[2-9]|01[0-9]|020)$/.test(id)){
     assert.equal(Array.isArray(current.explanationModel?.summary),true,id+' revised prose model present');
     delete current.explanationModel;delete historical.explanationModel;

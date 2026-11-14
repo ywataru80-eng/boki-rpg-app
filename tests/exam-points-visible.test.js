@@ -7,9 +7,12 @@ const root=path.resolve(__dirname,'..');
 const baseline='8c85fbe9bdf1c529bf2bd4e7ff23cfb85140a7ec';
 const script=f=>fs.readFileSync(path.join(root,f),'utf8');
 const oldModel=cp.execFileSync('git',['show',baseline+':js/explanation-model.js'],{cwd:root,encoding:'utf8'});
-const instantiate=modelSource=>{
+// Preserve this historical comparison against the *actual* immutable Release235
+// questions. The separate successor assertions below check current assessments.
+const original235=cp.execFileSync('git',['show','177dadd83369b0c1bd0c95db4af379ea35515c67:data/questions.js'],{cwd:root,encoding:'utf8',maxBuffer:12*1024*1024});
+const instantiate=(modelSource,questionsSource=original235)=>{
  const ctx={window:{},console};
- for(const src of [script('data/questions.js'),script('js/feedback.js'),script('js/explanation-formulas.js'),modelSource])
+ for(const src of [questionsSource,script('js/feedback.js'),script('js/explanation-formulas.js'),modelSource])
   vm.runInNewContext(src,ctx,{timeout:15000});
  return ctx.window;
 };
@@ -63,4 +66,20 @@ assert(candidate.ExplanationModel.build(candidate.QuestionData.J045,{debit:[],cr
  .summary.some(x=>x.text.includes('差額補充法')),'allowance difference contrast visible');
 assert(candidate.ExplanationModel.build(candidate.QuestionData.E001,{cells:{}},{correct:false}).summary.some(x=>x.text.startsWith('試験のポイント：訂正仕訳は')),'E001 visible lesson');
 assert(candidate.ExplanationModel.build(candidate.QuestionData.F002,{cells:{}},{correct:false}).summary.some(x=>x.text.includes('貸借差額から逆算')),'F002 visible lesson');
-console.log('PASS 300 questions x 2 grade states=600, 44 authored exam points revealed, 256 questions unchanged, 349 journal transfer rows intact, no answer or calculation drift');
+// The 17 new identities are verified separately in the same test, never
+// substituted into or excluded from the immutable 300×2 historical regression.
+const successor=instantiate(script('js/explanation-model.js'),script('data/questions.js'));
+let fresh=0;
+for(let n=2;n<=18;n++){
+ const id='D'+String(n).padStart(3,'0'),q=successor.QuestionData[id];
+ assert.equal(q.format,'decision-worksheet-v2');
+ for(const correct of [true,false]){
+  const model=successor.ExplanationModel.build(q,correct?q.answer:{cells:{}},{correct});
+  assert(successor.ExplanationModel.validate(model).valid,id);
+  assert(!/NaN|undefined/u.test(JSON.stringify({...model,fallback:null})),id+' checked successor generated content');
+  assert(model.calculation.length>0&&model.checks.length>0,id+' complete successor teaching');
+  fresh++;
+ }
+}
+assert.equal(fresh,34,'17 successor answer states');
+console.log('PASS immutable Release235 300×2 comparison and 17 successor×2 additional checks');

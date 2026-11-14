@@ -72,7 +72,7 @@ test('assignReview respects controller replacement target instead of reusing sta
 });
 test('future content schema and identity are rejected without overwriting storage',()=>{
   const valid=new Model(questions,storage(),'empty').state;
-  for(const change of [v=>v.contentRevision=6,v=>v.questionContentVersions.J051='future-v9',v=>delete v.questionContentVersions,v=>v.contentMigrationArchive.schemaVersion=2]){
+  for(const change of [v=>v.contentRevision=(questions.D002.format==='decision-worksheet-v2'?7:6),v=>v.questionContentVersions.J051='future-v9',v=>delete v.questionContentVersions,v=>v.contentMigrationArchive.schemaVersion=2]){
     const candidate=clone(valid);change(candidate);assert.strictEqual(Model.validateBackupState(candidate,questions),false);
     const original=JSON.stringify(candidate),store=storage(original),model=new Model(questions,store,'test');
     assert.strictEqual(store.value,original);assert.strictEqual(store.writes,0);assert.strictEqual(model.save(),false);assert.strictEqual(store.value,original);

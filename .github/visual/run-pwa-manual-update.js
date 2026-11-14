@@ -122,8 +122,10 @@ function checkRetained(before,after,contentUpgrade=false) {
   if(!contentUpgrade){assert.deepStrictEqual(after.local,before.local,'entire raw saved namespace survives current-version reload/offline');assert(after.storedProgressValid);} else {
   assert.strictEqual(after.progressKey,before.progressKey);assert.strictEqual(after.progressKey,'boki-rpg-progress-v3');
   const previous=JSON.parse(before.local[before.progressKey]),migrated=JSON.parse(after.local[after.progressKey]);
-  assert.strictEqual(previous.contentRevision,4);assert.strictEqual(migrated.contentRevision,5);
-  assert.deepStrictEqual(migrated.questionContentVersions,{...previous.questionContentVersions,L044:'L044:cash-book-opening-zero-v1',L045:'L045:checking-book-opening-zero-v1'});
+  const to236=after.sourceRelease==='20261107-236'||Object.values(migrated.questionContentVersions||{}).includes('D002:closing-decision-v2');
+  assert.strictEqual(previous.contentRevision,4);assert.strictEqual(migrated.contentRevision,to236?6:5);
+  const successorContent=to236?Object.fromEntries(Array.from({length:17},(_,i)=>{const id='D'+String(i+2).padStart(3,'0');return [id,id+':closing-decision-v2']})):{};
+  assert.deepStrictEqual(migrated.questionContentVersions,{...previous.questionContentVersions,...successorContent,L044:'L044:cash-book-opening-zero-v1',L045:'L045:checking-book-opening-zero-v1'});
   assert.strictEqual(previous.learningEvidenceIntegrity.schemaVersion,10);assert.strictEqual(migrated.learningEvidenceIntegrity.schemaVersion,11);assert(after.storedProgressValid,'saved identity-bound seal validates');
   for(const key of ['contentRevision','questionContentVersions','learningEvidenceIntegrity']){delete previous[key];delete migrated[key];}
   assert.deepStrictEqual(migrated,previous,'every learning record outside approved content metadata survives update/reload');

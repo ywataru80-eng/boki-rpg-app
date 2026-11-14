@@ -2,6 +2,7 @@
 
 const assert=require('assert');
 const fs=require('fs');
+const cp=require('child_process');
 const vm=require('vm');
 
 const source=fs.readFileSync('data/questions.js','utf8');
@@ -13,6 +14,14 @@ const questions=sandbox.window.QuestionData;
 const examIds=new Set(sandbox.window.ExamPoolDefinition||[]);
 const anchors=sandbox.window.AnchorScenes||[];
 const authority=sandbox.window.WorkCaseNarratives;
+// Verify the original S5E/S5F accepted snapshots against immutable Gen194,
+// rather than overwriting the historical fixture when a successor edition fixes
+// a source-to-scene contradiction. This protects the original acceptance.
+const historical={window:{},console};
+vm.runInNewContext(cp.execFileSync('git',['show','d8b406a5142f7b01c42e680df853de1bd0666120:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),historical);
+const originalAuthority=historical.window.WorkCaseNarratives;
+const sourceOnlyCorrections=new Set(['D003','D005','D006','D007','D008','D009','D010','E011']);
+
 const acceptedS5D2=require('./fixtures/story-work-case-s5d2-accepted.json');
 const acceptedS5E=require('./fixtures/story-work-case-s5e-accepted.json');
 
@@ -38,10 +47,17 @@ const j148SuccessorBefore='年度決算の予行演習中、得意先から商�
 for(const [id,before] of Object.entries(acceptedS5E)){
   assert(authority[id], `${id}: accepted S5E authority entry must remain present during later S5 batches`);
   assert.strictEqual(
-    authority[id].before,
+    originalAuthority[id].before,
     id==='J148' ? j148SuccessorBefore : before,
-    `${id}: accepted S5E Before must preserve history except J148 successor`
+    `${id}: historical accepted S5E Before must remain unmodified at Gen194`
   );
+  if(sourceOnlyCorrections.has(id)){
+    assert.notStrictEqual(authority[id].before,originalAuthority[id].before,
+      `${id}: source-incompatible scene must be corrected in successor`);
+  } else {
+    assert.strictEqual(authority[id].before,originalAuthority[id].before,
+      `${id}: accepted S5E Before must remain unchanged outside seven approved successors`);
+  }
 }
 
 const anchorRefs=new Set(anchors.map(scene=>scene.referenceQuestionId));

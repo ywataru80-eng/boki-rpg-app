@@ -49,7 +49,8 @@ jobs:
             '20261102-232': 'scripts/validate-reader-editorial-successor-232.cjs',
             '20261103-233': 'scripts/validate-reader-editorial-successor-233.cjs',
             '20261103-234': 'scripts/validate-editorial-successor-234.cjs',
-            '20261105-235': 'scripts/validate-worksheet-successor-235.cjs'
+            '20261105-235': 'scripts/validate-worksheet-successor-235.cjs',
+            '20261107-236': 'scripts/validate-issue256-successor-236.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);

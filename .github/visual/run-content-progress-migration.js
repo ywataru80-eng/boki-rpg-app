@@ -43,7 +43,12 @@ async function run(){
                 valid:window.ProgressModel.validateBackupState(s,window.QuestionData),stored:JSON.parse(localStorage.getItem(c.model.key)),
                 character:JSON.parse(localStorage.getItem(c.rpg.key))};
             },id);
-            const first=await inspect();assert.strictEqual(first.revision,5);assert(first.valid);
+            // Historical revision-5 saves upgrade to revision 6 in Release236;
+            // old Release235 keeps revision 5. Never accept an arbitrary value.
+            const release=JSON.parse(fs.readFileSync(path.join(ROOT,'pwa-release-manifest.json'),'utf8')).release;
+            const expectedRevision=release==='20261107-236'?6:5;
+            assert(['20261105-235','20261107-236'].includes(release),'unrecognized release in migration gate');
+            const first=await inspect();assert.strictEqual(first.revision,expectedRevision);assert(first.valid);
             assert.deepStrictEqual(first.continuity,progress.learningContinuityState);
             assert.strictEqual(first.character.xp,character.xp);assert.deepStrictEqual(first.character.rewardedIds,character.rewardedIds);
             assert.deepStrictEqual([first.stats.correctCount,first.stats.incorrectCount],kind==='old'?[0,0]:kind==='mixed'?[1,1]:[3,0]);

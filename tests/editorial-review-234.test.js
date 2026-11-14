@@ -7,7 +7,10 @@ const BASE='c3689f0529e10519c71073acf6d75ec75bdd253a';
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
 const stable=v=>Array.isArray(v)?`[${v.map(stable).join(',')}]`:v&&typeof v==='object'?`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`:JSON.stringify(v);
 const project=q=>({id:q.id,type:q.type,category:q.category,question:q.question,answer:q.answer,materials:q.materials,table:q.table,format:q.format||null,learningRole:q.learningRole||null,semantic:q.semantic||null});
-const script=fs.readFileSync('data/questions.js','utf8'),beforeSource=cp.execFileSync('git',['show',`${BASE}:data/questions.js`],{encoding:'utf8',maxBuffer:16*1024*1024});
+const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
+const historical234=release==='20261107-236';
+const script=historical234?cp.execFileSync('git',['show','d712814e2eda42efbdf73aa3e68eb09105284c92:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}):fs.readFileSync('data/questions.js','utf8');
+const beforeSource=cp.execFileSync('git',['show',`${BASE}:data/questions.js`],{encoding:'utf8',maxBuffer:16*1024*1024});
 const load=src=>{const box={window:{},console};vm.runInNewContext(fs.readFileSync('data/accounting-domain.js','utf8'),box);box.AccountingDomain=box.window.AccountingDomain;vm.runInNewContext(src,box);return box.window.QuestionData;};
 const old=load(beforeSource),now=load(script),ids=Object.keys(old).sort();assert.equal(ids.length,300);assert.deepEqual(Object.keys(now).sort(),ids);
 const expectedIDs=Array.from({length:19},(_,i)=>`D${String(i+2).padStart(3,'0')}`),storyIDs=['D004','D013','D014','D015','D016','D017','D018','D019','D020'];
@@ -17,7 +20,7 @@ assert.equal(metadata.schemaVersion,1);assert.equal(metadata.kind,'PROSE_ONLY_ED
 assert.equal(metadata.release,'20261103-234');assert.equal(metadata.previousRelease,'20261103-233');
 assert.equal(metadata.predecessorSha,BASE);
 assert.equal(metadata.predecessorQuestionsGitBlob,cp.execFileSync('git',['rev-parse',`${BASE}:data/questions.js`],{encoding:'utf8'}).trim());
-assert.equal(metadata.successorQuestionsGitBlob,cp.execFileSync('git',['hash-object','data/questions.js'],{encoding:'utf8'}).trim());
+assert.equal(metadata.successorQuestionsGitBlob,cp.execFileSync('git',['hash-object','--stdin'],{input:script,encoding:'utf8'}).trim());
 assert.equal(metadata.canonicalIds,300);
 assert.equal(metadata.assessmentSetSha256,sha(stable(ids.map(id=>project(old[id])))));
 assert.equal(sha(stable(ids.map(id=>project(now[id])))),metadata.assessmentSetSha256,'assessment contracts (all300) changed');
@@ -59,7 +62,7 @@ for(const field of ['questionStats','answeredIds','correctIds','incorrectIds','m
   assert.equal(stable(nextModel.state[field]),stable(originalState[field]),`${field} lost on editorial-only upgrade`);
 }
 assert.equal(nextStore.writes,0,'editorial-only upgrade must not rewrite preserved progress');
-assert.equal(nextModel.state.contentRevision,5,'no grading identity revision for prose-only update');
+assert.equal(nextModel.state.contentRevision,historical234?6:5,'runtime revision is determined by current model implementation, not this historical prose comparison');
 nextModel.recordAttempt('D013',false,1400,'',false,date+2000);nextModel.record('D013',false,date+2000);assert(nextModel.save());
 const mixedModel=new Model(now,store(nextStore.value),'progress');
 assert.equal(mixedModel.state.questionStats.D013.correctCount,1);
@@ -67,7 +70,7 @@ assert.equal(mixedModel.state.questionStats.D013.incorrectCount,1);
 assert.equal(mixedModel.state.attempts.filter(x=>(x.questionId||x.id)==='D013').length,2);
 assert.equal(mixedModel.state.examHistory.length,1);
 const newModel=new Model(now,store(null),'progress');assert.equal(newModel.state.attempts.length,0);assert.equal(newModel.state.contentRecheckIds.length,0);
-const malformed=clone(originalState);malformed.contentRevision=6;
+const malformed=clone(originalState);malformed.contentRevision=historical234?7:6;
 const corruptStore=store(JSON.stringify(malformed));const blocked=new Model(now,corruptStore,'progress');
 assert.equal(blocked.storageWriteBlocked,true,'future revision must block all saves');
 assert.equal(corruptStore.writes,0);assert.equal(corruptStore.value,JSON.stringify(malformed));
