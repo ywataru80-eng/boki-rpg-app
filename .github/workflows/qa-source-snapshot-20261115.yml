@@ -18,6 +18,9 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/qa-source
           git rev-parse HEAD > artifacts/qa-source/commit-sha.txt
+          # A Git bundle contains only public repository Git objects; no .git/config credentials.
+          git bundle create artifacts/qa-source/history.bundle HEAD
+          git bundle verify artifacts/qa-source/history.bundle
           git ls-files -z | tar --null -T - -czf artifacts/qa-source/tracked-source.tar.gz
           tar -tzf artifacts/qa-source/tracked-source.tar.gz > artifacts/qa-source/file-list.txt
           grep -Fxq 'package.json' artifacts/qa-source/file-list.txt
