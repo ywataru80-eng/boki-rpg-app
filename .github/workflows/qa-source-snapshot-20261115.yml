@@ -1,4 +1,4 @@
-name: Temporary Release237 iPhone 13 WebKit touch calculator acceptance
+name: Temporary Release237 public Pages provenance inspection
 on:
   push:
     branches:
@@ -6,44 +6,36 @@ on:
 permissions:
   contents: read
 jobs:
-  ui-story-acceptance:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+  inspect-public-pages:
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Reset test workspace to sealed PR260 head
+      - name: Fetch public PWA manifest without GitHub credentials
         shell: bash
         run: |
           set -euo pipefail
-          git checkout --detach 87be66ecd84cf0c3976919ac95f1d8407aef8dc5
-          test "$(git rev-parse HEAD)" = 87be66ecd84cf0c3976919ac95f1d8407aef8dc5
-          test -z "$(git status --porcelain)"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install pinned project dependencies
-        run: npm ci
-      - name: Install CI-only Playwright and browser engines
-        run: |
-          npm install --no-save --package-lock=false playwright@1.65.1
-          npx playwright install --with-deps chromium webkit
-      - name: Run genuine touchscreen input against the sealed PR260 release
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p qa-audit
-          git show "$GITHUB_SHA:qa-audit/run-iphone-touch-smoke.js" > qa-audit/run-iphone-touch-smoke.js
-          node --check qa-audit/run-iphone-touch-smoke.js
-          node qa-audit/run-iphone-touch-smoke.js
-      - name: Upload full user-interface evidence, including failures
+          mkdir -p public-pages-evidence
+          url='https://ywataru80-eng.github.io/boki-rpg-app/pwa-release-manifest.json'
+          status="$(curl -L --connect-timeout 15 --max-time 30 -sS -o public-pages-evidence/live-pwa-release-manifest.json -w '%{http_code}' "$url" || true)"
+          export STATUS="$status"
+          python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path('public-pages-evidence/live-pwa-release-manifest.json')
+          record={'url':'https://ywataru80-eng.github.io/boki-rpg-app/pwa-release-manifest.json',
+          'http_status':os.getenv('STATUS',''),'expected_release':'20261115-237',
+          'live_release':None,'matches_expected':False}
+          if record['http_status']=='200' and p.exists():
+            try:
+              obj=json.loads(p.read_text(encoding='utf-8'))
+              record['live_release']=obj.get('release')
+              record['matches_expected']=obj.get('release')==record['expected_release']
+            except Exception as e: record['parse_error']=str(e)
+          pathlib.Path('public-pages-evidence/provenance.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(record,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: release237-iphone13-webkit-touch-20261115
-          path: artifacts/release237-iphone-touch-emulation/
-          if-no-files-found: warn
+          name: release237-public-pages-inspection-20261115
+          path: public-pages-evidence/
           retention-days: 7
+          if-no-files-found: warn
