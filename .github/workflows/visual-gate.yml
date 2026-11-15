@@ -20,7 +20,7 @@ on:
       - 'service-worker.js'
 jobs:
   physical-recovery-strict-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,52 @@ jobs:
         run: node tests/result-feedback-ux.browser.test.js
       - name: Run durable learning evidence and persistence gate
         run: node .github/visual/run-learning-effectiveness.js
+      - name: Run Issue256 D001-D020 actual form submit and explanation coverage
+        run: node --check .github/visual/run-issue256-d001-d020.js && node .github/visual/run-issue256-d001-d020.js
+      - name: Run all 300 actual browser form submit and explanation coverage
+        run: node --check .github/visual/run-issue256-all300.js && node .github/visual/run-issue256-all300.js
+      - name: Run 36 Story anchors through real wrong and correct form submissions
+        run: node --check .github/visual/run-issue256-story36.js && node .github/visual/run-issue256-story36.js
+      - name: Run all 166 Story cases sequentially in one browser session per engine
+        run: node --check .github/visual/run-issue256-story166.js && node .github/visual/run-issue256-story166.js
+      # Temporary self-signed TLS verifies candidate behavior over HTTPS only;
+      # public GitHub Pages/iPhone acceptance must be recorded independently.
+      - name: Run Issue256 candidate in ephemeral HTTPS Chromium/WebKit
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A per-run local CA must be trusted by the OS, Chromium NSS,
+          # and WebKit. Playwright's ignoreHTTPSErrors alone does not prove
+          # Web Locks / Service Worker access on an untrusted TLS origin.
+          openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -keyout "$RUNNER_TEMP/issue256-ca.key" -out "$RUNNER_TEMP/issue256-ca.crt" \
+            -subj '/CN=Issue256 Ephemeral CI Root' \
+            -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,keyCertSign,cRLSign' >/dev/null 2>&1
+          openssl req -new -newkey rsa:2048 -nodes \
+            -keyout "$RUNNER_TEMP/issue256-tls.key" -out "$RUNNER_TEMP/issue256-tls.csr" \
+            -subj '/CN=localhost' >/dev/null 2>&1
+          printf '%s\n' \
+            'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            'extendedKeyUsage=serverAuth' \
+            'basicConstraints=critical,CA:FALSE' > "$RUNNER_TEMP/issue256-tls.ext"
+          openssl x509 -req -in "$RUNNER_TEMP/issue256-tls.csr" \
+            -CA "$RUNNER_TEMP/issue256-ca.crt" -CAkey "$RUNNER_TEMP/issue256-ca.key" \
+            -CAcreateserial -out "$RUNNER_TEMP/issue256-tls.crt" -days 1 -sha256 \
+            -extfile "$RUNNER_TEMP/issue256-tls.ext" >/dev/null 2>&1
+          sudo install -m 644 "$RUNNER_TEMP/issue256-ca.crt" /usr/local/share/ca-certificates/issue256-ephemeral.crt
+          sudo update-ca-certificates >/dev/null
+          command -v certutil >/dev/null || sudo apt-get install -y -qq libnss3-tools >/dev/null
+          mkdir -p "$HOME/.pki/nssdb"
+          if [ ! -f "$HOME/.pki/nssdb/cert9.db" ]; then
+            certutil -d "sql:$HOME/.pki/nssdb" -N --empty-password
+          fi
+          certutil -d "sql:$HOME/.pki/nssdb" -A -t 'C,,' \
+            -n 'Issue256 Ephemeral CI Root' -i "$RUNNER_TEMP/issue256-ca.crt"
+          ISSUE256_TLS_KEY="$RUNNER_TEMP/issue256-tls.key" \
+          ISSUE256_TLS_CERT="$RUNNER_TEMP/issue256-tls.crt" \
+          SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+            node .github/visual/run-issue256-d001-d020.js --https-selfsigned
       - name: Run calculator viewport resize and input retention gate
         run: node .github/visual/run-calculator-viewport.js
       - name: Run PR 212 legacy provenance and input confirmation gate

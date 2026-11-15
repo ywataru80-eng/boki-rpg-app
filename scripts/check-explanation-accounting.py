@@ -118,11 +118,36 @@ def derive(source):
             book=step('book'+suffix,f'{cost} - {expense}',cost-expense)
             if sold:step('lossA',f'{book} - {material["売却価額"]}',book-material['売却価額'])
     elif kind == 'worksheet' and '決算整理・計算問題' in source['category']:
-        insurance=capture(text,r'保険料([\d,]+)円');fraction=capture(text,r'(\d+)分の1');cost=capture(text,r'備品([\d,]+)円');life=capture(text,r'耐用年数(\d+)年')
-        prepaid=step('insurance_adjustment',f'{insurance} / {fraction}',insurance/fraction)
-        step('insurance_expense_after',f'{insurance} - {prepaid}',insurance-prepaid)
-        depreciation=step('depreciation_expense',f'{cost} / {life}',cost/life)
-        step('equipment_book_value_after',f'{cost} - {depreciation}',cost-depreciation)
+        if fmt == 'decision-worksheet-v2':
+            ins=next((m for m in materials if m.get('資料')=='前期保険契約'),None)
+            asset=next((m for m in materials if m.get('資料')=='前期固定資産台帳'),None)
+            values={}
+            if ins:
+                total=number(ins['支払保険料']);denom=number(ins['次期割合分母']);prepaid=total/denom
+                values['insurance_adjustment']=(f'{total} / {denom}',prepaid)
+                values['insurance_expense_after']=(f'{total} - {prepaid}',total-prepaid)
+            if asset:
+                cost=number(asset['取得原価']);years=number(asset['耐用年数']);depreciation=cost/years
+                values['depreciation_expense']=(f'{cost} / {years}',depreciation)
+                values['equipment_book_value_after']=(f'{cost} - {depreciation}',cost-depreciation)
+            if 'overstatement' in source['table']['inputCells']:
+                record=next((m for m in materials if '誤記帳額' in m),None)
+                if not record:raise ValueError('missing erroneous bookkeeping entry')
+                key='insurance_adjustment' if record['資料']=='担当者の前払保険料帳簿' else 'equipment_book_value_after'
+                correct=values[key][1];entered=number(record['誤記帳額'])
+                values['overstatement']=(f'{entered} - {correct}',entered-correct)
+            for key in source['table']['inputCells']:
+                if key in values:
+                    expression,result=values[key]
+                    step(key,expression,result)
+                elif key not in ('debitAccount','creditAccount','contraAccount'):
+                    raise ValueError('unknown decision answer field '+key)
+        else:
+            insurance=capture(text,r'保険料([\d,]+)円');fraction=capture(text,r'(\d+)分の1');cost=capture(text,r'備品([\d,]+)円');life=capture(text,r'耐用年数(\d+)年')
+            prepaid=step('insurance_adjustment',f'{insurance} / {fraction}',insurance/fraction)
+            step('insurance_expense_after',f'{insurance} - {prepaid}',insurance-prepaid)
+            depreciation=step('depreciation_expense',f'{cost} / {life}',cost/life)
+            step('equipment_book_value_after',f'{cost} - {depreciation}',cost-depreciation)
     elif fmt == 'adjusted-trial-balance':
         by={m['勘定科目']:m for m in materials}
         prepaid=capture(by['保険料']['整理事項'],r'前払分([\d,]+)円')

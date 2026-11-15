@@ -152,6 +152,34 @@ function simpleComprehensive(q){
 
 function worksheet(q){
   if(q?.type!=='worksheet')return null;
+  if(q.format==='decision-worksheet-v2'){
+    const docs=Array.isArray(q.materials)?q.materials:[];
+    const insurance=docs.find(row=>row?.['資料']==='前期保険契約');
+    const asset=docs.find(row=>row?.['資料']==='前期固定資産台帳');
+    const recorded=docs.find(row=>row?.['資料']==='担当者の前払保険料帳簿'||row?.['資料']==='担当者の備品台帳');
+    const paid=Number(insurance?.['支払保険料']),divisor=Number(insurance?.['次期割合分母']);
+    const cost=Number(asset?.['取得原価']),life=Number(asset?.['耐用年数']);
+    const prepaid=paid/divisor,expense=paid-prepaid,dep=cost/life,book=cost-dep;
+    const candidates={
+      insurance_adjustment:()=>calc('前払保険料への振替額',comma(paid)+' ÷ '+divisor+' = '+comma(prepaid),prepaid,['materials[0]'],'insurance_adjustment'),
+      insurance_expense_after:()=>calc('当期保険料',comma(paid)+' − '+comma(prepaid)+' = '+comma(expense),expense,['materials[0]'],'insurance_expense_after'),
+      depreciation_expense:()=>calc('当期減価償却費',comma(cost)+' ÷ '+life+' = '+comma(dep),dep,['materials'],'depreciation_expense'),
+      equipment_book_value_after:()=>calc('期末帳簿価額',comma(cost)+' − '+comma(dep)+' = '+comma(book),book,['materials'],'equipment_book_value_after'),
+      debitAccount:()=>direct('借方科目','前払保険料','前払保険料は資産の増加。',['question'],'debitAccount'),
+      creditAccount:()=>direct('貸方科目','保険料','翌期分を当期費用から除くため保険料を貸記。',['question'],'creditAccount'),
+      contraAccount:()=>direct('控除勘定名','減価償却累計額','間接法では取得原価から累計額を控除。',['question'],'contraAccount'),
+      overstatement:()=>calc('過大計上額',
+        comma(Number(recorded?.['誤記帳額']))+' − '+comma(q.id==='D005'?prepaid:book)+' = '+comma(Number(recorded?.['誤記帳額'])-(q.id==='D005'?prepaid:book)),
+        Number(recorded?.['誤記帳額'])-(q.id==='D005'?prepaid:book),['materials'],'overstatement')
+    };
+    const fields=q.table?.inputCells||[];
+    if(!fields.length||fields.some(field=>!candidates[field]))return null;
+    const requiredInsurance=fields.some(k=>['insurance_adjustment','insurance_expense_after'].includes(k));
+    const requiredAsset=fields.some(k=>['depreciation_expense','equipment_book_value_after'].includes(k));
+    if((requiredInsurance&&(!Number.isFinite(prepaid)||!Number.isFinite(expense)))||(requiredAsset&&(!Number.isFinite(dep)||!Number.isFinite(book))))return null;
+    if(fields.includes('overstatement')&&!recorded)return null;
+    return fields.map(field=>candidates[field]());
+  }
   if(/決算整理・計算問題/u.test(q.category||'')){
     const text=String(q.question||''),insurance=numberAfter(text,'保険料'),fraction=Number((/([0-9]+)分の1/u.exec(text)||[])[1]),equipment=numberAfter(text,'備品'),life=numberAfter(text,'耐用年数'),adjustment=insurance/fraction,current=insurance-adjustment,dep=equipment/life,book=equipment-dep;
     return[calc('保険料の次期分',comma(insurance)+' × 1 ÷ '+fraction+' = '+comma(adjustment),adjustment,['question'],'insurance_adjustment'),calc('保険料（当期分）',comma(insurance)+' − '+comma(adjustment)+' = '+comma(current),current,['question'],'insurance_expense_after'),calc('当期減価償却費',comma(equipment)+' ÷ '+life+' = '+comma(dep),dep,['question'],'depreciation_expense'),calc('期末帳簿価額',comma(equipment)+' − '+comma(dep)+' = '+comma(book),book,['question'],'equipment_book_value_after')];

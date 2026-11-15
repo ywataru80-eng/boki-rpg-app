@@ -35,7 +35,7 @@ for(const q of target){
   assert(plan.components.some(item=>item.id==='transfer'),q.id+': transfer component');
   if(model.checks?.length)assert(plan.components.some(item=>item.id==='check'),q.id+': check component');
 }
-assert.deepStrictEqual(JSON.parse(JSON.stringify(profiles)),{correction:10,worksheet:18,adjustedTrial:1,closingEntries:1,financialPL:1,financialBS:9},'final 40 teaching-profile distribution');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(profiles)),{correction:10,closingDecision:17,worksheet:1,adjustedTrial:1,closingEntries:1,financialPL:1,financialBS:9},'final 40 teaching-profile distribution');
 for(const id of Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0'))){
   const model=root.ExplanationModel.build(root.QuestionData[id],{cells:{}},{correct:false});
   assert(model.transfer.every(item=>!['before','adjustment','after'].includes(String(item.to||''))),id+': worksheet destinations are learner-facing Japanese');

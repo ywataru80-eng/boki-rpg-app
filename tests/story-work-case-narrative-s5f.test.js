@@ -2,6 +2,7 @@
 
 const assert=require('assert');
 const fs=require('fs');
+const cp=require('child_process');
 const vm=require('vm');
 
 const source=fs.readFileSync('data/questions.js','utf8');
@@ -13,6 +14,14 @@ const questions=sandbox.window.QuestionData;
 const examIds=new Set(sandbox.window.ExamPoolDefinition||[]);
 const anchors=sandbox.window.AnchorScenes||[];
 const authority=sandbox.window.WorkCaseNarratives;
+// Verify the original S5E/S5F accepted snapshots against immutable Gen194,
+// rather than overwriting the historical fixture when a successor edition fixes
+// a source-to-scene contradiction. This protects the original acceptance.
+const historical={window:{},console};
+vm.runInNewContext(cp.execFileSync('git',['show','d8b406a5142f7b01c42e680df853de1bd0666120:data/questions.js'],{encoding:'utf8',maxBuffer:12*1024*1024}),historical);
+const originalAuthority=historical.window.WorkCaseNarratives;
+const sourceOnlyCorrections=new Set(['D003','D005','D006','D007','D008','D009','D010','E011']);
+
 const acceptedS5E=require('./fixtures/story-work-case-s5e-accepted.json');
 
 const s5fIds=['J150','F004','F006','F007','C004'].sort();
@@ -33,10 +42,17 @@ assert.deepStrictEqual(
 const j148SuccessorBefore='年度決算の予行演習中、得意先から商品販売の証憑と約束手形の記録が届きました。あなたは、販売の成立と代金を受け取る権利を分けて確認します。';
 for(const [id,before] of Object.entries(acceptedS5E)){
   assert.strictEqual(
-    authority[id]?.before,
+    originalAuthority[id]?.before,
     id==='J148' ? j148SuccessorBefore : before,
-    `${id}: S5F must preserve S5E history except J148 successor`
+    `${id}: historical S5F/S5E accepted prose must be preserved in Gen194 history`
   );
+  if(sourceOnlyCorrections.has(id)){
+    assert.notStrictEqual(authority[id]?.before,originalAuthority[id]?.before,
+      `${id}: accepted successor must correct the source mismatch`);
+  } else {
+    assert.strictEqual(authority[id]?.before,originalAuthority[id]?.before,
+      `${id}: historical authority must be unchanged outside seven successors`);
+  }
 }
 
 const anchorRefs=new Set(anchors.map(scene=>scene.referenceQuestionId));

@@ -108,7 +108,7 @@ const view=new AppView(documentStub);
 
 const runtimeController=Object.create(AppController.prototype);
 runtimeController.questions=questions;
-runtimeController.model={state:{mode:'story'}};
+runtimeController.model={state:{mode:'story',correctIds:['J050','F005','C005']},verifiedCorrectIds(){return this.state.correctIds;},isUnverified(){return false;}};
 
 assert.strictEqual(
   typeof runtimeController.epilogueFactsForScene,
@@ -127,6 +127,15 @@ assert.deepStrictEqual(
   'S6 epilogue values must be resolved from accepted answers'
 );
 
+runtimeController.model.state.correctIds=['C005'];
+assert.deepStrictEqual(JSON.parse(JSON.stringify(AppController.prototype.epilogueFactsForScene.call(runtimeController,finale))),[
+  {label:'3月末現金',value:275000,sourceQuestionId:'C005'},
+  {label:'3月利益',value:45000,sourceQuestionId:'C005'}
+],'unanswered J050 and F005 must never be shown as established learner results');
+runtimeController.model.state.correctIds=['J050','F005','C005'];
+runtimeController.model.isUnverified=(_field,id)=>id==='F005';
+assert.deepStrictEqual(JSON.parse(JSON.stringify(AppController.prototype.epilogueFactsForScene.call(runtimeController,finale))).map(x=>x.sourceQuestionId),['J050','C005','C005'],'unverified legacy F005 cannot be described as confirmed');
+runtimeController.model.isUnverified=()=>false;
 assert.strictEqual(
   view.renderNarrativeResult([finale],{mode:'story',resolved:true,epilogueFacts:resolvedFacts}),
   true,

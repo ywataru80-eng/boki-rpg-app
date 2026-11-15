@@ -49,6 +49,18 @@ const exactFiniteCells=(question,required)=>{const cells=question.answer?.cells|
 function validWorksheetColumns(question){
   const cells=question.answer?.cells||{},keys=Object.keys(cells);
   if(question.format==='eight-column-worksheet'){const tableKeys=new Set((question.table?.rows||[]).flatMap(row=>Object.keys(row).map(key=>key.toLowerCase()))),inputs=question.table?.inputCells||[];return keys.length>0&&Object.values(cells).every(Number.isFinite)&&keys.length===inputs.length&&inputs.every(key=>Object.hasOwn(cells,key))&&['tb','adj','pl','bs'].every(prefix=>[...tableKeys].some(key=>key.startsWith(prefix)));}
+  if(question.format==='decision-worksheet-v2'){
+    const table=question.table||{},inputs=table.inputCells||[],rows=table.rows||[],types=table.inputTypes||{},meta=table.inputMetadata||{};
+    if(!Array.isArray(inputs)||inputs.length<1||inputs.length>4||new Set(inputs).size!==inputs.length)return false;
+    if(!Array.isArray(table.columns)||table.columns.length!==3||rows.length!==inputs.length)return false;
+    if(keys.length!==inputs.length||Object.keys(types).length!==inputs.length||Object.keys(meta).length!==inputs.length)return false;
+    return inputs.every((key,index)=>{
+      if(!Object.hasOwn(cells,key)||!Object.hasOwn(types,key)||!Object.hasOwn(meta,key)||!rows[index]?.item||!meta[key]?.label)return false;
+      if(types[key]==='amount')return typeof cells[key]==='number'&&Number.isFinite(cells[key]);
+      if(types[key]==='text')return ['debitAccount','creditAccount','contraAccount'].includes(key)&&typeof cells[key]==='string'&&cells[key].trim().length>0;
+      return false;
+    });
+  }
   if(question.format==='closing-entries')return exactFiniteCells(question,['sales','purchases','insurance','depreciation','profit']);
   if(question.format==='adjusted-trial-balance')return exactFiniteCells(question,['cash','receivables','insurance','prepaid','equipment','depreciation','payables','accumulated','capital','retained','sales','debitTotal','creditTotal']);
   if(question.format===undefined)return exactFiniteCells(question,['insurance_adjustment','insurance_expense_after','depreciation_expense','equipment_book_value_after']);
@@ -73,10 +85,9 @@ const typeQuestionChecks={
  trial_balance:{TRIAL_BALANCE_DEBIT:q=>hasAnswerKey(q,/debit/i),TRIAL_BALANCE_CREDIT:q=>hasAnswerKey(q,/credit/i),TRIAL_BALANCE_EXPLICIT_ADDITION:q=>/\+|加え|合計/.test(q.explanation),TRIAL_BALANCE_EQUAL:q=>trialBalanceTotals(q).debit===trialBalanceTotals(q).credit},
  correction:{CORRECTION_RECORDED:q=>q.materials?.some(m=>m.recorded),CORRECTION_EVIDENCE:q=>q.materials?.some(m=>m.evidence),CORRECTION_ENTRY:q=>['debitAccount','debitAmount','creditAccount','creditAmount'].every(key=>key in q.answer.cells)},
  worksheet:{WORKSHEET_PRE_ADJUSTMENT:q=>/使用する資料|整理前|試算表/.test(q.explanation),WORKSHEET_ADJUSTMENT:q=>q.format==='closing-entries'?/売上/.test(q.explanation)&&/損益勘定/.test(q.explanation)&&/振替/.test(q.explanation):/修正|整理|調整/.test(q.explanation),WORKSHEET_POST_ADJUSTMENT:q=>answerValues(q).length>0&&answerValues(q).every(v=>mentionsValue(q.explanation,v)),WORKSHEET_PL_BS:q=>{
-   // Worksheet-type checking MUST follow the actual exercise. D002-D018
-   // asks for four insurance/depreciation values, D019 an adjusted trial
-   // balance, and D020 closing transfers. Requiring P/L and B/S on those
-   // exercises would reward incorrect teaching about unrelated forms.
+   // Worksheet-type checking follows the live exercise, not historic layouts.
+   // D002-D018 assess 1-4 separately graded decisions, not P/L and B/S.
+   if(q.format==='decision-worksheet-v2')return q.table?.inputCells?.every(key=>Object.hasOwn(q.answer?.cells||{},key))&&/整理|振替|償却/.test(q.explanation);
    if(q.format==='closing-entries')return /損益勘定/.test(q.explanation)&&/繰越利益剰余金/.test(q.explanation)&&/当期純利益/.test(q.explanation);
    if(q.format==='adjusted-trial-balance')return /決算整理後残高試算表/.test(q.explanation)&&/借方/.test(q.explanation)&&/貸方/.test(q.explanation);
    if(q.category==='決算整理・計算問題'&&!q.format)return /保険料/.test(q.explanation)&&/前払振替額/.test(q.explanation)&&/減価償却費/.test(q.explanation)&&/期末帳簿価額/.test(q.explanation);

@@ -33,6 +33,24 @@ const legacyMistakes=(()=>{
   assert(!model.state.incorrectIds.includes('J001'));assert(!model.state.attempts.some(row=>row.questionId==='J001'));
   return {unresolved,resolved:JSON.parse(JSON.stringify(model.state))};
 })();
+// Generate a genuine historical revision-4 / schema-2 save, not a forged
+// revision-6 save with its content identity marker rewritten.
+const legacyUnknown=(()=>{
+  const ancestor='6e337300937dcc60a54be4bf31aab56b3208f6d0';
+  const old={window:{},console};
+  for(const file of ['data/questions.js','js/model.js']){
+    const source=cp.execFileSync('git',['show',`${ancestor}:${file}`],{cwd:ROOT,encoding:'utf8',maxBuffer:16*1024*1024});
+    vm.runInNewContext(source,old,{filename:`${ancestor}:${file}`});
+  }
+  const questions=old.window.QuestionData;
+  const model=new old.window.ProgressModel(questions,{getItem:()=>null,setItem:()=>true});
+  assert.strictEqual(model.state.contentRevision,4);
+  assert.strictEqual(model.state.learningSchemaVersion,2);
+  assert.strictEqual(model.state.learningEffectiveness,undefined);
+  assert(model.recordAttempt('J001',false,10,'journal-entry',false,1000));
+  assert(old.window.ProgressModel.validateBackupState(model.state,questions));
+  return JSON.parse(JSON.stringify(model.state));
+})();
 const evidence={status:'RUNNING',head:cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),reports:[]};
 const write=()=>{fs.mkdirSync(OUTPUT,{recursive:true});fs.writeFileSync(path.join(OUTPUT,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');};
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json'};
@@ -144,11 +162,12 @@ async function run(){
             await page.waitForFunction(()=>Boolean(window.App?.controller));
             const persisted=await page.evaluate(()=>{const c=window.App.controller;return {metric:c.model.learningEffectivenessForQuestion('J001'),rows:c.model.state.attempts.length,mistakes:c.model.state.mistakeCounts.J001,character:localStorage.getItem(c.rpg.key),valid:window.ProgressModel.validateBackupState(c.model.state,c.questions)};});
             assert.strictEqual(persisted.mistakes,beforeReload.mistakes);assert(persisted.valid);assert.deepStrictEqual(persisted.metric,beforeReload.metric);assert.strictEqual(persisted.character,beforeReload.character);
-            await page.evaluate(async()=>{
+            await page.evaluate(async legacyInput=>{
               const c=window.App.controller,progress=JSON.parse(JSON.stringify(c.model.state)),character=JSON.parse(JSON.stringify(c.rpg.state));
-              const legacyInput=JSON.parse(JSON.stringify(progress));delete legacyInput.learningEffectiveness;delete legacyInput.learningEvidenceIntegrity;legacyInput.learningSchemaVersion=2;legacyInput.contentRevision=4;delete legacyInput.questionContentVersions.L044;delete legacyInput.questionContentVersions.L045;
-              for(const row of legacyInput.attempts){delete row.mode;delete row.support;delete row.observationNumber;}
+              const originalLegacy=JSON.stringify(legacyInput);
               const legacy=window.ProgressModel.prepareBackupState(legacyInput,c.questions);
+              if(!legacy||!window.ProgressModel.validateBackupState(legacy,c.questions))throw Error('authentic revision4 legacy migration rejected');
+              if(JSON.stringify(legacyInput)!==originalLegacy)throw Error('legacy migration mutated original bytes');
               if(legacy.learningEffectiveness.initialHistory!=='unknown')throw Error('legacy coverage');
               const missing=JSON.parse(JSON.stringify(progress));delete missing.learningEffectiveness.questions.J001;
               if(window.ProgressModel.prepareBackupState(missing,c.questions)!==null)throw Error('missing complete evidence accepted');
@@ -187,7 +206,7 @@ async function run(){
               }
               progress.currentQuestionId='J003';
               window.evidenceBackup={format:'boki-rpg-backup',version:1,progress,character};
-            });
+            },legacyUnknown);
             // Import intentionally reloads. Wait for that navigation rather than
             // trying to return an evaluate result from a destroyed WebKit context.
             await Promise.all([page.waitForNavigation({waitUntil:'load'}),page.evaluate(()=>{

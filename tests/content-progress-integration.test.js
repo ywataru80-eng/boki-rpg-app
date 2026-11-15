@@ -82,7 +82,7 @@ async function run(){
   {
     const {ctx,progress,character:chars}=context();reloads=0;
     assert.strictEqual(await ctx.importBackup(file),true);assert.strictEqual(reloads,1);
-    const migrated=JSON.parse(progress.value);assert.strictEqual(migrated.contentRevision,5);
+    const migrated=JSON.parse(progress.value);assert.strictEqual(migrated.contentRevision,questions.D002.format==='decision-worksheet-v2'?6:5);
     assert.strictEqual(migrated.questionStats.L031.correctCount,1);assert.strictEqual(migrated.questionStats.L031.incorrectCount,1);
     assert.deepStrictEqual(JSON.parse(chars.value),character);
     const first=progress.value;assert.strictEqual(await ctx.importBackup(file),true);assert.strictEqual(progress.value,first);

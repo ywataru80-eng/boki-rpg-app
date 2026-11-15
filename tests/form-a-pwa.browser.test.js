@@ -23,8 +23,13 @@ for(const [name,type] of Object.entries({chromium,webkit})){
   await form.goto(url+'/form-a.html?resume=offline');await form.locator('#exercise').waitFor({state:'visible'});assert.equal(await form.locator('#amount-C').inputValue(),'18000');await form.locator('#submit').click();await form.locator('#result').waitFor({state:'visible'});assert((await form.locator('#score').innerText()).startsWith('4 / 4'));
   await form.reload();await form.locator('#result').waitFor({state:'visible'});assert((await form.locator('#first-score').textContent()).includes('4/4'));assert.deepEqual(await pair(form),before);await form.close();await rpg.waitForFunction(()=>window.App?.controller,{},{timeout:60000});const resumed=await pair(rpg);assert.equal(resumed['boki-rpg-character-v2'],before['boki-rpg-character-v2'],'earned RPG data unchanged after resume');
   const previous=JSON.parse(before['boki-rpg-progress-v3']),migrated=JSON.parse(resumed['boki-rpg-progress-v3']);
-  assert.equal(previous.contentRevision,4);assert.equal(migrated.contentRevision,5);
-  assert.deepEqual(migrated.questionContentVersions,{...previous.questionContentVersions,L044:'L044:cash-book-opening-zero-v1',L045:'L045:checking-book-opening-zero-v1'});
+  // Release236 changes the assessed content of D002–D018; old completions remain archived,
+  // while each successor identity must be present and must not inherit old mastery.
+  assert.equal(previous.contentRevision,4);assert.equal(migrated.contentRevision,6);
+  const successorVersions=Object.fromEntries(Array.from({length:17},(_,i)=>{
+    const id='D'+String(i+2).padStart(3,'0');return [id,id+':closing-decision-v2'];
+  }));
+  assert.deepEqual(migrated.questionContentVersions,{...previous.questionContentVersions,...successorVersions,L044:'L044:cash-book-opening-zero-v1',L045:'L045:checking-book-opening-zero-v1'});
   assert.equal(previous.learningEvidenceIntegrity.schemaVersion,10);assert.equal(migrated.learningEvidenceIntegrity.schemaVersion,11);
   assert(await rpg.evaluate(saved=>ProgressModel.validateBackupState(saved,QuestionData),migrated),'stored identity-bound seal validates');
   for(const key of ['contentRevision','questionContentVersions','learningEvidenceIntegrity']){delete previous[key];delete migrated[key];}

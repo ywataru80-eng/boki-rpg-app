@@ -34,7 +34,7 @@ async function run(){
               const baselinePageWidth=document.documentElement.scrollWidth;
               const node=document.getElementById('narrative-result');
               const runtimeController=Object.create(window.AppController.prototype);
-              runtimeController.model={state:{mode:'story'}};
+              runtimeController.model={state:{mode:'story',correctIds:['J050','F005','C005']},verifiedCorrectIds(){return this.state.correctIds;},isUnverified(){return false;}};
               runtimeController.questions=window.QuestionData||{};
               runtimeController.view=view;
               const authorityScenes=window.AnchorScenes||[];
@@ -42,6 +42,18 @@ async function run(){
               const finale=authorityScenes.find(candidate=>candidate.sceneId==='CH12-BOSS');
               const finaleScenes=window.AppController.prototype.narrativeScenesForQuestion.call(runtimeController,questions.C005);
               const epilogueFacts=window.AppController.prototype.epilogueFactsForScene.call(runtimeController,finale);
+              // Exercise the actual Controller authorization boundary in the browser,
+              // not only the View's ability to render a supplied answer key.
+              const gated=[];
+              runtimeController.view={renderNarrativeResult(_scenes,options){gated.push({resolved:options.resolved,sourceIds:options.epilogueFacts.map(x=>x.sourceQuestionId)});return true;}};
+              const resolve=window.AppController.prototype.renderNarrativeResolution;
+              runtimeController.model.state.correctIds=[];
+              resolve.call(runtimeController,questions.C005,true);
+              runtimeController.model.state.correctIds=['C005'];
+              resolve.call(runtimeController,questions.C005,true);
+              runtimeController.model.state.correctIds=['J050','F005','C005'];
+              resolve.call(runtimeController,questions.C005,true);
+              runtimeController.view=view;
               const storyResolved=view.renderNarrativeResult(finaleScenes,{mode:'story',resolved:true,epilogueFacts});
               const visibleText=node.textContent;
               const sceneId=node.dataset.sceneId;
@@ -73,9 +85,14 @@ async function run(){
               view.renderNarrativeResult(finaleScenes,{mode:'story',resolved:true,epilogueFacts});
               const wrongHidden=view.renderNarrativeResult(finaleScenes,{mode:'story',resolved:false,epilogueFacts})===false&&node.hidden===true;
               const trainingHidden=view.renderNarrativeResult(finaleScenes,{mode:'training',resolved:true,epilogueFacts})===false&&node.hidden===true;
-              return{storyResolved,visibleText,sceneId,epilogueClass,epilogueFacts,finalReportMarker,ordinaryCounterRemoved,containerOverflow,pageOverflowAdded,baselinePageWidth,finalPageWidth:document.documentElement.scrollWidth,wrongHidden,trainingHidden,authorityCount:authorityScenes.length,missingAuthorityScenes,coveredChapters,j049SceneIds,isolatedModes,overflowingAuthorityScenes};
+              return{gated,storyResolved,visibleText,sceneId,epilogueClass,epilogueFacts,finalReportMarker,ordinaryCounterRemoved,containerOverflow,pageOverflowAdded,baselinePageWidth,finalPageWidth:document.documentElement.scrollWidth,wrongHidden,trainingHidden,authorityCount:authorityScenes.length,missingAuthorityScenes,coveredChapters,j049SceneIds,isolatedModes,overflowingAuthorityScenes};
             });
             report.browser=browserName;report.width=width;report.pageErrors=pageErrors;report.violations=[];
+            if(JSON.stringify(report.gated)!==JSON.stringify([
+              {resolved:false,sourceIds:[]},
+              {resolved:true,sourceIds:['C005','C005']},
+              {resolved:true,sourceIds:['J050','F005','C005','C005']}
+            ]))report.violations.push('UNVERIFIED_FINAL_ACCOUNT_FACTS_VISIBLE');
             if(!report.storyResolved)report.violations.push('STORY_RESULT_NOT_RENDERED');
             if(!report.visibleText.includes('やっと、うちの会社が見えた'))report.violations.push('AFTER_MISSING');
             if(!report.visibleText.includes('最初の一枚'))report.violations.push('HOOK_MISSING');

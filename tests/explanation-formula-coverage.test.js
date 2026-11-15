@@ -50,10 +50,11 @@ requireCells('C001',['sales','cost','allowanceExpense','depreciation','insurance
 requireCells('C002',['cashAfter','cashShortage','sales','purchases','cost','advertising','depreciation','vatPayable','accruedIncome','accruedWages','tax','netIncome']);
 requireCells('C003',['allowanceExpense','interestExpense','interestPayable','rentRevenue','rentUnearned','newAssetDepreciation','oldAssetDepreciation','saleLoss','interestReceivable','tax']);
 for(let i=4;i<=10;i++)requireCells('C'+String(i).padStart(3,'0'),['endingCash','profit']);
-for(let i=1;i<=18;i++){
-  const id='D'+String(i).padStart(3,'0');
-  if(id==='D001')continue;
-  requireCells(id,['insurance_adjustment','insurance_expense_after','depreciation_expense','equipment_book_value_after']);
+for(let i=2;i<=18;i++){
+  const id='D'+String(i).padStart(3,'0'),q=data[id];
+  assert.strictEqual(q.format,'decision-worksheet-v2',id+': successor worksheet identity');
+  // Check all and only the live assessment fields, not the historical four-column drill.
+  requireCells(id,[...q.table.inputCells]);
 }
 requireCells('D020',['sales','purchases','insurance','depreciation','profit']);
 requireCells('F001',['sales','costOfSales','expenses','netIncome']);
