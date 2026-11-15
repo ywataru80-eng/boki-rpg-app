@@ -1,0 +1,25 @@
+name: Temporary Release237 source checkout for offline acceptance QA
+on:
+  push:
+    branches:
+      - audit/release237-source-snapshot-20261115
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact baseline and prepare reproducible source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD
+          mkdir -p qa-source-export
+          tar -czf qa-source-export/repo-source.tar.gz --exclude=.git --exclude=node_modules --exclude=artifacts --exclude=qa-source-export .
+          sha256sum qa-source-export/repo-source.tar.gz | tee qa-source-export/source.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release237-code-audit-only-20261115
+          path: qa-source-export/
+          retention-days: 1
