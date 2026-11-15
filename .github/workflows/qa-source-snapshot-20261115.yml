@@ -1,4 +1,4 @@
-name: Temporary Release237 PR260 normal-button Story166 acceptance
+name: Temporary Release237 iPhone 13 WebKit touch calculator acceptance
 on:
   push:
     branches:
@@ -31,19 +31,19 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright@1.65.1
           npx playwright install --with-deps chromium webkit
-      - name: Run 166 questions using ordinary UI buttons in two browsers
+      - name: Run genuine touchscreen input against the sealed PR260 release
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p qa-audit
-          git show "$GITHUB_SHA:qa-audit/run-release237-story166-buttons.js" > qa-audit/run-release237-story166-buttons.js
-          node --check qa-audit/run-release237-story166-buttons.js
-          node qa-audit/run-release237-story166-buttons.js
+          git show "$GITHUB_SHA:qa-audit/run-iphone-touch-smoke.js" > qa-audit/run-iphone-touch-smoke.js
+          node --check qa-audit/run-iphone-touch-smoke.js
+          node qa-audit/run-iphone-touch-smoke.js
       - name: Upload full user-interface evidence, including failures
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release237-normal-ui-166-20261115
-          path: artifacts/release237-166-ui/
+          name: release237-iphone13-webkit-touch-20261115
+          path: artifacts/release237-iphone-touch-emulation/
           if-no-files-found: warn
           retention-days: 7
