@@ -1,4 +1,4 @@
-name: Temporary Release237 source checkout for offline acceptance QA
+name: Temporary Release237 reproducible checkout for offline full QA
 on:
   push:
     branches:
@@ -6,20 +6,40 @@ on:
 permissions:
   contents: read
 jobs:
-  export:
+  verify-and-export:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify exact baseline and prepare reproducible source
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Switch to exact validated PR260 head
         shell: bash
         run: |
           set -euo pipefail
-          git rev-parse HEAD
+          git checkout --detach 87be66ecd84cf0c3976919ac95f1d8407aef8dc5
+          test "$(git rev-parse HEAD)" = "87be66ecd84cf0c3976919ac95f1d8407aef8dc5"
+          test -z "$(git status --porcelain)"
+          git config --get-regexp 'http\..*\.extraheader' && exit 1 || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify original production candidate before archival
+        run: |
+          npm run verify
+          npm run qa:test
+          npm run qa:integrity
+          npm run qa:story
+      - name: Export authenticated-source-free Git checkout
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p qa-source-export
-          tar -czf qa-source-export/repo-source.tar.gz --exclude=.git --exclude=node_modules --exclude=artifacts --exclude=qa-source-export .
-          sha256sum qa-source-export/repo-source.tar.gz | tee qa-source-export/source.sha256
+          git rev-parse HEAD | tee qa-source-export/head-sha.txt
+          tar -czf qa-source-export/repo-full-history.tar.gz --exclude=node_modules --exclude=artifacts --exclude=qa-source-export .
+          sha256sum qa-source-export/repo-full-history.tar.gz | tee qa-source-export/source.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: release237-code-audit-only-20261115
+          name: release237-full-history-qa-20261115
           path: qa-source-export/
           retention-days: 1
