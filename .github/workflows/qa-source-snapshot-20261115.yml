@@ -1,0 +1,29 @@
+name: QA source snapshot (temporary)
+on:
+  push:
+    branches:
+      - feature/release237-gen201-story-order-preanswer-20261115
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export-tracked-source:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Archive tracked source without Git credentials
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/qa-source
+          git rev-parse HEAD > artifacts/qa-source/commit-sha.txt
+          git ls-files -z | tar --null -T - -czf artifacts/qa-source/tracked-source.tar.gz
+          tar -tzf artifacts/qa-source/tracked-source.tar.gz | grep -q 'package.json'
+          tar -tzf artifacts/qa-source/tracked-source.tar.gz | grep -q 'scripts/qa/phase-b-lifecycle.js'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qa-source-snapshot-release237
+          path: artifacts/qa-source/
+          if-no-files-found: error
+          retention-days: 1
