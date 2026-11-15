@@ -19,8 +19,9 @@ jobs:
           mkdir -p artifacts/qa-source
           git rev-parse HEAD > artifacts/qa-source/commit-sha.txt
           git ls-files -z | tar --null -T - -czf artifacts/qa-source/tracked-source.tar.gz
-          tar -tzf artifacts/qa-source/tracked-source.tar.gz | grep -q 'package.json'
-          tar -tzf artifacts/qa-source/tracked-source.tar.gz | grep -q 'scripts/qa/phase-b-lifecycle.js'
+          tar -tzf artifacts/qa-source/tracked-source.tar.gz > artifacts/qa-source/file-list.txt
+          grep -Fxq 'package.json' artifacts/qa-source/file-list.txt
+          grep -Fxq 'scripts/qa/phase-b-lifecycle.js' artifacts/qa-source/file-list.txt
       - uses: actions/upload-artifact@v4
         with:
           name: qa-source-snapshot-release237
