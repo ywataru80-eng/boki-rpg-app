@@ -138,16 +138,10 @@
     renderQuestion(question, draft, mode = 'story') {
       this.questionMode = mode;
       const hintSupport = this.byId('protected-learning'); if (hintSupport) hintSupport.hidden = mode === 'exam';
-      const answerAccounts = new Set(question.type === 'journal'
-        ? [...(question.answer?.debit || []), ...(question.answer?.credit || [])].map(item => item.account).filter(Boolean)
-        : []);
-      // Composite category labels can reveal correct accounts before any answer.
-      const categoryParts = String(question.category).split('・');
-      const visibleParts = categoryParts.filter(part => !answerAccounts.has(part.trim()));
-      const accountCategorySpoiler = visibleParts.length !== categoryParts.length;
-      const visibleCategory = !accountCategorySpoiler
-        ? question.category
-        : visibleParts.join('・').trim() || '仕訳問題';
+      const accountCategorySpoiler = question.type === 'journal'
+        && [...(question.answer?.debit || []), ...(question.answer?.credit || [])]
+          .some(item => item.account === question.category);
+      const visibleCategory = accountCategorySpoiler ? '仕訳問題' : question.category;
       this.byId('q-category').textContent = `第${question.chapter}章｜${visibleCategory}`;
       const story = this.byId('q-story'); story.hidden = mode !== 'story';
       // Authored lines are pre-answer coaching, never exam spoilers or victory quotes.
@@ -166,11 +160,7 @@
         let visibleStory = String(question.story || '');
         if (accountCategorySpoiler) {
           visibleStory = visibleStory.replaceAll(`「${question.category}」に関する`, '今回の取引に関する');
-          if (visibleParts.length > 0) {
-            visibleStory = visibleStory.replaceAll(String(question.category), visibleCategory);
-          } else {
-            visibleStory = visibleStory.split('。').filter(sentence => !sentence.includes(question.category)).join('。');
-          }
+          visibleStory = visibleStory.split('。').filter(sentence => !sentence.includes(question.category)).join('。');
         }
         this.byId('q-scene').textContent = question.scene;
         this.byId('q-context').textContent = visibleStory;

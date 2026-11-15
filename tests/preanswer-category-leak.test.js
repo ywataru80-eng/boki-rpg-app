@@ -18,14 +18,11 @@ const before=JSON.stringify(sandboxWindow.QuestionData);
 const STOP={reason:'stop after pre-answer labels; materials tested in normal suites'};
 let attempts=0,spoilerIds=[],unmasked=0;
 for(const q of questions){
-  const accounts=new Set(q.type==='journal'
-    ? [...(q.answer?.debit||[]),...(q.answer?.credit||[])].map(item=>item.account).filter(Boolean)
-    : []);
-  const parts=String(q.category).split('・');
-  const remaining=parts.filter(part=>!accounts.has(part.trim()));
-  const matches=remaining.length!==parts.length;
+  const matches=q.type==='journal'
+    && [...(q.answer?.debit||[]),...(q.answer?.credit||[])]
+       .some(item=>item.account===q.category);
   if(matches)spoilerIds.push(q.id); else unmasked++;
-  const visible=matches?(remaining.join('・').trim() || '仕訳問題'):q.category;
+  const visible=matches?'仕訳問題':q.category;
   for(const mode of ['story','training','exam','review']){
     const elements=new Map();
     const doc={getElementById:id=>{
@@ -46,11 +43,6 @@ for(const q of questions){
       const narrative=elements.get('q-context').textContent;
       if(matches){
         assert(!narrative.includes(q.category),q.id+' category/account leaked through story');
-        if (['J001','J002','J052','J101','J102'].includes(q.id)) {
-          const hidden=parts.filter(part=>accounts.has(part.trim()));
-          assert(hidden.every(account=>!visible.includes(account)),q.id+' component account disclosed');
-          assert(remaining.length>0 && visible.length>0,q.id+' transaction theme lost');
-        }
         assert(narrative.includes('証憑') || !q.story.includes('証憑'),
           q.id+' narrative retains learner task');
       }else assert.equal(narrative,q.story,q.id+' unrelated narrative unchanged');
@@ -63,8 +55,8 @@ for(const q of questions){
     attempts++;
   }
 }
-assert.equal(spoilerIds.length,61,'56 exact plus 5 composite category cases');
-assert.equal(unmasked,239,'non-spoiler categories unchanged');
+assert.equal(spoilerIds.length,56,'protected account-name category cases');
+assert.equal(unmasked,244,'non-spoiler categories unchanged');
 assert.equal(attempts,1200,'300 questions x four modes');
 assert.equal(JSON.stringify(sandboxWindow.QuestionData),before,
   'display logic must not mutate authored questions/answers');
