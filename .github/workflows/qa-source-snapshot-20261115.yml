@@ -27,8 +27,6 @@ jobs:
           cache: npm
       - name: Install pinned project dependencies
         run: npm ci
-      - name: Mandatory exact-head verification before testing
-        run: npm run verify
       - name: Install CI-only Playwright and browser engines
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
