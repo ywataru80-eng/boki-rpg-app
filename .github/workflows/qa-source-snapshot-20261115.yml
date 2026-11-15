@@ -24,14 +24,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install pinned build dependencies
-        run: npm ci
-      - name: Verify original production candidate before archival
-        run: |
-          npm run verify
-          npm run qa:test
-          npm run qa:integrity
-          npm run qa:story
       - name: Export authenticated-source-free Git checkout
         shell: bash
         run: |
@@ -45,3 +37,12 @@ jobs:
           name: release237-full-history-qa-20261115
           path: qa-source-export/
           retention-days: 1
+
+      - name: Install pinned build dependencies
+        run: npm ci
+      - name: Verify original production candidate before archival
+        run: |
+          npm run verify
+          npm run qa:test
+          npm run qa:integrity
+          npm run qa:story
