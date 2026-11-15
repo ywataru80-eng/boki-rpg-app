@@ -1383,7 +1383,8 @@
       }
       if (this.model.state.mode === 'exam' && !this.model.state.examSession) return this.leaveExamResult('story');
       if (this.model.state.mode === 'review') { const due = this.modeIds(); if (due.length) return this.start(due.find(id => id !== this.currentId) || due[0]); this.renderModes(); return this.showMode('review'); }
-      if (this.model.state.mode !== 'exam') { const concept = this.questions[this.currentId]?.category; const adaptive = concept && this.model.recommendedIds(concept).find(id => id !== this.currentId && !this.model.state.answeredIds.includes(id) && !this.model.state.reviewSchedule[id]); if (adaptive) return this.start(adaptive); }
+      // Keep the authored Story path ordered; adaptive practice remains available in Training.
+      if (this.model.state.mode !== 'exam' && this.model.state.mode !== 'story') { const concept = this.questions[this.currentId]?.category; const adaptive = concept && this.model.recommendedIds(concept).find(id => id !== this.currentId && !this.model.state.answeredIds.includes(id) && !this.model.state.reviewSchedule[id]); if (adaptive) return this.start(adaptive); }
       const ids = this.modeIds(); const next = ids[ids.indexOf(this.currentId) + 1];
       if (next) this.start(next); else { this.renderModes(); this.showMode(this.model.state.mode); }
       return true;
