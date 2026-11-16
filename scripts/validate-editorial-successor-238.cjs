@@ -26,6 +26,7 @@ const allowed=new Set([
 ]);
 const tracked=git('diff','--name-only',ROOT_TREE).split(/\n/u).filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u)
+  .filter(Boolean)
   .filter(file=>!file.startsWith('node_modules/')&&!file.startsWith('artifacts/')&&!file.startsWith('reports/baseline-current/')&&!file.startsWith('historical-quality/'));
 const changed=[...new Set([...tracked,...untracked])];
 assert(changed.every(p=>allowed.has(p)), 'unapproved Release238 file: '+changed.filter(p=>!allowed.has(p)).join(','));
