@@ -8,7 +8,7 @@ const questions=sandbox.window.QuestionData;
 // Issue161's stored inventory is historical. Release236 changes 17 assessed
 // worksheet contracts; do not rewrite the original report to fit the successor.
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
-const successor=['20261107-236','20261115-237'].includes(release);
+const successor=['20261107-236','20261115-237','20261116-238'].includes(release);
 const historical={window:{},console};
 if(successor){
   vm.createContext(historical);
