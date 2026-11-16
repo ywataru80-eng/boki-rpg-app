@@ -1,7 +1,7 @@
 name: Canonical300 quality ledger validation
 on:
   push:
-    branches: [audit/canonical300-quality-ledger-20261015, main]
+    branches: [audit/canonical300-quality-ledger-20261015, main, audit/release238-public-pages-20261116]
     paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
   pull_request:
     paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
@@ -60,3 +60,68 @@ jobs:
           NODE
       - name: Recalculate explanation arithmetic from source conditions
         run: python3 scripts/check-explanation-accounting.py
+
+      - name: Verify public Pages Release238 files (audit branch only)
+        if: github.ref == 'refs/heads/audit/release238-public-pages-20261116'
+        run: |
+          node <<'NODE'
+          'use strict';
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const assert=require('node:assert/strict');
+          const root=process.cwd();
+          const source=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8'));
+          const lock=JSON.parse(fs.readFileSync('reports/auto-gate/audit-locks/phase-b-generation-202.json','utf8'));
+          assert.equal(source.release,'20261116-238');
+          assert.equal(lock.generation,202);
+          const base=new URL(process.env.PAGES_AUDIT_BASE||'https://ywataru80-eng.github.io/boki-rpg-app/');
+          const loop=['localhost','127.0.0.1','[::1]'].includes(base.hostname);
+          assert(base.protocol==='https:' || (base.protocol==='http:'&&loop),'public URL must be HTTPS');
+          assert(base.pathname.endsWith('/'),'URL must end with slash');
+          const digest=x=>crypto.createHash('sha256').update(x).digest('hex');
+          const expected={...source.assets,...source.pages,
+           'index.html':lock.productionHashes['index.html'],
+           'service-worker.js':lock.productionHashes['service-worker.js'],
+           'pwa-release-manifest.json':lock.productionHashes['pwa-release-manifest.json'],
+           'manifest.webmanifest':lock.productionHashes['manifest.webmanifest'],
+           'icons/app-icon.svg':digest(fs.readFileSync('icons/app-icon.svg'))};
+          const list=Object.keys(expected);assert.equal(list.length,26,'release must have 26 public assets');
+          const result={release:source.release,gen:lock.generation,main:process.env.GITHUB_SHA||'local',url:base.href,expected:26,passed:[],failed:[],limits:['SW runtime installation/offline remains untested','Physical iPhone remains untested']};
+          async function checkOne(file){
+           const url=new URL(file,base);
+           if(!url.pathname.startsWith(base.pathname)||url.origin!==base.origin)throw Error('path escape');
+           if(Object.hasOwn(source.assets,file))url.searchParams.set('v',source.release);
+           url.searchParams.set('__qa',crypto.randomBytes(7).toString('hex'));
+           try{
+            const response=await fetch(url,{redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(9000),headers:{'Cache-Control':'no-cache'}});
+            if(response.status!==200)throw Error('HTTP '+response.status);
+            const bytes=Buffer.from(await response.arrayBuffer()),actual=digest(bytes);
+            if(!bytes.length||actual!==expected[file])throw Error('bad SHA256; got '+actual+' wanted '+expected[file]);
+            if(file==='pwa-release-manifest.json'){
+             const live=JSON.parse(bytes.toString('utf8'));
+             assert.equal(live.release,source.release);
+             assert.deepEqual(live.assets,source.assets);
+            }
+            result.passed.push({file,sha256:actual,size:bytes.length});
+           }catch(e){result.failed.push({file,error:String(e.message||e)});}
+          }
+          (async()=>{
+           await checkOne('pwa-release-manifest.json');
+           if(!result.failed.length){
+            await Promise.all(list.filter(x=>x!=='pwa-release-manifest.json').map(checkOne));
+           }
+           result.ok=result.failed.length===0&&result.passed.length===result.expected;
+           fs.mkdirSync('artifacts/live-pages-audit',{recursive:true});
+           fs.writeFileSync('artifacts/live-pages-audit/result.json',JSON.stringify(result,null,2)+'\n');
+           console.log(JSON.stringify({ok:result.ok,passed:result.passed.length,expected:result.expected,failures:result.failed}));
+           if(!result.ok)process.exitCode=1;
+          })().catch(e=>{console.error('Pages acceptance fatal:',e);process.exitCode=2;});
+          NODE
+      - name: Upload public Pages acceptance evidence (audit branch only)
+        if: always() && github.ref == 'refs/heads/audit/release238-public-pages-20261116'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release238-live-pages-audit
+          path: artifacts/live-pages-audit/result.json
+          if-no-files-found: warn
+          retention-days: 14
