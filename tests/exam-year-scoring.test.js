@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const {YEAR_SCHEMES,getScheme,verifyScheme,newExamContract,pointsForSession,scoreExam} = require('../scripts/qa/exam-year-scoring.cjs');
+const {YEAR_SCHEMES,getScheme,verifyScheme,newExamContract,pointsForSession,scoreExam} = require('../scripts/exam-year-scoring.cjs');
 const ids=Array.from({length:15},(_,i)=>'P'+(i+1));
 const session=(ratio,meta={})=>({ids,scores:Object.fromEntries(ids.map(id=>[id,{ratio}])),...meta});
 let checked=0;
