@@ -76,3 +76,32 @@ assert.ok(finding.reasons.includes('ANSWER_SCHEMA_CHANGED'));
 
 assert.notStrictEqual(evidenceStamp(questions.L033).sourceHash, evidenceStamp(sourceMutation.L033).sourceHash);
 console.log('audit matrix freshness tests passed');
+
+// Issue #259: prepare and freeze the *separate* 2027 scoring contract without
+// changing Release238's assessed 2026 controller or immutable release evidence.
+// JCCI prescribes three *section* totals, not this application's 15 item weights.
+{
+  const source=fs.readFileSync('js/controller.js','utf8');
+  const match=source.match(/const EXAM_POINTS = Object\.freeze\(\[([0-9,\s]+)\]\);/u);
+  assert(match,'Release238 must still expose the legacy 2026 scoring baseline');
+  const oldWeights=match[1].split(',').map(value=>Number(value.trim()));
+  const intended2026=[9,9,9,9,9,5,5,5,5,6,6,6,6,6,5];
+  const proposed2027=[9,9,9,9,9,7,6,6,6,5,5,5,5,5,5];
+  assert.deepStrictEqual(oldWeights,intended2026,'2026 scoring must not be silently reweighted');
+  const groups=values=>[
+    values.slice(0,5).reduce((n,x)=>n+x,0),
+    values.slice(5,9).reduce((n,x)=>n+x,0),
+    values.slice(9).reduce((n,x)=>n+x,0)
+  ];
+  assert.deepStrictEqual(groups(intended2026),[45,20,35]);
+  assert.deepStrictEqual(groups(proposed2027),[45,25,30]);
+  const score=(values,ratios)=>Math.round(values.reduce((sum,points,index)=>sum+points*(ratios[index]||0),0));
+  for(const weights of [intended2026,proposed2027]){
+    assert.strictEqual(weights.length,15);
+    assert.strictEqual(score(weights,Array(15).fill(1)),100);
+    assert.strictEqual(score(weights,Array(15).fill(0.7)),70);
+    assert.strictEqual(score(weights,Array(15).fill(0.69)),69);
+    assert.strictEqual(score(weights,Array(15).fill(0)),0);
+  }
+  console.log('ISSUE259_2026_LEGACY_2027_POINT_CONTRACT_PASS (no production 2027 mode)');
+}
