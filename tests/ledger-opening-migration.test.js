@@ -128,7 +128,7 @@ test('300 IDs and protected prior contracts plus distinct reviewed 17 successors
   }
   // Release234 revises the *instructional prose* in the authored explanation
   // model for D002-D020; assessed values and all other fields are still immutable.
-  const editorial234=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
+  const editorial234=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
   if(editorial234 && /^D(?:00[2-9]|01[0-9]|020)$/.test(id)){
     assert.equal(Array.isArray(current.explanationModel?.summary),true,id+' revised prose model present');
     delete current.explanationModel;delete historical.explanationModel;

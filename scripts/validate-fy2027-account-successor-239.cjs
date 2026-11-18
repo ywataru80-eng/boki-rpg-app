@@ -8,7 +8,8 @@ const read=p=>fs.readFileSync(p),sha=b=>crypto.createHash('sha256').update(b).di
 assert.equal(cp.spawnSync('git',['merge-base','--is-ancestor',BASE,'HEAD']).status,0,'Release238 ancestry');
 assert(read(OLD).equals(prior(OLD)),'historical Generation202 changed');
 const allowed=new Set(['data/accounting-domain.js','data/questions.js','js/controller.js','index.html','form-a.html','service-worker.js','pwa-release-manifest.json',NEW,
- 'tests/fy2027-account-compatibility.test.js','scripts/validate-fy2027-account-successor-239.cjs','tests/audit-matrix.test.js','tests/user-facing-copy-contract.test.js','.github/workflows/question-quality-ledger-audit.yml','.github/visual/run-content-progress-migration.js']);
+ 'tests/fy2027-account-compatibility.test.js','scripts/validate-fy2027-account-successor-239.cjs','tests/audit-matrix.test.js','tests/user-facing-copy-contract.test.js','.github/workflows/question-quality-ledger-audit.yml','.github/visual/run-content-progress-migration.js',
+ 'tests/l039-explanation.test.js','tests/editorial-review-234.test.js','tests/editorial-review-232.test.js','tests/editorial-review-233.test.js','tests/issue161-inventory.test.js','tests/editorial-review-230.test.js','tests/ledger-opening-migration.test.js']);
 const modified=git('diff','--name-only',BASE).split(/\n/u).filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split(/\n/u).filter(p=>p&&!p.startsWith('node_modules/')&&!p.startsWith('reports/baseline-current/')&&!p.startsWith('historical-quality/')&&!p.startsWith('artifacts/'));
 const paths=[...new Set([...modified,...untracked])];
@@ -22,6 +23,11 @@ for(const [p,changes] of Object.entries(edits)){
  let expected=prior(p).toString('utf8');
  for(const [a,b] of changes){assert.equal(expected.split(a).length,2,p+' not unique');expected=expected.replace(a,b)}
  assert.equal(read(p).toString('utf8'),expected,p+' unapproved changes');
+}
+for(const file of ["tests/l039-explanation.test.js","tests/editorial-review-234.test.js","tests/editorial-review-232.test.js","tests/editorial-review-233.test.js","tests/issue161-inventory.test.js","tests/editorial-review-230.test.js","tests/ledger-opening-migration.test.js"]){
+ const original=prior(file).toString('utf8');
+ assert(original.includes("'20261116-238'"),file+' old release not listed');
+ assert.equal(read(file).toString('utf8'),original.replaceAll("'20261116-238'","'20261116-238','20261119-239'"),file+' release whitelist expansion only');
 }
 for(const p of ['index.html','form-a.html','service-worker.js'])assert.equal(read(p).toString('utf8'),prior(p).toString('utf8').replaceAll(PREV,RELEASE),p+' marker only');
 const a=JSON.parse(read('pwa-release-manifest.json')),b=JSON.parse(prior('pwa-release-manifest.json'));
