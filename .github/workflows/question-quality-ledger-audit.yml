@@ -75,7 +75,7 @@ jobs:
 
   issue266_autoresume:
     name: Issue 266 resumable checkpoint (not a coding agent)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -128,7 +128,7 @@ jobs:
               'これは実GitHub Actionsによる状態監視です。AIによるコード改修・マージ・公開が完了した証拠ではありません。',
             ].join('\n');
             core.info(body);
-            const dryRun = context.eventName === 'workflow_dispatch' && context.payload.inputs?.dry_run !== 'false';
+            const dryRun = context.eventName === 'workflow_dispatch' && String(context.payload.inputs?.dry_run).toLowerCase() !== 'false';
             if (dryRun) return;
             const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number, per_page:100});
             const owned = comments.filter(c=>c.user?.login==='github-actions[bot]' && c.body?.startsWith(marker));
