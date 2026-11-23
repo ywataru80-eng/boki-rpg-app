@@ -1,0 +1,40 @@
+name: FY2027 audit-only exact-main source recovery
+on:
+  push:
+    branches:
+      - audit/fy2027-source-snapshot-20261123
+permissions:
+  contents: read
+jobs:
+  source-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Confirm the production main ancestor
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor af5769e10f18f1f02d92bf757a757ea5f1dc2db0 HEAD
+          git diff --quiet af5769e10f18f1f02d92bf757a757ea5f1dc2db0 -- . ':!.github/workflows/fy2027-source-snapshot.yml'
+      - name: Archive exact Git source and history
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/fy2027-source
+          git bundle create artifacts/fy2027-source/fy2027-head.bundle HEAD
+          git bundle verify artifacts/fy2027-source/fy2027-head.bundle
+          git rev-parse HEAD > artifacts/fy2027-source/head.txt
+          git rev-parse af5769e10f18f1f02d92bf757a757ea5f1dc2db0^{tree} > artifacts/fy2027-source/main-tree.txt
+      - name: Preserve reproducible read-only source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: fy2027-source-snapshot
+          path: artifacts/fy2027-source/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Run original project mandatory verification
+        run: |
+          npm ci
+          npm run verify
