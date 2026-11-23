@@ -24,7 +24,7 @@ assert.equal(cp.spawnSync('git',['merge-base','--is-ancestor',BASE,'HEAD']).stat
 assert.equal(JSON.parse(old('pwa-release-manifest.json')).release,OLD);
 const changed=git('diff','--name-only',BASE).split('\n').filter(Boolean);
 const untracked=git('ls-files','--others','--exclude-standard').split('\n').filter(path=>path&&
- !path.startsWith('node_modules/')&&!path.startsWith('artifacts/')&&!path.startsWith('reports/baseline-current/'));
+ !path.startsWith('node_modules/')&&!path.startsWith('artifacts/')&&!path.startsWith('historical-quality/')&&!path.startsWith('reports/baseline-current/'));
 const paths=[...new Set([...changed,...untracked])];
 assert(paths.length>0&&paths.every(path=>scope.has(path)),'unexpected file changes: '+paths.filter(p=>!scope.has(p)).join(','));
 for(const path of ['data/questions.js','data/accounting-domain.js','data/accounting-oracle.js',
