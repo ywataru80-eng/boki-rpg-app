@@ -10,7 +10,6 @@ on:
         default: true
   push:
     branches: [audit/canonical300-quality-ledger-20261015, main]
-    paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
   pull_request:
     paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
 permissions:
@@ -73,6 +72,32 @@ jobs:
       - name: Recalculate explanation arithmetic from source conditions
         run: python3 scripts/check-explanation-accounting.py
 
+  issue266_reader_audit:
+    name: issue266-review-all-300
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit all 300 runtime question and explanation records
+        env:
+          ALL300_AUDIT_OUTPUT: artifacts/issue266-review-all-300.json
+        run: |
+          node scripts/audit-all300-reader-terminology.cjs
+          node tests/user-facing-copy-contract.test.js
+      - name: Preserve 300-question audit evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue266-all300-reader-terminology
+          path: artifacts/issue266-review-all-300.json
+          if-no-files-found: error
+
   issue266_autoresume:
     name: Issue 266 resumable checkpoint (not a coding agent)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -94,7 +119,7 @@ jobs:
             const {owner, repo} = context.repo;
             const issue_number = 266;
             const marker = '<!-- boki-issue266-autoresume-v1 -->';
-            const required = ['test', 'ledger', 'review-all-300'];
+            const required = ['test', 'ledger', 'issue266-review-all-300'];
             const sha = (await github.rest.git.getRef({owner, repo, ref:'heads/main'})).data.object.sha;
             if (!/^[a-f0-9]{40}$/i.test(sha)) throw Error('Unknown main SHA');
             const [issue, pulls] = await Promise.all([
