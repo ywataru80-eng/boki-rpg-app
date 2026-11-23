@@ -15,8 +15,8 @@ assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'histori
 // surfaces, which must be reported STALE rather than silently recertified.
 const baselineStale=['J148','L044','L045'];
 const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J120','J127','J149','L030'];
-const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261115-237'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261116-238'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261119-239'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
-const release236=['20261107-236','20261115-237','20261116-238','20261119-239'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
+const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261115-237'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261116-238'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261119-239'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261123-240'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
+const release236=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
 const successorChanges=release236?Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')):[];
 // Release236 Gen193 only removes obsolete learner-visible 〔評価資料 n〕 stamps.
 // Derive this finite source-delta from the immutable *pre-change* Git object,
@@ -58,7 +58,8 @@ const approvedValidators=Object.freeze({
   '20261107-236':'scripts/validate-issue256-successor-236.cjs',
   '20261115-237':'scripts/validate-story-order-category-successor-237.cjs',
   '20261116-238':'scripts/validate-editorial-successor-238.cjs',
-  '20261119-239':'scripts/validate-fy2027-account-successor-239.cjs'
+  '20261119-239':'scripts/validate-fy2027-account-successor-239.cjs',
+  '20261123-240':'scripts/validate-issue259-score-successor-240.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);
