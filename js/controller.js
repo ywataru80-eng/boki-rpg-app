@@ -69,6 +69,33 @@
   const EXAM_DURATION_MS = 60 * 60 * 1000;
   const EXAM_POINTS = Object.freeze([9, 9, 9, 9, 9, 5, 5, 5, 5, 6, 6, 6, 6, 6, 5]);
   class Controller {
+    // Integer allocations are display-only; the stored total keeps the existing
+    // rounded sum of raw weighted ratios. This makes row/topic totals agree with
+    // the 100-point result without changing 2026 exam grades or old history.
+    static allocateExamPoints(ids, scores, weights = EXAM_POINTS) {
+      if (!Array.isArray(ids) || !Array.isArray(weights) || ids.length !== weights.length ||
+          !ids.length || new Set(ids).size !== ids.length) throw new TypeError('Invalid exam scoring contract');
+      const raw = ids.map((id, index) => {
+        const weight = weights[index], ratio = scores?.[id]?.ratio ?? 0;
+        if (!Number.isSafeInteger(weight) || weight <= 0 ||
+            !Number.isFinite(ratio) || ratio < 0 || ratio > 1) throw new TypeError('Invalid exam score');
+        return ratio * weight;
+      });
+      const points = Math.round(raw.reduce((sum, score) => sum + score, 0));
+      const displayed = raw.map(Math.floor);
+      let remaining = points - displayed.reduce((sum, score) => sum + score, 0);
+      const indices = raw.map((_, index) => index).sort((left, right) => {
+        const difference = (raw[right] - displayed[right]) - (raw[left] - displayed[left]);
+        return Math.abs(difference) < 1e-9 ? left - right : difference;
+      });
+      for (const index of indices) {
+        if (!remaining) break;
+        if (displayed[index] < weights[index]) { displayed[index]++; remaining--; }
+      }
+      if (remaining || displayed.some((value, index) => value < 0 || value > weights[index]))
+        throw new Error('Exam score display allocation failed');
+      return { points, displayed };
+    }
     constructor(document, questions) {
       this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.view = new root.AppView(document);
       const storage = getStorage();
@@ -722,11 +749,11 @@
       let review;
       const saved = Controller.prototype.learningTransaction.call(this, () => {
         session.status = 'FINISHING';
-      const earned = session.ids.reduce((sum, id, index) => sum + (session.scores[id]?.ratio || 0) * EXAM_POINTS[index], 0);
-      const points = Math.round(earned); const correct = points >= 70;
+      const allocation = Controller.allocateExamPoints(session.ids, session.scores);
+      const points = allocation.points; const correct = points >= 70;
       session.ids.forEach(id => { const result = session.scores[id]; if (result) { this.model.record(id, result.correct); this.rpg.recordMastery(this.questions[id], result); if (result.correct) this.rpg.reward?.(this.questions[id], result, 1); } });
       this.model.clearDrafts?.(session.ids);
-      review = { finishedAt: now, startedAt: session.startedAt, points, passed: correct, durationMs: Math.max(0, Math.min(now, session.endAt) - session.startedAt), unansweredCount: unanswered.length, items: session.ids.map((id, index) => ({ id, topic: this.questions[id].category, points: EXAM_POINTS[index], earned: Math.round((session.scores[id]?.ratio || 0) * EXAM_POINTS[index]), correct: session.scores[id]?.correct === true, answer: session.scores[id]?.answer ?? null })) };
+      review = { finishedAt: now, startedAt: session.startedAt, points, passed: correct, durationMs: Math.max(0, Math.min(now, session.endAt) - session.startedAt), unansweredCount: unanswered.length, items: session.ids.map((id, index) => ({ id, topic: this.questions[id].category, points: EXAM_POINTS[index], earned: allocation.displayed[index], correct: session.scores[id]?.correct === true, answer: session.scores[id]?.answer ?? null })) };
       review.topicScores = review.items.reduce((out, item) => { const row = out[item.topic] || { earned: 0, possible: 0 }; row.earned += item.earned; row.possible += item.points; out[item.topic] = row; return out; }, {});
       const setSignature = [...session.ids].sort().join('|');
       session.status = 'FINISHED'; this.model.state.lastExamReview = review; this.model.state.examHistory = [...(this.model.state.examHistory || []), { finishedAt: review.finishedAt, points, passed: correct, durationMs: review.durationMs, topicScores: review.topicScores, unansweredCount: review.unansweredCount, setSignature }].slice(-10);
