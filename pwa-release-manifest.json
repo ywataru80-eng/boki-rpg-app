@@ -1,13 +1,13 @@
 {
-  "release": "20261123-240",
-  "previousRelease": "20261119-239",
+  "release": "20261123-241",
+  "previousRelease": "20261123-240",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "3c488f3348184bc68c132688b9b797c3d77f3a3a32420ff1ba257659ace6a648",
     "data/questions.js": "0690bb3bd0baa7cc86a572d8be0f9f8437783ffee140cd342b89bed543d5b03c",
     "data/accounting-oracle.js": "4f5c58a0447f9d07fa5249202d39600369301254d728b2d7ab3d494a55caac44",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
-    "js/model.js": "beda93970e0a806ab68cd052670074dc284b0787aceb09be26c9f9fa12699bb1",
+    "js/model.js": "66ce1b0374d93833805c9a0e61190b40c120b605fcde2983214455e3ec9a7e48",
     "js/rpg.js": "c446f3c34173d0c4c9eda3945b13e0fbf94fce1ec88e22e8a4ad596e2f1815dd",
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
     "js/feedback.js": "56cb973c66f1460c1e0fdc1721cf2161e14952ce359bb1fd3fd11afeb68d595a",
@@ -15,7 +15,7 @@
     "js/explanation-model.js": "4a5d6ee4cd8f93e04c0a0ca29de0c7c57a54c6822bf77a594f87fafa36782d58",
     "js/explanation-design-system.js": "4ed83c9430a0d9ef4d8687733a77668f5c0a09b2f92d293db748f5e1156683f6",
     "js/view.js": "8fe743d0f29a4ba03ba74bbc6d12fc1e93e5b7b0a6d03f3846a447fe98161aec",
-    "js/controller.js": "42456d18bf4198dbc37f11fc3f25b68346708fe614bf14936a358a32b085713d",
+    "js/controller.js": "9e433151738535743b6467d0bb68be450a29415d239e3ab9cb3cfea3981b6486",
     "js/app.js": "48926f2d3f871c202bff4d35ead2e05d2b55c71dfd533a0797802fd5dc4a34de",
     "data/form-a.json": "8d980909e2dccd532bb9f23b6908bcd49fb8b9fdef7fc661afc72799d2a77bc1",
     "js/form-a-scoring.js": "0f115fdbd542438685d86a412c02e7a07262b516606c50fbe24409c0536cd086",
@@ -24,6 +24,6 @@
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "412c068dda96f9d761cbad1b57167caa0dbc3f6e8071eba1fdbff79194256ecd"
+    "form-a.html": "a4c2e0b09d0eaa96fe34b6440683e945f861a39a89a0512ccdd60662d3b31bd8"
   }
 }

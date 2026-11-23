@@ -1,6 +1,13 @@
 (function (root) {
   'use strict';
   const CONTENT_REVISION = 6;
+  // Freeze the legacy app's 15-item FY2026 contract. This is NOT an official
+  // three-major-question form; FY2027 remains disabled until original items,
+  // annual pool and transactional migration have passed their own acceptance.
+  const EXAM_PROFILE_2026 = Object.freeze({
+    examProfileId:'FY2026-APP15-V1', scoreProfileVersion:1,
+    questionSetVersion:'FY2026-CANONICAL300-R6'
+  });
   // These identities describe reviewed content contracts, not a release
   // timestamp. A later replacement requires an explicit new identity/migration.
   const CONTENT_IDENTITIES = Object.freeze({
@@ -69,6 +76,7 @@
   });
   const FIXED_ASSET_SCHEMA_REVISION_2_IDS = new Set(['L005','L010','L015','L020','L025','L030','L033','L040']);
   class ProgressModel {
+    static examProfile2026() { return {...EXAM_PROFILE_2026}; }
     static currentContentVersions(questions = {}, revision = CONTENT_REVISION) {
       return Object.fromEntries(Object.entries(CONTENT_IDENTITIES).filter(([id, spec]) =>
         (revision >= (spec.sinceRevision || (spec.legacy ? 5 : 1))) && questions[id]?.category === spec.category && questions[id]?.type === spec.type).map(([id, spec]) => [id, spec.identity]));
@@ -1035,6 +1043,14 @@
       };
     }
     validExamSession(session) {
+      // A legacy session has no profile fields: preserve its original FY2026
+      // grading contract and raw saved bytes. A partially tagged or unknown
+      // annual profile is never silently interpreted as FY2026.
+      if (session && typeof session === 'object') {
+        const keys = Object.keys(EXAM_PROFILE_2026);
+        if (keys.some(key => Object.hasOwn(session,key)) &&
+            keys.some(key => session[key] !== EXAM_PROFILE_2026[key])) return false;
+      }
       if (!(session && typeof session === 'object' && Array.isArray(session.ids) && session.ids.length === 15 &&
         Array.isArray(this.examPool) && session.ids.every(id => this.questions[id] && this.examPool.includes(id)) && new Set(session.ids).size === session.ids.length &&
         Number.isFinite(session.startedAt) && Number.isFinite(session.endAt) && session.endAt > session.startedAt &&

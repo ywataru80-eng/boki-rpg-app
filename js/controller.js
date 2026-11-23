@@ -684,7 +684,10 @@
     modeIds() { const mode = this.model.state.mode; if (mode === 'review') return this.reviewIds(); if (mode === 'exam') return this.model.state.examSession?.ids || this.buildExamIds(); if (mode === 'training') return this.learningIds().filter(id => this.questions[id].type !== 'journal'); return this.storyIds(); }
     ensureExamSession(now = Date.now()) {
       if (this.model.validExamSession(this.model.state.examSession)) return this.model.state.examSession;
-      this.model.state.examSession = { ids: this.buildExamIds(), startedAt: now, endAt: now + EXAM_DURATION_MS, status: 'RUNNING', evidenceVersion:1, scores: {} };
+      const profile = root.ProgressModel?.examProfile2026?.();
+      if (!profile) throw new Error('FY2026 exam profile authority unavailable');
+      this.model.state.examSession = { ids: this.buildExamIds(), startedAt: now, endAt: now + EXAM_DURATION_MS,
+        status: 'RUNNING', evidenceVersion:1, scores: {}, ...profile };
       this.model.refreshEvidenceIntegrity?.(); this.model.save(); return this.model.state.examSession;
     }
     isExamExpired(now = Date.now(), session = this.model.state.examSession) {
@@ -712,6 +715,13 @@
     stopExamTimer() { if (this.examTimerId !== null) root.clearInterval?.(this.examTimerId); this.examTimerId = null; }
     finishExam(force, now = Date.now(), confirmed = false) {
       const session = this.model.state.examSession; if (!session) return false;
+      // Never silently grade a future-year or partially tagged session with
+      // the FY2026 score schedule. Legacy unsigned sessions remain FY2026.
+      const profile = root.ProgressModel?.examProfile2026?.();
+      if (session.examProfileId !== undefined &&
+          (!profile || session.examProfileId !== profile.examProfileId ||
+           session.scoreProfileVersion !== profile.scoreProfileVersion ||
+           session.questionSetVersion !== profile.questionSetVersion)) return false;
       if (session.status === 'FINISHING' || session.status === 'FINISHED') return false;
       const unknownScores = Object.keys(session.scores).filter(id => this.model.isUnverified?.('examScores',id));
       if (unknownScores.length) {
@@ -746,6 +756,9 @@
         return false;
       }
       const previousProgress = {level:this.rpg.level,role:this.rpg.role};
+      // Provenance applies only to newly versioned sessions. Never rewrite or
+      // fabricate content identity for a genuinely legacy in-progress attempt.
+      const examProfileFields = profile && session.examProfileId === profile.examProfileId ? {...profile} : {};
       let review;
       const saved = Controller.prototype.learningTransaction.call(this, () => {
         session.status = 'FINISHING';
@@ -753,10 +766,10 @@
       const points = allocation.points; const correct = points >= 70;
       session.ids.forEach(id => { const result = session.scores[id]; if (result) { this.model.record(id, result.correct); this.rpg.recordMastery(this.questions[id], result); if (result.correct) this.rpg.reward?.(this.questions[id], result, 1); } });
       this.model.clearDrafts?.(session.ids);
-      review = { finishedAt: now, startedAt: session.startedAt, points, passed: correct, durationMs: Math.max(0, Math.min(now, session.endAt) - session.startedAt), unansweredCount: unanswered.length, items: session.ids.map((id, index) => ({ id, topic: this.questions[id].category, points: EXAM_POINTS[index], earned: allocation.displayed[index], correct: session.scores[id]?.correct === true, answer: session.scores[id]?.answer ?? null })) };
+      review = { ...examProfileFields, finishedAt: now, startedAt: session.startedAt, points, passed: correct, durationMs: Math.max(0, Math.min(now, session.endAt) - session.startedAt), unansweredCount: unanswered.length, items: session.ids.map((id, index) => ({ id, topic: this.questions[id].category, points: EXAM_POINTS[index], earned: allocation.displayed[index], correct: session.scores[id]?.correct === true, answer: session.scores[id]?.answer ?? null })) };
       review.topicScores = review.items.reduce((out, item) => { const row = out[item.topic] || { earned: 0, possible: 0 }; row.earned += item.earned; row.possible += item.points; out[item.topic] = row; return out; }, {});
       const setSignature = [...session.ids].sort().join('|');
-      session.status = 'FINISHED'; this.model.state.lastExamReview = review; this.model.state.examHistory = [...(this.model.state.examHistory || []), { finishedAt: review.finishedAt, points, passed: correct, durationMs: review.durationMs, topicScores: review.topicScores, unansweredCount: review.unansweredCount, setSignature }].slice(-10);
+      session.status = 'FINISHED'; this.model.state.lastExamReview = review; this.model.state.examHistory = [...(this.model.state.examHistory || []), { ...examProfileFields, finishedAt: review.finishedAt, points, passed: correct, durationMs: review.durationMs, topicScores: review.topicScores, unansweredCount: review.unansweredCount, setSignature }].slice(-10);
       this.rpg.progressCompleted = this.model.updateCompletion?.(this.rpg) === true;
       this.model.state.examAttempt += 1; this.model.state.examSession = null; this.model.refreshEvidenceIntegrity?.(); this.model.save();
         return true;
