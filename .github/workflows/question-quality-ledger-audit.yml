@@ -97,19 +97,31 @@ jobs:
             const required = ['test', 'ledger', 'review-all-300'];
             const sha = (await github.rest.git.getRef({owner, repo, ref:'heads/main'})).data.object.sha;
             if (!/^[a-f0-9]{40}$/i.test(sha)) throw Error('Unknown main SHA');
-            const [issue, result, pulls] = await Promise.all([
+            const [issue, pulls] = await Promise.all([
               github.rest.issues.get({owner, repo, issue_number}),
-              github.rest.checks.listForRef({owner, repo, ref:sha, per_page:100}),
               github.rest.pulls.list({owner, repo, state:'open', per_page:100}),
             ]);
-            if (result.data.total_count > 100 || pulls.data.length === 100)
-              throw Error('Pagination limit reached; refusing incomplete inspection');
-            const checks = result.data.check_runs;
-            const condition = required.map(name => {
-              const hits = checks.filter(c => c.name === name);
-              const healthy = hits.length > 0 && hits.every(c => c.status==='completed' && c.conclusion==='success');
-              return name + '=' + (healthy ? 'SUCCESS' : 'NOT_GREEN');
-            });
+            if (pulls.data.length === 100) throw Error('Pull request pagination limit reached');
+            const condition = [];
+            for (const name of required) {
+              let latest = null;
+              for (let page = 1; page <= 250; page++) {
+                const r = await github.rest.checks.listForRef({
+                  owner, repo, ref:sha, check_name:name, filter:'all', per_page:100, page,
+                });
+                const runs = r.data.check_runs;
+                const effective = runs.filter(c => c.name === name &&
+                  c.conclusion !== 'skipped' && c.conclusion !== 'neutral');
+                if (effective.length) {
+                  latest = effective.sort((a,b) => (b.id || 0) - (a.id || 0))[0];
+                  break;
+                }
+                if (runs.length < 100) break;
+                if (page === 250) throw Error('Check-run pagination exhausted');
+              }
+              const healthy = latest?.status === 'completed' && latest?.conclusion === 'success';
+              condition.push(name + '=' + (healthy ? 'SUCCESS' : 'NOT_GREEN'));
+            }
             const duplicates = pulls.data.filter(p => p.head?.ref?.startsWith('autopilot/issue266/'));
             const approved = issue.data.labels.some(l => l.name === 'autopilot-approved');
             const blockers = [
