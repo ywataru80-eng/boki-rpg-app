@@ -1,5 +1,13 @@
 name: Canonical300 quality ledger validation
 on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Read-only check without writing the Issue 266 checkpoint'
+        type: boolean
+        default: true
   push:
     branches: [audit/canonical300-quality-ledger-20261015, main]
     paths: ['scripts/validate-explanation-successor.cjs', 'scripts/check-explanation-accounting.py', 'tests/explanation-quality*', 'reports/edu-quality/explanation-quality-*', 'reports/edu-quality/ledger-opening-*', 'reports/edu-quality/question-quality-ledger-20261015*', '.github/workflows/question-quality-ledger-audit.yml', 'data/questions.js', 'data/accounting-domain.js', 'data/accounting-oracle.js', 'js/engine.js', 'js/view.js', 'js/feedback.js', 'js/explanation-model.js', 'js/explanation-formulas.js', 'js/explanation-design-system.js', 'js/controller.js', 'js/app.js', 'js/model.js', 'js/rpg.js', 'css/style.css', 'index.html', 'reports/edu-quality/question-taxonomy-2026.json']
@@ -9,6 +17,7 @@ permissions:
   contents: read
 jobs:
   ledger:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,3 +72,81 @@ jobs:
           NODE
       - name: Recalculate explanation arithmetic from source conditions
         run: python3 scripts/check-explanation-accounting.py
+
+  issue266_autoresume:
+    name: Issue 266 resumable checkpoint (not a coding agent)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read
+      issues: write
+      pull-requests: read
+    concurrency:
+      group: issue266-autoresume
+      cancel-in-progress: false
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const {owner, repo} = context.repo;
+            const issue_number = 266;
+            const marker = '<!-- boki-issue266-autoresume-v1 -->';
+            const required = ['test', 'ledger', 'review-all-300'];
+            const sha = (await github.rest.git.getRef({owner, repo, ref:'heads/main'})).data.object.sha;
+            if (!/^[a-f0-9]{40}$/i.test(sha)) throw Error('Unknown main SHA');
+            const [issue, pulls] = await Promise.all([
+              github.rest.issues.get({owner, repo, issue_number}),
+              github.rest.pulls.list({owner, repo, state:'open', per_page:100}),
+            ]);
+            if (pulls.data.length === 100) throw Error('Pull request pagination limit reached');
+            const condition = [];
+            for (const name of required) {
+              let latest = null;
+              for (let page = 1; page <= 250; page++) {
+                const r = await github.rest.checks.listForRef({
+                  owner, repo, ref:sha, check_name:name, filter:'all', per_page:100, page,
+                });
+                const runs = r.data.check_runs;
+                const effective = runs.filter(c => c.name === name &&
+                  c.conclusion !== 'skipped' && c.conclusion !== 'neutral');
+                if (effective.length) {
+                  latest = effective.sort((a,b) => (b.id || 0) - (a.id || 0))[0];
+                  break;
+                }
+                if (runs.length < 100) break;
+                if (page === 250) throw Error('Check-run pagination exhausted');
+              }
+              const healthy = latest?.status === 'completed' && latest?.conclusion === 'success';
+              condition.push(name + '=' + (healthy ? 'SUCCESS' : 'NOT_GREEN'));
+            }
+            const duplicates = pulls.data.filter(p => p.head?.ref?.startsWith('autopilot/issue266/'));
+            const approved = issue.data.labels.some(l => l.name === 'autopilot-approved');
+            const blockers = [
+              ...(issue.data.state === 'open' ? [] : ['issue_closed']),
+              ...(condition.some(x => x.endsWith('NOT_GREEN')) ? ['main_ci_not_green'] : []),
+              ...(duplicates.length ? ['autopilot_pr_already_open'] : []),
+              ...(!approved ? ['owner_opt_in_missing'] : []),
+              'codex_worker_not_connected',
+            ];
+            const body = [marker, '### 自動継続チェックポイント',
+              '- main: `' + sha + '`',
+              '- CI: ' + condition.join(' / '),
+              '- 競合するAutopilot PR: ' + (duplicates.map(p=>'#'+p.number).join(', ') || 'なし'),
+              '- 次工程の阻害要因: ' + blockers.join(' / '),
+              '',
+              'これは実GitHub Actionsによる状態監視です。AIによるコード改修・マージ・公開が完了した証拠ではありません。',
+            ].join('\n');
+            core.info(body);
+            const dryRun = context.eventName === 'workflow_dispatch' && String(context.payload.inputs?.dry_run).toLowerCase() !== 'false';
+            if (dryRun) return;
+            const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number, per_page:100});
+            const owned = comments.filter(c=>c.user?.login==='github-actions[bot]' && c.body?.startsWith(marker));
+            if (owned.length > 1) throw Error('Duplicate checkpoint markers');
+            if (owned[0]?.body===body) return;
+            if (owned.length)
+              await github.rest.issues.updateComment({owner,repo,comment_id:owned[0].id,body});
+            else
+              await github.rest.issues.createComment({owner,repo,issue_number,body});
