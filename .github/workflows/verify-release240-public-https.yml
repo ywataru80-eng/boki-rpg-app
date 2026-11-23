@@ -1,0 +1,19 @@
+name: Release240 public HTTPS SHA256 acceptance
+on:
+  push:
+    branches:
+      - audit/release240-live-https-20261123
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-public-https:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check public HTTPS content against release SHA256 manifest
+        run: node scripts/verify-live-pages-240.cjs --live
