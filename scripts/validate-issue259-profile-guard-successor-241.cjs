@@ -12,6 +12,7 @@ const old=p=>cp.execFileSync('git',['show',`${BASE}:${p}`],{maxBuffer:32*1024*10
 const git=(...a)=>cp.execFileSync('git',a,{encoding:'utf8',maxBuffer:32*1024*1024}).trim();
 const sha=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
 const scope=new Set([
+ '.github/workflows/question-quality-ledger-audit.yml',
  'js/model.js','js/controller.js','package.json','tests/issue259-fy2026-profile-guard.test.js',
  'index.html','form-a.html','service-worker.js','pwa-release-manifest.json',GEN,
  'scripts/validate-issue259-profile-guard-successor-241.cjs',
