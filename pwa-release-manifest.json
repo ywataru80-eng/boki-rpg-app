@@ -1,11 +1,11 @@
 {
-  "release": "20261126-242",
-  "previousRelease": "20261123-241",
+  "release": "20261126-243",
+  "previousRelease": "20261126-242",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "3c488f3348184bc68c132688b9b797c3d77f3a3a32420ff1ba257659ace6a648",
     "data/questions.js": "97a648d7e41eafee252f97974d430afc59018cbca346484cde67720328178a28",
-    "data/accounting-oracle.js": "4f5c58a0447f9d07fa5249202d39600369301254d728b2d7ab3d494a55caac44",
+    "data/accounting-oracle.js": "a36a61edf15a105a518d392b68267c6ff9591b929d346517f97a93ede13563a7",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
     "js/model.js": "66ce1b0374d93833805c9a0e61190b40c120b605fcde2983214455e3ec9a7e48",
     "js/rpg.js": "c446f3c34173d0c4c9eda3945b13e0fbf94fce1ec88e22e8a4ad596e2f1815dd",
@@ -24,6 +24,6 @@
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369"
   },
   "pages": {
-    "form-a.html": "3894da044cb9d167aa4b86822a2ad0fed5f08f308e981f83ae18eeea926c8c53"
+    "form-a.html": "9cdc6658eb076474720dd6e4e7f9e2ba3536ea49ac80bd1a98c22c1a3afe7eaa"
   }
 }
