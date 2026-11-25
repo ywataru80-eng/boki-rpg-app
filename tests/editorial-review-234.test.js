@@ -8,7 +8,7 @@ const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
 const stable=v=>Array.isArray(v)?`[${v.map(stable).join(',')}]`:v&&typeof v==='object'?`{${Object.keys(v).sort().map(k=>`${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`:JSON.stringify(v);
 const project=q=>({id:q.id,type:q.type,category:q.category,question:q.question,answer:q.answer,materials:q.materials,table:q.table,format:q.format||null,learningRole:q.learningRole||null,semantic:q.semantic||null});
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
-const historical234=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241'].includes(release);
+const historical234=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242'].includes(release);
 const script=historical234?cp.execFileSync('git',['show','d712814e2eda42efbdf73aa3e68eb09105284c92:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}):fs.readFileSync('data/questions.js','utf8');
 const beforeSource=cp.execFileSync('git',['show',`${BASE}:data/questions.js`],{encoding:'utf8',maxBuffer:16*1024*1024});
 const load=src=>{const box={window:{},console};vm.runInNewContext(fs.readFileSync('data/accounting-domain.js','utf8'),box);box.AccountingDomain=box.window.AccountingDomain;vm.runInNewContext(src,box);return box.window.QuestionData;};
