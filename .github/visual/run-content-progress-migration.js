@@ -46,8 +46,8 @@ async function run(){
             // Historical revision-5 saves upgrade to revision 6 in Release236;
             // old Release235 keeps revision 5. Never accept an arbitrary value.
             const release=JSON.parse(fs.readFileSync(path.join(ROOT,'pwa-release-manifest.json'),'utf8')).release;
-            const expectedRevision=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241'].includes(release)?6:5;
-            assert(['20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241'].includes(release),'unrecognized release in migration gate');
+            const expectedRevision=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242'].includes(release)?6:5;
+            assert(['20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242'].includes(release),'unrecognized release in migration gate');
             const first=await inspect();assert.strictEqual(first.revision,expectedRevision);assert(first.valid);
             assert.deepStrictEqual(first.continuity,progress.learningContinuityState);
             assert.strictEqual(first.character.xp,character.xp);assert.deepStrictEqual(first.character.rewardedIds,character.rewardedIds);

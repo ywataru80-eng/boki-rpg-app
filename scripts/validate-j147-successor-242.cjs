@@ -1,0 +1,24 @@
+'use strict';
+// Release242: clarify the existing one-account convention in J147 only.
+const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto');
+const BASE='db3119f44b78b1ea57b9327c5ed894d4bb309fbd',OLD='20261123-241',RELEASE='20261126-242';
+const GEN='reports/auto-gate/audit-locks/phase-b-generation-206.json';
+const read=p=>fs.readFileSync(p),old=p=>cp.execFileSync('git',['show',BASE+':'+p],{maxBuffer:32*1024*1024});
+const git=(...a)=>cp.execFileSync('git',a,{encoding:'utf8',maxBuffer:32*1024*1024}).trim();
+const sha=p=>crypto.createHash('sha256').update(read(p)).digest('hex');
+const routes=['tests/audit-matrix.test.js','tests/editorial-review-230.test.js','tests/editorial-review-232.test.js','tests/editorial-review-233.test.js','tests/editorial-review-234.test.js','tests/issue161-inventory.test.js','tests/l039-explanation.test.js','tests/ledger-opening-migration.test.js','tests/user-facing-copy-contract.test.js','.github/visual/run-content-progress-migration.js','.github/workflows/question-quality-ledger-audit.yml'];
+const scope=new Set([...routes,'data/questions.js','package.json','index.html','form-a.html','service-worker.js','pwa-release-manifest.json',GEN,'scripts/validate-j147-successor-242.cjs','tests/j147-condition-clarification.test.js']);
+assert.equal(cp.spawnSync('git',['merge-base','--is-ancestor',BASE,'HEAD']).status,0);
+const changed=git('diff','--name-only',BASE).split('\n').filter(Boolean);
+const untracked=git('ls-files','--others','--exclude-standard').split('\n').filter(p=>p&&!['node_modules/','artifacts/','historical-quality/','reports/baseline-current/'].some(prefix=>p.startsWith(prefix)));
+assert.deepEqual([...new Set([...changed,...untracked])].sort(),[...scope].sort(),'exact Release242 scope');
+assert.equal(sha('data/questions.js'),'97a648d7e41eafee252f97974d430afc59018cbca346484cde67720328178a28','exact approved J147 source');
+for(const p of routes){if(p==='tests/l039-explanation.test.js'){assert.equal(sha(p),'a511c174d45aea5f48b48be6b206542b62c9cf0cc7fd8a7f678152ffe7612a34','exact historical L039/J147 check');continue;}let expected=old(p).toString().replaceAll("'"+OLD+"']","'"+OLD+"','"+RELEASE+"']");if(p==='tests/audit-matrix.test.js'){expected=expected.replace(".release==='"+OLD+"'?",".release==='"+OLD+"'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='"+RELEASE+"'?").replace("'20261123-241':'scripts/validate-issue259-profile-guard-successor-241.cjs'","'20261123-241':'scripts/validate-issue259-profile-guard-successor-241.cjs',\n  '20261126-242':'scripts/validate-j147-successor-242.cjs'");}if(p.endsWith('.yml'))expected=expected.replace("'20261123-241': 'scripts/validate-issue259-profile-guard-successor-241.cjs'","'20261123-241': 'scripts/validate-issue259-profile-guard-successor-241.cjs',\n            '20261126-242': 'scripts/validate-j147-successor-242.cjs'");if(p==='tests/ledger-opening-migration.test.js')expected=expected.replace("  assert.deepEqual(current,historical,id+' all non-prose fields unchanged');","  if(id==='J147' && JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-242'){\n    const approved='当店は銀行と当座借越契約を締結し、期中は一勘定制で記帳している。当座預金の帳簿残高が30,000円のとき、商品を仕入れ、仕入代金80,000円を小切手で支払った。この取引の仕訳を行いなさい。';\n    assert.equal(current.question,approved);\n    assert.deepEqual(current.materials,historical.materials.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value===historical.question?approved:value]))));\n    current.question=historical.question;current.materials=historical.materials;\n  }\n  assert.deepEqual(current,historical,id+' all non-prose fields unchanged');");assert.equal(read(p).toString(),expected,p+' release routing only');}
+assert.equal(read('package.json').toString(),old('package.json').toString().replace('"test": "','"test": "node tests/j147-condition-clarification.test.js && '));
+for(const p of ['index.html','form-a.html','service-worker.js'])assert.equal(read(p).toString(),old(p).toString().replaceAll(OLD,RELEASE));
+const m=JSON.parse(read('pwa-release-manifest.json')),expected=JSON.parse(old('pwa-release-manifest.json'));expected.release=RELEASE;expected.previousRelease=OLD;for(const k of ['assets','pages'])for(const p of Object.keys(expected[k]))expected[k][p]=sha(p);assert.deepEqual(m,expected);
+const gen=JSON.parse(read(GEN));assert.equal(gen.generation,206);assert.equal(gen.predecessor.generation,205);
+const l=require('./qa/phase-b-lifecycle'),committed=cp.spawnSync('git',['cat-file','-e','HEAD:'+GEN]).status===0;
+const check=committed?l.verifyCurrent():l.verifyCandidate(gen);assert(check.ok,check.errors.join('; '));
+cp.execFileSync(process.execPath,['tests/j147-condition-clarification.test.js'],{stdio:'inherit'});
+console.log('RELEASE242_GEN206_J147_CONDITION_PASS');
