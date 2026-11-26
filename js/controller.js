@@ -1359,7 +1359,11 @@
         return false;
       }
       if (this.model.state.mode === 'exam') {
+        // The timer update may finish (or expire) the saved attempt synchronously.
+        // Never navigate or open a new attempt after that transition.
+        const submittedSession = this.model.state.examSession;
         this.updateExamStatus();
+        if (this.model.state.examSession !== submittedSession || this.isExamExpired(Date.now(), submittedSession)) return;
         const unanswered = this.unansweredExamIds(); const ids = this.modeIds(); const following = ids.slice(ids.indexOf(this.currentId)+1).find(id => unanswered.includes(id));
         if (following) return this.start(following);
         if (unanswered.length) return this.start(unanswered[0]);

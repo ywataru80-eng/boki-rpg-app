@@ -6,7 +6,7 @@ const base = process.env.EXAM_TX_BASE;
 const source = p => base ? require('node:child_process').execFileSync('git',['show',base+':'+p],{encoding:'utf8'}) : fs.readFileSync(p,'utf8');
 let now=2000, timerSeq=0; const timers=new Map();
 const w = {setInterval(fn){const id=++timerSeq;timers.set(id,fn);return id;},clearInterval(id){timers.delete(id);}}, sandbox = {window:w, console, Date:class extends Date {static now(){return now;}}};
-for (const p of ['data/questions.js','js/model.js','js/rpg.js','js/controller.js']) vm.runInNewContext(source(p),sandbox);
+for (const p of ['data/questions.js','js/model.js','js/rpg.js','js/engine.js','js/controller.js']) vm.runInNewContext(source(p),sandbox);
 const {ProgressModel:M,RPGModel:R,AppController:C,QuestionData:q,ExamPoolDefinition:pool} = w;
 const ids = Array.from(pool).slice(0,15), json = x=>JSON.stringify(x);
 function fixture(){
@@ -48,4 +48,18 @@ test('expiry persistence failure stops automatic retries; manual finish succeeds
 for(const legacy of [false,true])test('resume saved '+(legacy?'legacy':'tagged')+' exam despite missing prerequisites',()=>{now=2000;timers.clear();const f=realFlow(fixture());const s=f.c.ensureExamSession(now);assert(s);if(legacy)for(const k of Object.keys(M.examProfile2026()))delete s[k];f.model.refreshEvidenceIntegrity();assert(f.model.setDraft(s.ids[0],q[s.ids[0]].answer));f.c.model=new M(q,f.store,'p',pool);delete f.c.unmetExamPrerequisites;assert(f.c.unmetExamPrerequisites().length>0);const before=json(f.c.model.state),raw=f.data.p,character=f.data.r;assert(f.c.showMode('exam'));assert.equal(json(f.c.model.state),before);assert.equal(f.data.p,raw);assert.equal(f.data.r,character);assert.equal(timers.size,1);assert.equal(f.c.showMode('story'),false);f.c.stopExamTimer();});
 test('new exam still requires prerequisites and does not change storage',()=>{const f=realFlow(fixture());delete f.c.unmetExamPrerequisites;const before=snapshot(f);assert(f.c.unmetExamPrerequisites().length>0);assert.equal(f.c.showMode('exam'),false);assert.equal(f.c.retryExam(now),false);unchanged(f,before);});
 test('expired saved exam on init finalizes once even with missing prerequisites',()=>{now=2000;timers.clear();const f=realFlow(fixture());const s=f.c.ensureExamSession(now);assert(s);assert(f.model.completePlacement({foundation:80,closing:70},now));delete f.c.unmetExamPrerequisites;assert(f.c.unmetExamPrerequisites().length>0);now=s.endAt;f.c.model=new M(q,f.store,'p',pool);f.c.bindEvents=()=>{};f.c.populateAccountFilter=()=>{};f.c.view.updateRpg=()=>{};f.c.offerResume=()=>{throw Error('expired exam must not offer another question');};f.c.init({mode:'story',questionId:'J001'});assert.equal(f.c.model.state.examSession,null);assert.equal(f.c.model.state.examHistory.length,1);assert.equal(f.ui.result,1);assert.equal(timers.size,0);assert.equal(json(new M(q,f.store,'p',pool).state),json(f.c.model.state));});
+// Drive the real submit path; advance the clock at the successful durable
+// answer journal removal (not before grading). The next timer update can
+// finish this session synchronously, and must not start another attempt.
+for(const kind of ['before','at','after','finish-failure'])test('submit deadline boundary '+kind,()=>{
+  now=2000;timers.clear();const f=realFlow(fixture());assert(f.c.showMode('exam'));const s=f.model.state.examSession,id=s.ids[0];
+  f.c.start(id);f.c.document.querySelector=()=>null;f.c.view.readAnswer=()=>q[id].answer;
+  const remove=f.store.removeItem;let injected=false;now=s.endAt-1;
+  f.store.removeItem=function(k){const result=remove.call(this,k);if(!injected&&k==='p:pending-answer-v1'){injected=true;now=s.endAt+(kind==='before'?-1:kind==='after'?1:0);if(kind==='finish-failure')this.fail='false';}return result;};
+  f.c.submit();assert(injected);const reload=()=>new M(q,f.store,'p',pool).state;
+  if(kind==='before'){assert.equal(f.model.state.examSession.startedAt,s.startedAt);assert.equal(f.model.state.examSession.scores[id].correct,true);assert.equal(f.c.currentId,s.ids[1]);assert.equal(f.model.state.examHistory.length,0);assert.equal(timers.size,1);}
+  else if(kind==='finish-failure'){assert.equal(f.model.state.examSession.status,'EXPIRED');assert.equal(f.model.state.examHistory.length,0);assert.equal(f.model.state.examSession.scores[id].correct,true);assert.equal(f.ui.notice.length,1);assert.equal(timers.size,0);assert.equal(reload().examSession.startedAt,s.startedAt);assert.equal(reload().examSession.scores[id].correct,true);f.store.fail=null;assert(f.c.finishExam(true,now));assert.equal(f.model.state.examHistory.length,1);}
+  else {assert.equal(f.model.state.examSession,null);assert.equal(f.ui.result,1);assert.equal(f.model.state.examAttempt,1);assert.equal(f.model.state.examHistory.length,1);assert.equal(f.model.state.lastExamReview.points,9);assert.equal(f.model.state.lastExamReview.unansweredCount,14);assert.equal(reload().examSession,null);assert.equal(timers.size,0);f.c.updateExamStatus(now);assert.equal(f.model.state.examHistory.length,1);}
+  f.c.stopExamTimer();
+});
 console.log(`EXAM_START_TRANSACTION ${passed}/${passed+failed} PASS`);if(failed)process.exitCode=1;

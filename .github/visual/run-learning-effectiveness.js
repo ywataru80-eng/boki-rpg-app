@@ -353,6 +353,28 @@ async function run(){
             },expiredExam);
             await page.reload({waitUntil:'load'});await page.waitForFunction(()=>Boolean(window.App?.controller));
             assert.deepStrictEqual(await page.evaluate(()=>({session:App.controller.model.state.examSession,attempt:App.controller.model.state.examAttempt,history:App.controller.model.state.examHistory})),retriedExam);
+            // Advance the clock only when the real answer journal has been
+            // durably removed. The submitted answer is valid, but the exam
+            // expires before the next navigation step.
+            const deadlineSubmit=await page.evaluate(()=>{
+              const c=window.App.controller,s=c.model.state.examSession,id=s.ids[0],store=c.model.storage;
+              const attempt=c.model.state.examAttempt,history=c.model.state.examHistory.length;
+              c.start(id);c.view.applyRetryDraft(c.questions[id],c.questions[id].answer);
+              const clock=Date.now,remove=store.removeItem;let now=s.endAt-1,injected=false;
+              try{
+                Date.now=()=>now;
+                store.removeItem=function(key){const result=remove.call(this,key);if(!injected&&key===c.model.key+':pending-answer-v1'){injected=true;now=s.endAt;}return result;};
+                c.submit();
+              }finally{Date.now=clock;store.removeItem=remove;}
+              const state=c.model.state,result=state.lastExamReview;
+              if(!injected||state.examSession!==null||state.examAttempt!==attempt+1||state.examHistory.length!==Math.min(10,history+1)||result?.startedAt!==s.startedAt||result.points!==9||result.unansweredCount!==14||c.examTimerId!==null||!document.getElementById('view-result').classList.contains('active'))throw Error('answer commit at deadline restarted or displaced the completed exam');
+              if(!ProgressModel.validateBackupState(state,c.questions))throw Error('deadline result invalid');
+              const saved=JSON.parse(localStorage.getItem(c.model.key));if(saved.examSession!==null||saved.examAttempt!==state.examAttempt||JSON.stringify(saved.lastExamReview)!==JSON.stringify(result))throw Error('deadline result not durable');
+              return {attempt:state.examAttempt,result,history:state.examHistory};
+            });
+            await page.reload({waitUntil:'load'});await page.waitForFunction(()=>Boolean(window.App?.controller));
+            assert.deepStrictEqual(await page.evaluate(()=>({attempt:App.controller.model.state.examAttempt,result:App.controller.model.state.lastExamReview,history:App.controller.model.state.examHistory})),deadlineSubmit);
+            assert(await page.evaluate(()=>App.controller.model.state.examSession===null&&App.controller.examTimerId===null),'deadline reload reopened an exam');
             const corruptBefore=await page.evaluate(()=>{
               const c=window.App.controller,values=Object.fromEntries([c.model.key,c.rpg.key].map(key=>[key,localStorage.getItem(key)]));
               localStorage.setItem(`${c.model.key}:pending-answer-v1`,'{bad');return values;
@@ -363,7 +385,7 @@ async function run(){
               values:Object.fromEntries(keys.map(key=>[key,localStorage.getItem(key)])),journal:localStorage.getItem(`${window.App.controller.model.key}:pending-answer-v1`)}),Object.keys(corruptBefore));
             assert.strictEqual(corruptAfter.blocked,true);assert.deepStrictEqual(corruptAfter.values,corruptBefore);assert.strictEqual(corruptAfter.journal,'{bad');
             assert.deepStrictEqual(errors,[]);
-            evidence.reports.push({engine,width,observedAttempts:222,retained:200,delayedAttempts:220,delayedSuccesses:146,initialPreserved:true,assistedSeparated:true,reload:true,backup:true,saveFailure:failure,interruptedWriteRecovery:true,liveOwnerProtected:true,closedOwnerRecovery:true,retryExactlyOnce:retried,corruptJournalWarning:true,corruptBytesPreserved:true,missingEvidenceImportRejected:true,evictedUnknownAggregateImportRejected:true,missingCompletionImportRejected:true,evictedLatestStatsImportRejected:true,continuityImportRejected:true,pendingReviewImportRejected:true,examHistoryImportRejected:true,activeExamImportRejected:true,legacyExamPoolImportRejected:true,legacyExamMigration:true,initialPlacementPreserved:true,initialPlacementImportRejected:true,mistakeTotalsImportRejected:true,legacyMistakeBoundsImportRejected:true,legacyMistakeMigration:true,legacyResolvedMistakeImportRejected:true,legacyExamArithmeticImportRejected:true,partialDraftImportRejected:true,partialDraftReload:true,badBackupImports:27,mistakeBadgesAndFiltersPreserved:true,activeExamResume:true,expiredExamAndRetry:true,ineligibleRetryRejected:true,prerequisitesThroughRealAnswers:true,...numericalBoundaries,pageErrors:errors});write();
+            evidence.reports.push({engine,width,observedAttempts:222,retained:200,delayedAttempts:220,delayedSuccesses:146,initialPreserved:true,assistedSeparated:true,reload:true,backup:true,saveFailure:failure,interruptedWriteRecovery:true,liveOwnerProtected:true,closedOwnerRecovery:true,retryExactlyOnce:retried,corruptJournalWarning:true,corruptBytesPreserved:true,missingEvidenceImportRejected:true,evictedUnknownAggregateImportRejected:true,missingCompletionImportRejected:true,evictedLatestStatsImportRejected:true,continuityImportRejected:true,pendingReviewImportRejected:true,examHistoryImportRejected:true,activeExamImportRejected:true,legacyExamPoolImportRejected:true,legacyExamMigration:true,initialPlacementPreserved:true,initialPlacementImportRejected:true,mistakeTotalsImportRejected:true,legacyMistakeBoundsImportRejected:true,legacyMistakeMigration:true,legacyResolvedMistakeImportRejected:true,legacyExamArithmeticImportRejected:true,partialDraftImportRejected:true,partialDraftReload:true,badBackupImports:27,mistakeBadgesAndFiltersPreserved:true,activeExamResume:true,expiredExamAndRetry:true,ineligibleRetryRejected:true,prerequisitesThroughRealAnswers:true,deadlineSubmitNoNewAttempt:true,...numericalBoundaries,pageErrors:errors});write();
           }finally{await context.close();}
         }
       }finally{await browser.close();}

@@ -15,8 +15,8 @@ assert.strictEqual(verifyMatrix(matrix,old.window.QuestionData).ok,true,'histori
 // surfaces, which must be reported STALE rather than silently recertified.
 const baselineStale=['J148','L044','L045'];
 const reviewedStoryChanges=['D012','E014','J032','J044','J103','J109','J116','J120','J127','J149','L030'];
-const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261115-237'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261116-238'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261119-239'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261123-240'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261123-241'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-242'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-243'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-244'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-245'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
-const release236=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
+const successorStories=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261103-234'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261105-235'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261107-236'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261115-237'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261116-238'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261119-239'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261123-240'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261123-241'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-242'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-243'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-244'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-245'||JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release==='20261126-246'?['D004','D013','D014','D015','D016','D017','D018','D019','D020']:[];
+const release236=['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
 const successorChanges=release236?Array.from({length:17},(_,i)=>'D'+String(i+2).padStart(3,'0')):[];
 // Release236 Gen193 only removes obsolete learner-visible 〔評価資料 n〕 stamps.
 // Derive this finite source-delta from the immutable *pre-change* Git object,
@@ -64,7 +64,8 @@ const approvedValidators=Object.freeze({
   '20261126-242':'scripts/validate-j147-successor-242.cjs',
   '20261126-243':'scripts/validate-fy2027-draft-successor-243.cjs',
   '20261126-244':'scripts/validate-exam-start-successor-244.cjs',
-  '20261126-245': 'scripts/validate-exam-resume-successor-245.cjs'
+  '20261126-245': 'scripts/validate-exam-resume-successor-245.cjs',
+  '20261126-246': 'scripts/validate-exam-deadline-successor-246.cjs'
 });
 const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
 assert(approvedValidators[release],'unsupported release validator: '+release);

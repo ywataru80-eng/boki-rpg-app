@@ -23,22 +23,22 @@ const project=(data,isCurrent=false)=>{
  // The baseline is preserved in Git history. Release230's exact prose-only
  // diff is independently bounded by tests/editorial-review-230.test.js.
  const release=JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release;
- const editedProse=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245'].includes(release);
- if(isCurrent&&['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245'].includes(release)){
+ const editedProse=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(release);
+ if(isCurrent&&['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(release)){
    const now=result.E011,prev=old.window.QuestionData.E011;
    assert.equal(now.materials.length,1,'E011 single bank record');
    assert.equal(now.materials[0].recorded,prev.materials[0].recorded,'E011 recorded journal retained');
    assert.equal(now.materials[0].evidence,"銀行取引明細：店舗の火災保険料24,000円が普通預金口座から引き落とされた記録",'E011 exact approved documentary correction');
    now.materials=JSON.parse(JSON.stringify(prev.materials)); // normalize only the independently verified evidence sentence
  }
- if(isCurrent&&['20261126-242','20261126-243','20261126-244','20261126-245'].includes(release)){
+ if(isCurrent&&['20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(release)){
    const now=result.J147,prev=old.window.QuestionData.J147;
    const approved='当店は銀行と当座借越契約を締結し、期中は一勘定制で記帳している。当座預金の帳簿残高が30,000円のとき、商品を仕入れ、仕入代金80,000円を小切手で支払った。この取引の仕訳を行いなさい。';
    assert.equal(now.question,approved);
    assert.deepEqual(now.materials,JSON.parse(JSON.stringify(prev.materials)).map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value===prev.question?approved:value]))));
    now.question=prev.question;now.materials=JSON.parse(JSON.stringify(prev.materials));
  }
- if(['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245'].includes(release)){
+ if(['20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(release)){
    for(let n=2;n<=18;n++)delete result['D'+String(n).padStart(3,'0')];
    for(const id of ['D019','D020']){delete result[id].npcDialogue;delete result[id].nextHook;}
  }
