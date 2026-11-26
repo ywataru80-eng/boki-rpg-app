@@ -27,7 +27,7 @@ function tab(f, locks=f.locks) {
   const registration={active:worker,waiting:null,installing:null,addEventListener(){},async update(){return this;}};
   const serviceWorker={controller:worker,async getRegistration(){f.clients.add(clientId);return registration;},async register(){f.clients.add(clientId);return registration;},addEventListener(){}};
   let reloads=0;
-  const root = {localStorage:f.storage,navigator:{locks,serviceWorker},location:{protocol:'file:',reload(){reloads++;}},QuestionData:questions,ProgressModel:Model,RPGModel:RPG,
+  const root = {localStorage:f.storage,navigator:{locks,serviceWorker},location:{protocol:'file:',reload(){reloads++;}},QuestionData:questions,CurriculumRegistry:{active:year=>year==='FY2026'?{questions,examPool:[]}:null},ProgressModel:Model,RPGModel:RPG,
     AppView:class{},validateSemanticQuestionData:()=>({}),addEventListener(name,fn){(events[name] ||= []).push(fn);},dispatchEvent(event){for(const fn of events[event.type]||[])fn(event);}};
   const sandbox = {window:root,document,navigator:root.navigator,location:root.location,console,URL,URLSearchParams,queueMicrotask,Event,MessageChannel,setTimeout,clearTimeout};
   vm.runInNewContext(fs.readFileSync('js/controller.js','utf8'),sandbox);

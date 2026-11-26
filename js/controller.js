@@ -96,10 +96,10 @@
         throw new Error('Exam score display allocation failed');
       return { points, displayed };
     }
-    constructor(document, questions) {
-      this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.view = new root.AppView(document);
+    constructor(document, questions, examPool = root.ExamPoolDefinition) {
+      this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.examPool = Array.isArray(examPool) ? Object.freeze([...examPool]) : null; this.view = new root.AppView(document);
       const storage = getStorage();
-      this.model = new root.ProgressModel(questions, storage,storage?.progressKey); this.rpg = new root.RPGModel(storage,storage?.characterKey); this.currentId = null; this.questionStartedAt = null; this.reviewSourceId = null; this.reviewMappings = new Map(); this.expression = '0'; this.calculatorTarget = null; this.examTimerId = null;
+      this.model = new root.ProgressModel(questions, storage,storage?.progressKey,examPool); this.rpg = new root.RPGModel(storage,storage?.characterKey); this.currentId = null; this.questionStartedAt = null; this.reviewSourceId = null; this.reviewMappings = new Map(); this.expression = '0'; this.calculatorTarget = null; this.examTimerId = null;
       this.calculator = { accumulator: null, operator: null, waitingForOperand: false, lastOperator: null, lastOperand: null };
       this.calculatorPositionFrame = null;
       this.filters = { query: '', account: '', mistakes: 'all' };
@@ -651,7 +651,7 @@
       });
     }
     examCandidateIds() {
-      const contract = Array.isArray(root.ExamPoolDefinition) ? root.ExamPoolDefinition : [];
+      const contract = this.examPool ?? (Array.isArray(root.ExamPoolDefinition) ? root.ExamPoolDefinition : []);
       const seen = new Set();
       return contract.filter(id => !seen.has(id) && seen.add(id) && this.questions[id]?.learningRole === 'transfer');
     }
