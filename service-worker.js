@@ -1,9 +1,9 @@
 /* The release id is shared by every cache key in this deployment. */
-const RELEASE = '20261126-246';
+const RELEASE = '20261126-247';
 const CACHE_PREFIX = 'boki-rpg-';
 const CACHE_NAME = `${CACHE_PREFIX}${RELEASE}`;
 const VERSIONED_ASSETS = [
-  './css/style.css', './data/accounting-domain.js', './data/questions.js', './data/accounting-oracle.js', './js/calculator.js', './js/model.js',
+  './css/style.css', './data/accounting-domain.js', './data/questions.js', './data/accounting-oracle.js', './data/fy2027-curriculum.js', './js/calculator.js', './js/model.js',
   './js/rpg.js', './js/engine.js', './js/feedback.js', './js/explanation-formulas.js', './js/explanation-model.js', './js/explanation-design-system.js', './js/view.js', './js/controller.js', './js/app.js', './data/form-a.json', './js/form-a-scoring.js', './js/form-a-store.js', './js/form-a.js', './css/form-a.css'
 ].map(path => `${path}?v=${RELEASE}`);
 const APP_SHELL = [

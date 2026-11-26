@@ -151,7 +151,9 @@
       return this.ready;
     },
     start() {
-      this.controller = new root.AppController(document, root.QuestionData); this.controller.init(this.initialRoute());
+      const curriculum = root.CurriculumRegistry?.active('FY2026');
+      if (!curriculum) throw new Error('Approved curriculum unavailable');
+      this.controller = new root.AppController(document, curriculum.questions, curriculum.examPool); this.controller.init(this.initialRoute());
       this.setupInstallPrompt();
       if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).then(registration => {
         let updateAccepted = false;

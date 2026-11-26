@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),cp=require('node:child_process'),vm=require('node:vm');
 const BASE='86364e3944750ab25334e2c3a557d20768d05963';
 // Audit the real, immutable Release233 content from its reachable Git commit on successors.
-const successor=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
+const successor=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
 const canonical=successor?cp.execFileSync('git',['show','c3689f0529e10519c71073acf6d75ec75bdd253a:data/questions.js']):fs.readFileSync('data/questions.js');
 assert(canonical.equals(cp.execFileSync('git',['show',`${BASE}:data/questions.js`])),'300 canonical questions and stories immutable in v4.2');
 const scope={window:{},console};

@@ -1657,6 +1657,10 @@
       return section;
     }
     cellLabel(question, cellId) {
+      if (question.id?.startsWith('FY27-') && question.table.inputCells.includes(cellId)) {
+        const label = question.table.inputMetadata?.[cellId]?.label;
+        if (typeof label === 'string' && label.trim()) return label;
+      }
       const index = question.table.inputCells.indexOf(cellId); let seen = -1;
       for (const row of question.table.rows) {
         if (Object.values(row).includes('入力')) { seen += 1; if (seen === index) { const fixed = Object.values(row).find(value => value !== '入力' && value != null && value !== ''); if (fixed != null) return String(fixed); } }
