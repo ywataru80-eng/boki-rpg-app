@@ -17,7 +17,7 @@ function context(mode='training') {
   Object.assign(ctx,{questions,ids:Object.keys(questions),model,rpg,reviewMappings:new Map(),
     document:{getElementById:()=>node(),createElement:()=>node(),querySelector:()=>null,querySelectorAll:()=>[]},
     view:{readAnswer:()=>({correct:true,debit:[],credit:[]}),result(){},updateRpg(){},renderQuestion(){},show(){},showNotice(text){notices.push(text);}},
-    resetCalculator(){},renderModes(){},showMode(){},updateExamStatus(){},isExamExpired:()=>false,modeIds:()=>['Q','R'],unansweredExamIds:()=>[]});
+    resetCalculator(){},renderModes(){},showMode(){},displayMode(){},updateExamStatus(){},isExamExpired:()=>false,modeIds:()=>['Q','R'],unansweredExamIds:()=>[]});
   model.state.mode=mode;if(mode==='exam'){ctx.buildExamIds=()=>Object.keys(questions);ctx.ensureExamSession();}ctx.start('Q');return {ctx,store,model,rpg,notices};
 }
 let passed=0,failed=0;
@@ -268,7 +268,7 @@ const predecessor = version => {
 function oldDraftContext(){
   const c=context(),Old=predecessor('v8'),old=new Old(questions,values(),'p');
   old.setDraft('Q',{correct:true,debit:[],credit:[]});c.store.setItem('p',JSON.stringify(old.state,null,2));
-  const original=c.store.data.p;c.ctx.model=c.model=new Model(questions,c.store,'p');c.ctx.start('Q');
+  const original=c.store.data.p;c.ctx.model=c.model=new Model(questions,c.store,'p',Object.keys(questions));c.ctx.start('Q');
   c.ctx.view.showNotice=(text,options)=>c.notices.push({text,...options});return {...c,original};
 }
 test('unverified draft is editable; submit/cancel makes no observation or RPG mutation',()=>{
@@ -334,7 +334,7 @@ test('a currently reanswered legacy exam score can finalize without blanket rete
 });
 test('an unsigned old result list cannot delete a subsequently saved draft on retry',()=>{
   const {ctx,model,original}=oldDraftContext();model.state.lastExamReview={items:[{id:'Q'}]};model.refreshEvidenceIntegrity();model.save();
-  ctx.buildExamIds=()=>Object.keys(questions);const draft=clone(model.state.drafts.Q);ctx.retryExam();
+  ctx.buildExamIds=()=>Object.keys(questions);const draft=clone(model.state.drafts.Q);assert(ctx.retryExam());
   assert.deepStrictEqual(model.state.drafts.Q,draft);assert.strictEqual(model.state.legacyProvenance.original,original);
 });
 async function provenanceBackupTests(){

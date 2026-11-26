@@ -3,7 +3,7 @@
 // reconcile exactly.  This preserves the 2026 scoring contract and histories;
 // the 2027 weights are regression data, not a switch to 2027 production mode.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const sandbox={window:{},console};
+const sandbox={window:{ProgressModel:require('../js/model')},console};
 vm.runInNewContext(fs.readFileSync('js/controller.js','utf8'),sandbox,{filename:'js/controller.js',timeout:30000});
 const Controller=sandbox.window.AppController;
 const ids=Array.from({length:15},(_,i)=>'Q'+(i+1));
