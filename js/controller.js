@@ -15,7 +15,7 @@
   const legacySignatureKey=progressKey+':legacy-source-v1';
   const futureProgressKey=progressKey+':FY2027';
   const primaryKey=key=>key===progressKey||key===characterKey||key===futureProgressKey;
-  const getStorage = () => {
+  const getStorage = (questions,examPool) => {
     const reportFailure = () => root.dispatchEvent?.(new Event('boki-storage-error'));
     try {
       const storage = root.localStorage;
@@ -32,8 +32,13 @@
           try {
             const value=storage.getItem(key);
             if(namespaceReady&&primaryKey(key)&&value===null)return {ok:false,value:null};
-            return {ok:true,value:primaryKey(key)&&value==='null'?null:value};
+            return {ok:true,value:primaryKey(key)&&(value==='null'||root.AnnualStorage?.intentionalEmpty(key,value))?null:value};
           } catch (_) { return {ok:false,value:null}; }
+        },
+        // Transactions must preserve the exact intentional-empty marker on rollback.
+        readTransactionItem(key) {
+          const result=this.readItem(key);if(!result.ok)return result;
+          try{const raw=storage.getItem(key);return root.AnnualStorage?.intentionalEmpty(key,raw)?{ok:true,value:raw}:result;}catch(_){return {ok:false,value:null};}
         },
         setItem(key, value) {
           if (!writable || !owned()) return false;
@@ -56,13 +61,16 @@
         setItem(key,value){if(!owned()||!writable)return false;storage.setItem(key,value);return true;},
         removeItem(key){if(!owned()||!writable)return false;storage.removeItem(key);return true;}
       },{owns:owned,yearAllowed:year=>!!root.CurriculumRegistry?.active(year),
-        validateProgress:(year,value)=>{const c=root.CurriculumRegistry?.active(year);return !!c&&root.ProgressModel.validateBackupState(value,c.questions,c.examPool);},
+        // The controller's trusted catalog is authoritative for its own store,
+        // including explicitly namespaced Foundation fixtures. Never use a backup's catalog.
+        validateProgress:(year,value)=>{const c=year==='FY2026'?{questions,examPool}:root.CurriculumRegistry?.active(year);return !!c&&root.ProgressModel.validateBackupState(value,c.questions,c.examPool);},
         validateCharacter:value=>root.RPGModel.validateBackupState(value),
         recoverAnswer:year=>Controller.recoverAnswerTransaction(adapter,year==='FY2026'?progressKey:futureProgressKey,characterKey)});
       let annualReady=false;
       try { annualReady=!!annual&&annual.recover()&&
-        (!!root.CurriculumRegistry?.active('FY2027')||storage.getItem(futureProgressKey)===null); } catch (_) { annualReady=false; }
-      if (!annualReady || !Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace(),!!root.CurriculumRegistry?.active('FY2027'))) {
+        (!!root.CurriculumRegistry?.active('FY2027')||storage.getItem(futureProgressKey)===null);
+        if(annualReady&&[progressKey,characterKey].some(key=>root.AnnualStorage.intentionalEmpty(key,storage.getItem(key))))annual.snapshot(); } catch (_) { annualReady=false; }
+      if (!annualReady || !Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace())) {
         writable = false; adapter.readItem = () => ({ok:false,value:null}); adapter.getItem = () => null; queueMicrotask(reportFailure);
       } else { adapter.annualStorage=annual;namespaceReady=true;queueMicrotask(()=>{if(adapter.legacyChanged())root.dispatchEvent?.(new Event('boki-legacy-storage-conflict'));}); }
       return adapter;
@@ -113,7 +121,7 @@
     }
     constructor(document, questions, examPool = root.ExamPoolDefinition) {
       this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.examPool = Array.isArray(examPool) ? Object.freeze([...examPool]) : null; this.view = new root.AppView(document);
-      const storage = getStorage();
+      const storage = getStorage(questions,this.examPool);
       this.model = new root.ProgressModel(questions, storage,storage?.progressKey,examPool); this.rpg = new root.RPGModel(storage,storage?.characterKey); this.currentId = null; this.questionStartedAt = null; this.reviewSourceId = null; this.reviewMappings = new Map(); this.expression = '0'; this.calculatorTarget = null; this.examTimerId = null;
       this.calculator = { accumulator: null, operator: null, waitingForOperand: false, lastOperator: null, lastOperand: null };
       this.calculatorPositionFrame = null;
@@ -128,13 +136,14 @@
       if([progressKey,characterKey,progressKey+':pending-answer-v1'].some(key=>storage.getItem(key)!==null))return {kind:'current'};
       return {kind:'legacy',values:legacyKeys.map(key=>storage.getItem(key))};
     }
-    static initializeStorageNamespace(storage,snapshot,annualApproved=false) {
+    static initializeStorageNamespace(storage,snapshot) {
       const io=Controller.prototype;
       if(!Controller.recoverAnswerTransaction(storage,progressKey,characterKey))return false;
       const present=[progressKey,characterKey].map(key=>storage.hasItem(key));
       if(present.some(Boolean)){
         const pair=[progressKey,characterKey].map(key=>io.storageRead(storage,key));
-        return present.every(Boolean)&&pair.every(item=>item.ok)&&(annualApproved||!(pair[0].value===null&&pair[1].value!==null));
+        return present.every(Boolean)&&pair.every(item=>item.ok)&&
+          (root.AnnualStorage?.intentionalEmpty(progressKey,pair[0].value)||root.AnnualStorage?.intentionalEmpty(characterKey,pair[1].value)||!(pair[0].value===null&&pair[1].value!==null));
       }
       if(snapshot?.kind!=='legacy'||snapshot.values.length!==legacyKeys.length)return false;
       const raw=legacyKeys.map(key=>io.storageRead(storage,key));
@@ -562,7 +571,7 @@
       if (!recovered) { model.storageWriteBlocked = true; rpg.save = () => false; }
       return false;
     }
-    storageRead(storage, key) { if (typeof storage?.readItem === 'function') return storage.readItem(key); try { return storage?.getItem ? { ok:true, value:storage.getItem(key) } : { ok:false, value:null }; } catch (_) { return { ok:false, value:null }; } }
+    storageRead(storage, key) { if (typeof storage?.readTransactionItem === 'function') return storage.readTransactionItem(key); if (typeof storage?.readItem === 'function') return storage.readItem(key); try { return storage?.getItem ? { ok:true, value:storage.getItem(key) } : { ok:false, value:null }; } catch (_) { return { ok:false, value:null }; } }
     storageWrite(storage, key, value) { try { return Boolean(storage?.setItem) && storage.setItem(key, value) !== false; } catch (_) { return false; } }
     storageRemove(storage, key) { try { return Boolean(storage?.removeItem) && storage.removeItem(key) !== false; } catch (_) { return false; } }
     storageRestore(storage, key, value) { try { if (typeof storage?.restoreItem === 'function') return storage.restoreItem(key, value) !== false; return value === null ? Boolean(storage?.removeItem) && storage.removeItem(key) !== false : Boolean(storage?.setItem) && storage.setItem(key, value) !== false; } catch (_) { return false; } }

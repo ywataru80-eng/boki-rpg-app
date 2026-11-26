@@ -10,7 +10,7 @@
     "auditHash": "4f9903b5590476fe7310e225eafcc00dabba0149575e508a56cb87a558579e4d",
     "baselineIdentity": "f51a8f5f1e1b2c315c34cb6adc09d68f0cd9b9de4be367f5a90a330fe82887eb"
   },
-  "baselineIdentity": "e0f442947fe7644558dba3cf18df94729bd482643ca6ea244c6e4976ec5a3187",
+  "baselineIdentity": "08d03d53a70dbb5067320f8a366aabdf822be37b59e95c927827741b4f88a6de",
   "productionHashes": {
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369",
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
@@ -22,10 +22,10 @@
     "data/story-gen200-contract.json": "66cd3e0b5e70ec26ae4b5e1f8ac0ceb25bbd23efd94364521b01de20e1691e0a",
     "form-a.html": "493e6bb81d4b970ee53192f15a5ec28f4e69387a9a879254ed974180b6ac23d5",
     "index.html": "7e0516e0565d4030fd762093bb0b83f1b55f98fdca8d81cd956540677bd3be40",
-    "js/annual-storage.js": "38353d7cc61455eee9d391ef4287c2daefae87358c8fad9a0d9aeb6fc2831c39",
+    "js/annual-storage.js": "b0dbb035dcb341c5c8e8e04788b352080193e0e4a8fed130d4cc1d2f75591258",
     "js/app.js": "e544bb3c4542c1801f086722faa63443d379fc11291c1dab0e5361c7a44bf561",
     "js/calculator.js": "ec312ad01da0dba736a6cad0c22ed91841da9eac532bd995e1d1ba0c67d39c70",
-    "js/controller.js": "772fa554e6b507183c8280434ad052f63371fc97ad7e240f00d673f112b972bd",
+    "js/controller.js": "d579d599550cfde739b6e7968c1bd5bc60b54212b0d5fbe0115b969d6b77075d",
     "js/engine.js": "a0f94eaa142ce19c07da284d3777a23a2c7af38c7b1eb6591e982ab48de50f78",
     "js/explanation-design-system.js": "4ed83c9430a0d9ef4d8687733a77668f5c0a09b2f92d293db748f5e1156683f6",
     "js/explanation-formulas.js": "a637b2ed85953400a1450cdfa7450ff3dcb10dbc48911dd69bf82a38e17ccfa2",
@@ -38,7 +38,7 @@
     "js/rpg.js": "c446f3c34173d0c4c9eda3945b13e0fbf94fce1ec88e22e8a4ad596e2f1815dd",
     "js/view.js": "bccb867af5ba9bfc1a0d774752be07278cc855606dbd80ad7f0c7e13b04dc2a7",
     "manifest.webmanifest": "fcde227f0593c3fc7fd5e8adc89be13201f9a35f74d9ad6a4212b23d2a75bd72",
-    "pwa-release-manifest.json": "695834ad200636341a901bb3157da39a852f11f2405a52e4fde5059ce62812c7",
+    "pwa-release-manifest.json": "10f34c648cdac81b36d2c92e4b7363dda9ff82d35ea9d89246cc73b025390865",
     "service-worker.js": "1c15ac1c13a42fb204e5821dc90ed733e8cdde6a7e78c4527fafc26978c81939",
     "types/domain.d.ts": "94f1affd9e89eb139e968940e7a8ce64ca1e3b4728c5f59d9b6de0d97a96e3ec"
   },

@@ -412,5 +412,27 @@ async function test(name,fn){try{await fn();passed++;console.log('PASS '+name);}
     try{assert.strictEqual(await c.importBackup({text:async()=>earlier}),false);assert(f.data[progressKey+':pending-answer-v1']);await b.app.init();assert(interrupted);assert(!b.app.controller.model.storageWriteBlocked);assert.strictEqual(b.app.controller.rpg.state.xp,20);assert.deepStrictEqual(f.data,before);}
     finally{a.fire('pagehide');b.fire('pagehide');}
   });
+  await test('FY2026 scoped reset restarts with earned character while FY2027 is disabled',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{assert(c.learningTransaction(()=>{assert(c.model.recordAttempt('Q',true,10,'',false,Date.now()));c.rpg.state.xp+=20;return true;}));
+      assert(c.model.storage.annualStorage.resetYear('FY2026',{confirm:true}));const before={...f.data};a.fire('pagehide');await b.app.init();
+      assert(!b.app.controller.model.storageWriteBlocked);assert.strictEqual(b.app.controller.rpg.state.xp,20);assert.deepStrictEqual(b.app.controller.model.state.questionStats,{});assert.deepStrictEqual(f.data,before);
+      assert.strictEqual(b.app.controller.model.storage.annualStorage.exportV2().progress.FY2026.status,'reset');
+    }finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  for(const [progress,character] of [['absent','absent'],['absent','saved'],['reset','absent']])await test('intentional '+progress+'/'+character+' restore survives reload without legacy resurrection',async()=>{
+    const f=fixture();legacyFixture(f);const a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{c.model.save();c.rpg.state.xp=20;c.rpg.save();const old={progress:f.data[legacyProgressKey],character:f.data[legacyCharacterKey]};const backup=c.model.storage.annualStorage.exportV2();backup.progress.FY2026={status:progress};if(character==='absent')backup.character={status:character};
+      assert(c.model.storage.annualStorage.importV2(backup,{confirmReplaceAll:true}));const before={...f.data};a.fire('pagehide');await b.app.init();const next=b.app.controller;
+      assert(!next.model.storageWriteBlocked);assert.deepStrictEqual(next.model.state.questionStats,{});assert.strictEqual(next.rpg.state.xp,character==='saved'?20:0);assert.deepStrictEqual(f.data,before);assert.strictEqual(f.data[legacyProgressKey],old.progress);assert.strictEqual(f.data[legacyCharacterKey],old.character);assert.deepStrictEqual(JSON.parse(JSON.stringify(next.model.storage.annualStorage.exportV2())),JSON.parse(JSON.stringify(backup)));
+    }finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  await test('answer rollback preserves intentional empty marker and future absence',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{c.model.save();c.rpg.save();const backup=c.model.storage.annualStorage.exportV2();backup.progress.FY2026={status:'absent'};backup.character={status:'absent'};c.model.storage.annualStorage.importV2(backup,{confirmReplaceAll:true});a.fire('pagehide');await b.app.init();const d=b.app.controller,before={...f.data},set=f.storage.setItem;let fail=true;
+      f.storage.setItem=function(k,v){if(k===characterKey&&fail){fail=false;throw Error('character write interrupted');}return set.call(this,k,v);};
+      assert.strictEqual(d.learningTransaction(()=>{assert(d.model.recordAttempt('Q',true,10,'',false,Date.now()));d.rpg.state.xp+=20;return true;}),false);assert(!fail);assert.deepStrictEqual(f.data,before);
+    }finally{a.fire('pagehide');b.fire('pagehide');}
+  });
   console.log(`STORAGE_OWNERSHIP ${passed}/${passed+failed} PASS; ${failed} FAIL`);if(failed)process.exitCode=1;
 })();
