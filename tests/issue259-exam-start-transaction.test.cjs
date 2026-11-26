@@ -1,0 +1,48 @@
+'use strict';
+// Actual canonical questions, ProgressModel and Controller; inject failures at
+// the persistence boundary, not by replacing the operation under test.
+const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
+const base = process.env.EXAM_TX_BASE;
+const source = p => base ? require('node:child_process').execFileSync('git',['show',base+':'+p],{encoding:'utf8'}) : fs.readFileSync(p,'utf8');
+let now=2000, timerSeq=0; const timers=new Map();
+const w = {setInterval(fn){const id=++timerSeq;timers.set(id,fn);return id;},clearInterval(id){timers.delete(id);}}, sandbox = {window:w, console, Date:class extends Date {static now(){return now;}}};
+for (const p of ['data/questions.js','js/model.js','js/rpg.js','js/controller.js']) vm.runInNewContext(source(p),sandbox);
+const {ProgressModel:M,RPGModel:R,AppController:C,QuestionData:q,ExamPoolDefinition:pool} = w;
+const ids = Array.from(pool).slice(0,15), json = x=>JSON.stringify(x);
+function fixture(){
+  const data={}, store={writes:0,fail:null,getItem(k){return data[k]??null;},setItem(k,v){this.writes++;if(this.fail==='false')return false;if(this.fail==='throw')throw Error('injected storage failure');data[k]=v;return true;},removeItem(k){delete data[k];return true;}};
+  const model=new M(q,store,'p',pool),rpg=new R(store,'r');
+  assert(model.save());rpg.save();
+  const ui={shown:0,timer:0,notice:[],render:0,dom:0,started:0};
+  const node={hidden:false,focus(){},classList:{remove(){ui.dom++;},toggle(){ui.dom++;}}};
+  const c=Object.create(C.prototype);Object.assign(c,{model,rpg,questions:q,ids:Object.keys(q),currentId:'J001',filters:{query:'old',account:'',mistakes:'all'},examTimerId:null,
+    buildExamIds:()=>ids,unmetExamPrerequisites:()=>[],renderModes(){ui.render++;},updateExamStatus(){},startExamTimer(){ui.timer++;},
+    start(id){ui.started++;this.currentId=id;},document:{body:node,getElementById:()=>node,querySelectorAll:()=>[]},view:{show(){ui.shown++;},showNotice(t,o){ui.notice.push({t,o});}}});
+  return {data,store,model,rpg,c,ui};
+}
+function realFlow(f){
+  for(const name of ['start','updateExamStatus','startExamTimer']) delete f.c[name];
+  f.c.resetCalculator=()=>{};
+  f.c.view.renderQuestion=()=>{f.ui.started++;};
+  f.c.view.examResult=()=>{f.ui.result=(f.ui.result||0)+1;};
+  return f;
+}
+const snapshot=f=>({progress:json(f.model.state),character:json(f.rpg.state),bytes:json(f.data),currentId:f.c.currentId,filters:json(f.c.filters)});
+const unchanged=(f,b)=>assert.deepEqual(snapshot(f),b);
+let passed=0,failed=0;
+const test=(name,fn)=>{try{fn();passed++;console.log('PASS',name);}catch(e){failed++;console.error('FAIL',name,e.message);}};
+for(const fail of ['false','throw']){
+  test('start failure: '+fail,()=>{const f=fixture(),b=snapshot(f);f.store.fail=fail;assert.equal(f.c.showMode('exam'),false);unchanged(f,b);assert.equal(f.ui.timer,0);assert.equal(f.ui.shown,0);assert.equal(f.ui.dom,0);assert.equal(f.ui.notice.length,1);assert.equal(new M(q,f.store,'p',pool).state.examSession,null);});
+  test('retry failure: '+fail,()=>{const f=fixture(),s=f.c.ensureExamSession(1000);assert(s);const id=s.ids[0];assert(f.model.setDraft(id,q[id].answer));const b=snapshot(f);f.store.fail=fail;assert.equal(f.c.retryExam(2000),false);unchanged(f,b);assert.equal(f.ui.timer,0);assert.equal(f.ui.shown,0);assert.equal(f.ui.started,0);assert.equal(f.ui.notice.length,1);const reloaded=new M(q,f.store,'p',pool);assert.equal(json(reloaded.state.examSession),json(s));assert.equal(json(reloaded.state.drafts[id]),json(q[id].answer));});
+}
+test('start single atomic write, no character mutation, durable',()=>{const f=fixture(),n=f.store.writes,r=f.data.r;assert(f.c.showMode('exam'));assert.equal(f.store.writes-n,1);assert.equal(f.data.r,r);assert.equal(f.ui.timer,1);assert.equal(f.ui.shown,1);const reloaded=new M(q,f.store,'p',pool);assert.equal(json(reloaded.state.examSession),json(f.model.state.examSession));assert.equal(reloaded.state.mode,'exam');});
+test('retry single atomic write, only active exam drafts removed',()=>{const f=fixture(),s=f.c.ensureExamSession(1000),id=s.ids[0];assert(f.model.setDraft(id,q[id].answer));const outside=Object.keys(q).find(id=>!ids.includes(id));assert(f.model.setDraft(outside,q[outside].answer));const r=f.data.r,n=f.store.writes;assert(f.c.retryExam(2000));assert.equal(f.store.writes-n,1);assert.equal(f.data.r,r);assert.equal(f.ui.started,1);assert.equal(f.ui.timer,1);const reloaded=new M(q,f.store,'p',pool);assert.equal(reloaded.state.examSession.startedAt,2000);assert.equal(reloaded.state.drafts[id],undefined);assert.equal(json(reloaded.state.drafts[outside]),json(q[outside].answer));assert.equal(reloaded.state.currentQuestionId,ids[0]);});
+test('resume legacy session without adding profile fields',()=>{const f=fixture(),s=f.c.ensureExamSession(1000);for(const k of Object.keys(M.examProfile2026()))delete s[k];f.model.refreshEvidenceIntegrity();assert(f.model.save());const original=json(s);assert(f.c.ensureExamSession(2000));assert.equal(json(f.model.state.examSession),original);assert.equal(json(new M(q,f.store,'p',pool).state.examSession),original);});
+test('partial profiles rejected before start/retry/finish, original preserved',()=>{for(let mask=1;mask<7;mask++){const f=fixture(),s=f.c.ensureExamSession(1000),keys=Object.keys(M.examProfile2026());keys.forEach((k,i)=>{if(!(mask&(1<<i)))delete s[k]});f.model.refreshEvidenceIntegrity();assert(f.model.save());const b=snapshot(f);assert.equal(f.c.showMode('exam'),false);assert.equal(f.c.retryExam(2000),false);assert.equal(f.c.finishExam(true,2000,true),false);unchanged(f,b);assert.equal(f.ui.timer,0);}});
+test('invalid version, undefined own tag and inherited tag refused',()=>{const p=M.examProfile2026();for(const v of [{...p,scoreProfileVersion:2},{examProfileId:undefined},Object.create(p)])assert.equal(M.validExamProfile(v),false);});
+test('storage ownership block and unmet prerequisite preserve previous state',()=>{const f=fixture(),s=f.c.ensureExamSession(1000);assert(s);f.model.storageWriteBlocked=true;const b=snapshot(f);assert.equal(f.c.showMode('exam'),false);assert.equal(f.c.retryExam(2000),false);unchanged(f,b);f.model.storageWriteBlocked=false;f.c.unmetExamPrerequisites=()=>[ids[0]];assert.equal(f.c.retryExam(2000),false);unchanged(f,b);});
+test('actual start retry persists once and schedules exactly one timer',()=>{now=2000;timers.clear();const f=realFlow(fixture());const old=f.c.ensureExamSession(1000);assert(old);assert(f.model.setDraft(old.ids[0],q[old.ids[0]].answer));const n=f.store.writes;assert(f.c.retryExam(now));assert.equal(f.store.writes-n,1);assert.equal(f.ui.started,1);assert.equal(timers.size,1);assert.equal(f.model.state.currentQuestionId,ids[0]);assert.equal(json(new M(q,f.store,'p',pool).state),json(f.model.state));f.c.stopExamTimer();assert.equal(timers.size,0);});
+test('expired resume finalizes once without restarting timer',()=>{now=2000;timers.clear();const f=realFlow(fixture());const s=f.c.ensureExamSession(now);assert(s);now=s.endAt;assert(f.c.showMode('exam'));assert.equal(f.model.state.examSession,null);assert.equal(f.ui.result,1);assert.equal(timers.size,0);assert.equal(f.model.state.examHistory.length,1);f.c.updateExamStatus(now);assert.equal(f.ui.result,1);assert.equal(f.model.state.examHistory.length,1);});
+test('running timer expiry stops timer and finalizes once',()=>{now=2000;timers.clear();const f=realFlow(fixture());assert(f.c.showMode('exam'));assert.equal(timers.size,1);const tick=[...timers.values()][0];now=f.model.state.examSession.endAt;tick();assert.equal(timers.size,0);assert.equal(f.ui.result,1);tick();assert.equal(f.ui.result,1);assert.equal(f.model.state.examHistory.length,1);});
+test('expiry persistence failure stops automatic retries; manual finish succeeds once',()=>{now=2000;timers.clear();const f=realFlow(fixture());assert(f.c.showMode('exam'));const tick=[...timers.values()][0],s=f.model.state.examSession;const original=f.data.p,character=f.data.r;now=s.endAt;f.store.fail='false';tick();assert.equal(timers.size,0);assert.equal(f.ui.notice.length,1);assert.equal(f.ui.result,undefined);assert.equal(f.data.p,original);assert.equal(f.data.r,character);assert.equal(f.model.state.examSession.status,'EXPIRED');f.store.fail=null;assert(f.c.finishExam(false,now));assert.equal(f.ui.result,1);assert.equal(f.model.state.examHistory.length,1);assert.equal(f.c.finishExam(false,now),false);});
+console.log(`EXAM_START_TRANSACTION ${passed}/${passed+failed} PASS`);if(failed)process.exitCode=1;

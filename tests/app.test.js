@@ -139,7 +139,7 @@ assert(!controllerSource.includes("addEventListener('pointerdown'"), 'pointerdow
 assert(controllerSource.includes("if (event.target.readOnly && this.view?.calculatorFirstInput) return;"), 'calculator-first端末ではfocusinとclickの二重選択を防ぐ');
 assert(controllerSource.includes("if (this.calculatorTarget !== input) return;"), '古いtapの遅延RAFが新しい転記先を上書きしない');
 assert(/input\.readOnly && calculatorPanel[\s\S]*?calculatorPanel\.open = true/.test(controllerSource), 'calculator-first金額欄だけは選択時に計算機を開く');
-const browserSandbox = { window: {} };
+const browserSandbox = { window: {ProgressModel} };
 vm.runInNewContext(controllerSource, browserSandbox);
 browserSandbox.window.WrongAnswerFeedback = Feedback;
 browserSandbox.window.SafeCalculator = Calculator;
@@ -781,7 +781,7 @@ const allowedExamContext={
   isExamExpired(){return false;},
   unmetExamPrerequisites(){return [];},
   clearOrdinaryFilters:examPrototype.clearOrdinaryFilters,
-  ensureExamSession(){allowedExamEnsures+=1;return this.model.state.examSession;},
+  ensureExamSession(){allowedExamEnsures+=1;this.model.save();return this.model.state.examSession;},
   renderModes(){},
   view:{show(){}},
   document:{

@@ -571,7 +571,6 @@
         this.view.showNotice('模試中は他のモードへ移動できません。先に試験を終了して採点してください。', { title:'模試を継続中です' });
         return false;
       }
-      this.document.body?.classList?.remove('placement-active');
       if (mode === 'exam') {
         const unmet = this.unmetExamPrerequisites();
         if (unmet.length) {
@@ -591,28 +590,44 @@
           return false;
         }
       }
+      if (mode === 'exam') {
+        if (!this.ensureExamSession()) {
+          this.view.showNotice('模試を開始できませんでした。保存済みの回答は保持されています。保存状態を確認してから再度お試しください。', {title:'模試を保存できません'});
+          return false;
+        }
+      } else {
+        this.model.state.mode = mode;
+        this.stopExamTimer();
+        this.model.save();
+      }
+      return Controller.prototype.displayMode.call(this,mode);
+    }
+    displayMode(mode) {
+      this.document.body?.classList?.remove('placement-active');
       if (mode === 'exam') this.clearOrdinaryFilters();
-      this.model.state.mode = mode;
-      if (mode === 'exam') this.ensureExamSession();
-      else this.stopExamTimer();
-      this.model.save();
       this.renderModes();
       this.view.show(`view-${mode}`); this.document.getElementById('question-filters').hidden = mode === 'exam' || mode === 'desk';
       this.document.body?.classList?.toggle('exam-active', mode === 'exam');
       this.document.querySelectorAll('[data-action="mode"]').forEach(button => button.setAttribute('aria-current', button.dataset.mode === mode ? 'page' : 'false'));
-      if (mode === 'exam') { this.updateExamStatus(); this.startExamTimer(); }
+      if (mode === 'exam') { this.updateExamStatus(); this.startExamTimer(true); }
       return true;
     }
     leaveExamResult(mode) { this.currentId = null; this.showMode(mode); this.renderModes(); }
     retryExam(now = Date.now()) {
       // Finished sessions already cleared their drafts. An old unsigned result
       // list must not authorize deleting inputs saved since that exam ended.
-      const previousIds = this.model.state.examSession?.ids || [];
-      if (previousIds.length) this.model.clearDrafts?.(previousIds);
-      this.model.state.examSession = null; this.currentId = null;
-      const session = this.ensureExamSession(now);
-      this.showMode('exam'); this.renderModes();
-      if (session.ids[0]) this.start(session.ids[0]);
+      if (this.unmetExamPrerequisites().length) {
+        this.view.showNotice('模試の前に基礎演習を完了してください。', {title:'模試を開始できません'});
+        return false;
+      }
+      const session = this.ensureExamSession(now,true);
+      if (!session) {
+        this.view.showNotice('新しい模試を保存できませんでした。前の回答は保持されています。保存状態を確認してから再度お試しください。', {title:'模試を保存できません'});
+        return false;
+      }
+      this.currentId = null;
+      this.displayMode('exam');
+      if (this.model.state.examSession === session && !this.isExamExpired() && session.ids[0]) this.start(session.ids[0], {persistedExamSession:session});
       return session;
     }
     buildExamIds() {
@@ -682,13 +697,16 @@
       return [];
     }
     modeIds() { const mode = this.model.state.mode; if (mode === 'review') return this.reviewIds(); if (mode === 'exam') return this.model.state.examSession?.ids || this.buildExamIds(); if (mode === 'training') return this.learningIds().filter(id => this.questions[id].type !== 'journal'); return this.storyIds(); }
-    ensureExamSession(now = Date.now()) {
-      if (this.model.validExamSession(this.model.state.examSession)) return this.model.state.examSession;
+    ensureExamSession(now = Date.now(), replace = false) {
+      const previous = this.model.state.examSession;
+      if (previous != null && !this.model.validExamSession(previous)) return false;
       const profile = root.ProgressModel?.examProfile2026?.();
-      if (!profile) throw new Error('FY2026 exam profile authority unavailable');
-      this.model.state.examSession = { ids: this.buildExamIds(), startedAt: now, endAt: now + EXAM_DURATION_MS,
-        status: 'RUNNING', evidenceVersion:1, scores: {}, ...profile };
-      this.model.refreshEvidenceIntegrity?.(); this.model.save(); return this.model.state.examSession;
+      if (!profile) return false;
+      try {
+        const session = previous && !replace ? previous : { ids: this.buildExamIds(), startedAt: now, endAt: now + EXAM_DURATION_MS,
+          status: 'RUNNING', evidenceVersion:1, scores: {}, ...profile };
+        return this.model.commitExamSession(session,replace) ? session : false;
+      } catch (_) { return false; }
     }
     isExamExpired(now = Date.now(), session = this.model.state.examSession) {
       return !session || (session.status || 'RUNNING') !== 'RUNNING' || now >= session.endAt;
@@ -698,8 +716,9 @@
       return session ? session.ids.filter(id => !Object.prototype.hasOwnProperty.call(session.scores, id)) : [];
     }
     updateExamStatus(now = Date.now()) {
-      const session = this.model.state.examSession; if (!session) return;
-      const remaining = Math.max(0, session.endAt - now); const seconds = Math.ceil(remaining / 1000);
+      const session = this.model.state.examSession;
+      if (!session || ['FINISHING','FINISHED'].includes(session.status)) { this.stopExamTimer(); return; }
+      const remaining = session.status === 'EXPIRED' ? 0 : Math.max(0, session.endAt - now); const seconds = Math.ceil(remaining / 1000);
       const timer = this.document.getElementById('exam-timer'); const progress = this.document.getElementById('exam-progress');
       if (timer) timer.textContent = `残り ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
       const announcement = this.document.getElementById('exam-timer-announcement');
@@ -709,19 +728,17 @@
       }
       const position = Math.max(0, session.ids.indexOf(this.currentId)) + 1;
       if (progress) progress.textContent = `第${position}問 / ${session.ids.length}問｜回答済み ${session.ids.length - this.unansweredExamIds().length}問`;
-      if (remaining === 0) { session.status = 'EXPIRED'; this.model.refreshEvidenceIntegrity?.(); this.finishExam(true, now); }
+      if (remaining === 0) { this.stopExamTimer(); session.status = 'EXPIRED'; this.model.refreshEvidenceIntegrity?.(); this.finishExam(true, now); }
     }
-    startExamTimer() { this.stopExamTimer(); this.updateExamStatus(); this.examTimerId = root.setInterval?.(() => this.updateExamStatus(), 1000) || null; }
+    startExamTimer(alreadyUpdated = false) { this.stopExamTimer(); if (!alreadyUpdated) this.updateExamStatus(); if (this.isExamExpired()) return; this.examTimerId = root.setInterval?.(() => this.updateExamStatus(), 1000) || null; }
     stopExamTimer() { if (this.examTimerId !== null) root.clearInterval?.(this.examTimerId); this.examTimerId = null; }
     finishExam(force, now = Date.now(), confirmed = false) {
       const session = this.model.state.examSession; if (!session) return false;
       // Never silently grade a future-year or partially tagged session with
       // the FY2026 score schedule. Legacy unsigned sessions remain FY2026.
       const profile = root.ProgressModel?.examProfile2026?.();
-      if (session.examProfileId !== undefined &&
-          (!profile || session.examProfileId !== profile.examProfileId ||
-           session.scoreProfileVersion !== profile.scoreProfileVersion ||
-           session.questionSetVersion !== profile.questionSetVersion)) return false;
+      if (!root.ProgressModel?.validExamProfile?.(session) ||
+          (typeof this.model.validExamSession === 'function' && !this.model.validExamSession(session))) return false;
       if (session.status === 'FINISHING' || session.status === 'FINISHED') return false;
       const unknownScores = Object.keys(session.scores).filter(id => this.model.isUnverified?.('examScores',id));
       if (unknownScores.length) {
@@ -1261,7 +1278,7 @@
         onConfirm:() => this.start(id)
       });
     }
-    start(id, options = {}) { if (!this.questions[id] || (this.model.state.mode === 'exam' && !this.modeIds().includes(id))) return; if (options.fresh === true) this.model.clearDraft?.(id); this.resetCalculator(); this.submitting = false; this.learningFlow = this.model.state.mode === 'exam' ? null : { questionId:id, phase:'I', hintStage:0, retryCount:0, nextConsumed:false, gameOverPending:false, gameOverDispatched:false }; this.currentId = id; this.learningObservationNumber = this.model.nextLearningObservation?.(id); this.questionStartedAt = Date.now(); this.reviewSourceId = this.model.state.mode === 'review' ? (this.reviewMappings.get(id)?.sourceQuestionId || (this.model.dueReviewIds().includes(id) ? id : null)) : null; this.model.state.currentQuestionId = id; this.model.save(); this.view.resetLearningSurfaces?.(); this.view.storyDecisionRenderedForQuestionId = null; this.view.storyDecisionPreviousBox = null; this.view.storyDecisionEligible = this.model.state.mode === 'story' && !(this.model.state.answeredIds || []).includes(id); this.view.renderQuestion(this.questions[id], this.model.state.drafts[id], this.model.state.mode); this.view.setAnswerMode?.('initial'); this.view.show('view-question'); this.document.getElementById('question-filters').hidden = true; this.document.getElementById?.('q-text')?.focus(); const status = this.document.getElementById('save-status'); if (status && this.model.isUnverified?.('drafts',id)) status.textContent = '旧版の未検証の途中入力です。編集でき、回答時に内容を確認します。'; if (status && this.reviewSourceId && this.model.isUnverified?.('reviewSchedule',this.reviewSourceId)) status.textContent = '旧版の復習予定は未検証です。今回の回答から予定を再評価します。過去の復習段階の達成や追加報酬は確定しません。'; }
+    start(id, options = {}) { if (!this.questions[id] || (this.model.state.mode === 'exam' && !this.modeIds().includes(id))) return; if (options.fresh === true) this.model.clearDraft?.(id); this.resetCalculator(); this.submitting = false; this.learningFlow = this.model.state.mode === 'exam' ? null : { questionId:id, phase:'I', hintStage:0, retryCount:0, nextConsumed:false, gameOverPending:false, gameOverDispatched:false }; this.currentId = id; this.learningObservationNumber = this.model.nextLearningObservation?.(id); this.questionStartedAt = Date.now(); this.reviewSourceId = this.model.state.mode === 'review' ? (this.reviewMappings.get(id)?.sourceQuestionId || (this.model.dueReviewIds().includes(id) ? id : null)) : null; const alreadySaved = this.model.state.mode === 'exam' && options.persistedExamSession && options.persistedExamSession === this.model.state.examSession && options.fresh !== true && this.model.state.currentQuestionId === id; this.model.state.currentQuestionId = id; if (!alreadySaved) this.model.save(); this.view.resetLearningSurfaces?.(); this.view.storyDecisionRenderedForQuestionId = null; this.view.storyDecisionPreviousBox = null; this.view.storyDecisionEligible = this.model.state.mode === 'story' && !(this.model.state.answeredIds || []).includes(id); this.view.renderQuestion(this.questions[id], this.model.state.drafts[id], this.model.state.mode); this.view.setAnswerMode?.('initial'); this.view.show('view-question'); this.document.getElementById('question-filters').hidden = true; this.document.getElementById?.('q-text')?.focus(); const status = this.document.getElementById('save-status'); if (status && this.model.isUnverified?.('drafts',id)) status.textContent = '旧版の未検証の途中入力です。編集でき、回答時に内容を確認します。'; if (status && this.reviewSourceId && this.model.isUnverified?.('reviewSchedule',this.reviewSourceId)) status.textContent = '旧版の復習予定は未検証です。今回の回答から予定を再評価します。過去の復習段階の達成や追加報酬は確定しません。'; }
     saveDraft(message) {
       if (!this.currentId) return false;
       if (this.model.state.mode !== 'exam' && ['W','R'].includes(this.learningFlow?.phase)) {

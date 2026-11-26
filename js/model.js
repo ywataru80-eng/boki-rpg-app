@@ -77,6 +77,13 @@
   const FIXED_ASSET_SCHEMA_REVISION_2_IDS = new Set(['L005','L010','L015','L020','L025','L030','L033','L040']);
   class ProgressModel {
     static examProfile2026() { return {...EXAM_PROFILE_2026}; }
+    static validExamProfile(session) {
+      if (!session || typeof session !== 'object' || Array.isArray(session)) return false;
+      const keys = Object.keys(EXAM_PROFILE_2026);
+      return keys.every(key => !Object.hasOwn(session,key))
+        ? keys.every(key => !(key in session))
+        : keys.every(key => Object.hasOwn(session,key) && session[key] === EXAM_PROFILE_2026[key]);
+    }
     static currentContentVersions(questions = {}, revision = CONTENT_REVISION) {
       return Object.fromEntries(Object.entries(CONTENT_IDENTITIES).filter(([id, spec]) =>
         (revision >= (spec.sinceRevision || (spec.legacy ? 5 : 1))) && questions[id]?.category === spec.category && questions[id]?.type === spec.type).map(([id, spec]) => [id, spec.identity]));
@@ -1046,11 +1053,7 @@
       // A legacy session has no profile fields: preserve its original FY2026
       // grading contract and raw saved bytes. A partially tagged or unknown
       // annual profile is never silently interpreted as FY2026.
-      if (session && typeof session === 'object') {
-        const keys = Object.keys(EXAM_PROFILE_2026);
-        if (keys.some(key => Object.hasOwn(session,key)) &&
-            keys.some(key => session[key] !== EXAM_PROFILE_2026[key])) return false;
-      }
+      if (!ProgressModel.validExamProfile(session)) return false;
       if (!(session && typeof session === 'object' && Array.isArray(session.ids) && session.ids.length === 15 &&
         Array.isArray(this.examPool) && session.ids.every(id => this.questions[id] && this.examPool.includes(id)) && new Set(session.ids).size === session.ids.length &&
         Number.isFinite(session.startedAt) && Number.isFinite(session.endAt) && session.endAt > session.startedAt &&
@@ -1065,6 +1068,32 @@
         const possible = question.type === 'journal' ? 1 : cells && typeof cells === 'object' ? Object.keys(cells).length : null;
         return possible === null || score.possible === possible;
       });
+    }
+    // Start/retry changes only the progress key, not the character key. Stage
+    // the entire next state and write once (localStorage setItem is atomic).
+    // Do not clear drafts or expose the new session before persistence succeeds.
+    commitExamSession(session, replace = false) {
+      const before = this.state;
+      if (this.storageWriteBlocked || !this.validExamSession(session) ||
+          (before.examSession != null && !this.validExamSession(before.examSession)) ||
+          (!replace && before.examSession != null && before.examSession !== session) ||
+          !ProgressModel.validateBackupState(before,this.questions,this.examPool)) return false;
+      const next = {...before, mode:'exam', examSession:session};
+      if (replace) {
+        next.drafts = {...before.drafts};
+        if (before.legacyProvenance) next.legacyProvenance = {...before.legacyProvenance,
+          pending:{...before.legacyProvenance.pending,drafts:[...before.legacyProvenance.pending.drafts]}};
+        next.currentQuestionId = session.ids[0];
+      }
+      this.state = next;
+      try {
+        if (replace) for (const id of before.examSession?.ids || []) {
+          delete next.drafts[id]; this.discardDraftCandidate(id);
+        }
+        this.refreshEvidenceIntegrity();
+        if (ProgressModel.validateBackupState(next,this.questions,this.examPool) && this.save() === true) return true;
+      } catch (_) { /* keep the previous in-memory state */ }
+      this.state = before; return false;
     }
     refreshEvidenceIntegrity() { this.state.learningEvidenceIntegrity = {schemaVersion:11,signature:evidenceStateSignature(this.state)}; }
     save() { if (this.storageWriteBlocked || typeof this.storage?.setItem !== 'function') return false; try { return this.storage.setItem(this.key, JSON.stringify(this.state)) !== false; } catch (_) { return false; } }

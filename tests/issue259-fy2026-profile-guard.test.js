@@ -17,6 +17,7 @@ const model = new Model(questions,store,'p',pool);
 const previous = {finishedAt:1234,points:69,passed:false,setSignature:'old-exam-history',topicScores:{journal:{earned:69,possible:100}}};
 model.state.examHistory = [previous];
 model.state.mode = 'exam';
+model.refreshEvidenceIntegrity(); // fixture must carry the issued signature before a transactional start
 const controller = Object.create(Controller.prototype);
 controller.model = model;
 controller.buildExamIds = () => ids;
