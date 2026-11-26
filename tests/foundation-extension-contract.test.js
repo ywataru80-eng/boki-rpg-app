@@ -5,7 +5,7 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 const storage=()=>{const data=new Map();return{data,getItem:key=>data.get(key)??null,setItem:(key,value)=>{data.set(key,String(value));return true;},removeItem:key=>data.delete(key)};};
 const store=storage(), root={localStorage:store,dispatchEvent(){},console};
 const context=vm.createContext({window:root,console,queueMicrotask,Event:class Event{}});
-for(const file of ['data/accounting-domain.js','data/questions.js','data/accounting-oracle.js','js/calculator.js','js/engine.js','js/model.js','js/rpg.js','js/view.js','js/controller.js','tests/helpers/foundation-extension-adapter.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context,{filename:file});
+for(const file of ['data/accounting-domain.js','data/questions.js','data/accounting-oracle.js','data/fy2027-curriculum.js','js/calculator.js','js/engine.js','js/model.js','js/rpg.js','js/view.js','js/annual-storage.js','js/controller.js','tests/helpers/foundation-extension-adapter.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context,{filename:file});
 const api=root.FoundationExtensionAdapter,questions=api.catalog(cases),canonical=JSON.stringify(root.QuestionData);
 let passed=0;
 function test(name,run){run();passed++;console.log('PASS '+name);}

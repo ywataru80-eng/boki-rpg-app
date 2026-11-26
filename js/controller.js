@@ -13,7 +13,8 @@
   const progressKey='boki-rpg-progress-v3',characterKey='boki-rpg-character-v2';
   const legacyKeys=['boki-rpg-progress-v2','boki-rpg-character-v1','boki-rpg-progress-v2:pending-answer-v1'];
   const legacySignatureKey=progressKey+':legacy-source-v1';
-  const primaryKey=key=>key===progressKey||key===characterKey;
+  const futureProgressKey=progressKey+':FY2027';
+  const primaryKey=key=>key===progressKey||key===characterKey||key===futureProgressKey;
   const getStorage = () => {
     const reportFailure = () => root.dispatchEvent?.(new Event('boki-storage-error'));
     try {
@@ -47,9 +48,23 @@
           catch(_){return false;}
         }
       };
-      if (!Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace())) {
+      // No model may load until all known answer/annual journals have been
+      // reconciled under the existing origin-wide lock. Future curricula remain
+      // closed until their registry approves them; do not overwrite their data.
+      const annual=root.AnnualStorage?.create({
+        getItem(key){if(!owned())throw Error('storage owner');return storage.getItem(key);},
+        setItem(key,value){if(!owned()||!writable)return false;storage.setItem(key,value);return true;},
+        removeItem(key){if(!owned()||!writable)return false;storage.removeItem(key);return true;}
+      },{owns:owned,yearAllowed:year=>!!root.CurriculumRegistry?.active(year),
+        validateProgress:(year,value)=>{const c=root.CurriculumRegistry?.active(year);return !!c&&root.ProgressModel.validateBackupState(value,c.questions,c.examPool);},
+        validateCharacter:value=>root.RPGModel.validateBackupState(value),
+        recoverAnswer:year=>Controller.recoverAnswerTransaction(adapter,year==='FY2026'?progressKey:futureProgressKey,characterKey)});
+      let annualReady=false;
+      try { annualReady=!!annual&&annual.recover()&&
+        (!!root.CurriculumRegistry?.active('FY2027')||storage.getItem(futureProgressKey)===null); } catch (_) { annualReady=false; }
+      if (!annualReady || !Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace(),!!root.CurriculumRegistry?.active('FY2027'))) {
         writable = false; adapter.readItem = () => ({ok:false,value:null}); adapter.getItem = () => null; queueMicrotask(reportFailure);
-      } else { namespaceReady=true;queueMicrotask(()=>{if(adapter.legacyChanged())root.dispatchEvent?.(new Event('boki-legacy-storage-conflict'));}); }
+      } else { adapter.annualStorage=annual;namespaceReady=true;queueMicrotask(()=>{if(adapter.legacyChanged())root.dispatchEvent?.(new Event('boki-legacy-storage-conflict'));}); }
       return adapter;
     } catch (_) { queueMicrotask(reportFailure); return null; }
   };
@@ -113,13 +128,13 @@
       if([progressKey,characterKey,progressKey+':pending-answer-v1'].some(key=>storage.getItem(key)!==null))return {kind:'current'};
       return {kind:'legacy',values:legacyKeys.map(key=>storage.getItem(key))};
     }
-    static initializeStorageNamespace(storage,snapshot) {
+    static initializeStorageNamespace(storage,snapshot,annualApproved=false) {
       const io=Controller.prototype;
       if(!Controller.recoverAnswerTransaction(storage,progressKey,characterKey))return false;
       const present=[progressKey,characterKey].map(key=>storage.hasItem(key));
       if(present.some(Boolean)){
         const pair=[progressKey,characterKey].map(key=>io.storageRead(storage,key));
-        return present.every(Boolean)&&pair.every(item=>item.ok)&&!(pair[0].value===null&&pair[1].value!==null);
+        return present.every(Boolean)&&pair.every(item=>item.ok)&&(annualApproved||!(pair[0].value===null&&pair[1].value!==null));
       }
       if(snapshot?.kind!=='legacy'||snapshot.values.length!==legacyKeys.length)return false;
       const raw=legacyKeys.map(key=>io.storageRead(storage,key));
@@ -458,18 +473,37 @@
         const payload = JSON.parse(await file.text());
         if (payload?.format !== 'boki-rpg-backup' || payload.version !== 1 || !root.ProgressModel.validateBackupState(payload.progress, this.questions, this.model.examPool) || !root.RPGModel.validateBackupState(payload.character)) throw new Error('invalid');
         if (this.model.storage === this.rpg.storage && !Controller.recoverAnswerTransaction(this.model.storage,this.model.key,this.rpg.key)) throw new Error('pending-answer');
+        if(this.model.storage?.annualStorage&&this.model.storage.annualStorage.snapshot().FY2027!==null)throw Error('legacy backup cannot replace shared character');
         const prepared = root.ProgressModel.prepareBackupState(payload.progress, this.questions, this.model.examPool);
         if (!prepared) throw new Error('invalid-progress-migration');
         const progressValue = JSON.stringify(prepared); const characterValue = JSON.stringify(payload.character);
         const progressSnapshot = this.storageRead(this.model.storage, this.model.key); const characterSnapshot = this.storageRead(this.rpg.storage, this.rpg.key);
         if (!progressSnapshot.ok || !characterSnapshot.ok) throw new Error('storage-read');
+        // Production uses the existing durable pair journal, understood by the
+        // previous release too. A crash during backup import cannot leave a new
+        // progress record paired with the old character. Do not invent a journal
+        // for independent stores used by the isolated migration harnesses.
+        const store=this.model.storage, durable=store===this.rpg.storage&&Array.isArray(store?.resetKeys);
+        const journalKey=durable?this.model.key+':pending-answer-v1':null;
+        if(durable){
+          const pending={schemaVersion:1,progressKey:this.model.key,characterKey:this.rpg.key,progress:progressSnapshot.value,character:characterSnapshot.value};
+          if(!this.storageWrite(store,journalKey,JSON.stringify({...pending,signature:transactionSignature(pending)}))){
+            if(!Controller.recoverAnswerTransaction(store,this.model.key,this.rpg.key)){this.model.storageWriteBlocked=true;this.rpg.save=()=>false;}
+            throw Error('backup journal');
+          }
+        }
         let forwardFailed = false;
         if (!this.storageWrite(this.model.storage, this.model.key, progressValue)) forwardFailed = true;
         else if (!this.storageWrite(this.rpg.storage, this.rpg.key, characterValue)) forwardFailed = true;
+        else if(durable&&!this.storageRemove(store,journalKey)){
+          const journal=this.storageRead(store,journalKey),p=this.storageRead(store,this.model.key),c=this.storageRead(store,this.rpg.key);
+          forwardFailed=!(journal.ok&&journal.value===null&&p.ok&&p.value===progressValue&&c.ok&&c.value===characterValue);
+        }
         if (forwardFailed) {
-          const progressRolledBack = this.storageRestore(this.model.storage, this.model.key, progressSnapshot.value);
-          const characterRolledBack = this.storageRestore(this.rpg.storage, this.rpg.key, characterSnapshot.value);
-          if (!progressRolledBack || !characterRolledBack) { const error = new Error('rollback'); error.rollbackFailed = true; throw error; }
+          const restored=durable?Controller.recoverAnswerTransaction(store,this.model.key,this.rpg.key):
+            [this.storageRestore(this.model.storage,this.model.key,progressSnapshot.value),this.storageRestore(this.rpg.storage,this.rpg.key,characterSnapshot.value)].every(Boolean);
+          const p=this.storageRead(this.model.storage,this.model.key),c=this.storageRead(this.rpg.storage,this.rpg.key);
+          if (!restored||!p.ok||!c.ok||p.value!==progressSnapshot.value||c.value!==characterSnapshot.value) { this.model.storageWriteBlocked=true;this.rpg.save=()=>false;const error = new Error('rollback'); error.rollbackFailed = true; throw error; }
           throw new Error('storage');
         }
         status.classList.remove('storage-error');

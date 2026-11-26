@@ -128,12 +128,12 @@ test('300 IDs and protected prior contracts plus distinct reviewed 17 successors
   }
   // Release234 revises the *instructional prose* in the authored explanation
   // model for D002-D020; assessed values and all other fields are still immutable.
-  const editorial234=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
+  const editorial234=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247','20261127-248'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release);
   if(editorial234 && /^D(?:00[2-9]|01[0-9]|020)$/.test(id)){
     assert.equal(Array.isArray(current.explanationModel?.summary),true,id+' revised prose model present');
     delete current.explanationModel;delete historical.explanationModel;
   }
-  if(id==='J147' && ['20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release)){
+  if(id==='J147' && ['20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247','20261127-248'].includes(JSON.parse(require('node:fs').readFileSync('pwa-release-manifest.json','utf8')).release)){
     const approved='当店は銀行と当座借越契約を締結し、期中は一勘定制で記帳している。当座預金の帳簿残高が30,000円のとき、商品を仕入れ、仕入代金80,000円を小切手で支払った。この取引の仕訳を行いなさい。';
     assert.equal(current.question,approved);
     assert.deepEqual(current.materials,historical.materials.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value===historical.question?approved:value]))));
