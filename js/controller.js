@@ -218,8 +218,12 @@
       const explicitQuestion = typeof route.questionId === 'string' && this.questions[route.questionId];
       const savedMode = ['story', 'training', 'review', 'desk'].includes(this.model.state.mode) ? this.model.state.mode : 'story';
       const requestedMode = routeMode || (explicitQuestion ? 'story' : savedMode);
-      const mode = this.hasActiveExamSession() ? 'exam' : requestedMode;
+      // A durable saved exam, including an expired one, must be handled
+      // before a requested route. New eligibility must not strand old work.
+      const pendingExam = this.model.state.examSession != null;
+      const mode = pendingExam || this.hasActiveExamSession() ? 'exam' : requestedMode;
       if (this.showMode(mode) === false) return;
+      if (pendingExam && (this.model.state.examSession == null || this.isExamExpired?.())) return;
       if (explicitQuestion && this.questions[route.questionId] && (mode !== 'exam' || this.modeIds().includes(route.questionId))) { this.start(route.questionId); return; }
       if (!routeMode && !explicitQuestion) this.offerResume(mode);
     }
@@ -571,7 +575,9 @@
         this.view.showNotice('模試中は他のモードへ移動できません。先に試験を終了して採点してください。', { title:'模試を継続中です' });
         return false;
       }
-      if (mode === 'exam') {
+      // Eligibility gates a new attempt, not a valid persisted attempt.
+      // ensureExamSession still validates the complete saved session.
+      if (mode === 'exam' && this.model.state.examSession == null) {
         const unmet = this.unmetExamPrerequisites();
         if (unmet.length) {
           const items = unmet.map(id => ({

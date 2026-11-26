@@ -66,7 +66,8 @@ jobs:
             '20261123-241': 'scripts/validate-issue259-profile-guard-successor-241.cjs',
             '20261126-242': 'scripts/validate-j147-successor-242.cjs',
             '20261126-243': 'scripts/validate-fy2027-draft-successor-243.cjs',
-            '20261126-244': 'scripts/validate-exam-start-successor-244.cjs'
+            '20261126-244': 'scripts/validate-exam-start-successor-244.cjs',
+            '20261126-245': 'scripts/validate-exam-resume-successor-245.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);

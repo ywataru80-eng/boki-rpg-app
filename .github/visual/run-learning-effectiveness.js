@@ -322,16 +322,35 @@ async function run(){
               return {session:progress.examSession,attempt:progress.examAttempt,character,first};
             });
             await page.reload({waitUntil:'load'});await page.waitForFunction(()=>Boolean(window.App?.controller));
-            const resumed=await page.evaluate(()=>({session:App.controller.model.state.examSession,character:App.controller.rpg.state}));
+            const resumed=await page.evaluate(()=>({session:App.controller.model.state.examSession,character:App.controller.rpg.state,mode:App.controller.model.state.mode,timer:App.controller.examTimerId!=null,unmet:App.controller.unmetExamPrerequisites()}));
             assert.deepStrictEqual(resumed.session,activeExam.session);assert.deepStrictEqual(resumed.character,activeExam.character);
-            const retriedExam=await page.evaluate(({attempt,first,xp})=>{
+            assert.strictEqual(resumed.mode,'exam');assert(resumed.timer,'saved exam must resume its timer');assert(resumed.unmet.length>0,'fixture must exercise missing prerequisites');
+            const expiredExam=await page.evaluate(({attempt,first,xp})=>{
               const c=window.App.controller;c.updateExamStatus(c.model.state.examSession.endAt);
               if(c.model.state.examSession!==null||c.model.state.examAttempt!==attempt+1||c.model.state.examHistory.at(-1)?.points!==0||c.rpg.state.xp!==xp)throw Error('expired wrong/unanswered exam did not finalize once');
               if(c.model.learningEffectivenessForQuestion(first).observedAttempts!==1||!ProgressModel.validateBackupState(c.model.state,c.questions))throw Error('expiry changed observation or invalidated saved state');
-              const session=c.retryExam();if(Object.keys(session.scores).length||session.ids.some(id=>!c.examCandidateIds().includes(id)))throw Error('retry did not create a fresh authored exam');
+              const before=[localStorage.getItem(c.model.key),localStorage.getItem(c.rpg.key)],history=JSON.stringify(c.model.state.examHistory);
+              if(c.retryExam()!==false||c.model.state.examSession!==null||c.examTimerId!==null||localStorage.getItem(c.model.key)!==before[0]||localStorage.getItem(c.rpg.key)!==before[1])throw Error('ineligible retry did not preserve completed exam');
+              return {attempt:c.model.state.examAttempt,history};
+            },{attempt:activeExam.attempt,first:activeExam.first,xp:activeExam.character.xp});
+            // Close the actual eligibility notice, then satisfy the prerequisite
+            // contract through real question rendering, input and submission.
+            if(await page.locator('#app-notice-dialog').evaluate(el=>el.open)){
+              const cancel=page.locator('#app-notice-cancel');
+              await (await cancel.isVisible()?cancel:page.locator('#app-notice-confirm')).click();
+            }
+            const retriedExam=await page.evaluate(({attempt,history})=>{
+              const c=window.App.controller,required=c.unmetExamPrerequisites();
+              if(!required.length||c.showMode('story')===false)throw Error('prerequisite learning route unavailable');
+              for(const id of required){
+                c.start(id,{fresh:true});c.view.applyRetryDraft(c.questions[id],c.questions[id].answer);
+                if(c.submit()===false||!c.model.verifiedCorrectIds().includes(id))throw Error('prerequisite answer not verified: '+id);
+              }
+              if(c.unmetExamPrerequisites().length||c.model.state.examAttempt!==attempt||JSON.stringify(c.model.state.examHistory)!==history)throw Error('prerequisite learning changed exam history');
+              const session=c.retryExam();if(!session||Object.keys(session.scores).length||session.ids.some(id=>!c.examCandidateIds().includes(id)))throw Error('retry did not create a fresh authored exam');
               if(!ProgressModel.validateBackupState(c.model.state,c.questions))throw Error('retry saved an invalid marker');
               return {session,attempt:c.model.state.examAttempt,history:c.model.state.examHistory};
-            },{attempt:activeExam.attempt,first:activeExam.first,xp:activeExam.character.xp});
+            },expiredExam);
             await page.reload({waitUntil:'load'});await page.waitForFunction(()=>Boolean(window.App?.controller));
             assert.deepStrictEqual(await page.evaluate(()=>({session:App.controller.model.state.examSession,attempt:App.controller.model.state.examAttempt,history:App.controller.model.state.examHistory})),retriedExam);
             const corruptBefore=await page.evaluate(()=>{
@@ -344,7 +363,7 @@ async function run(){
               values:Object.fromEntries(keys.map(key=>[key,localStorage.getItem(key)])),journal:localStorage.getItem(`${window.App.controller.model.key}:pending-answer-v1`)}),Object.keys(corruptBefore));
             assert.strictEqual(corruptAfter.blocked,true);assert.deepStrictEqual(corruptAfter.values,corruptBefore);assert.strictEqual(corruptAfter.journal,'{bad');
             assert.deepStrictEqual(errors,[]);
-            evidence.reports.push({engine,width,observedAttempts:222,retained:200,delayedAttempts:220,delayedSuccesses:146,initialPreserved:true,assistedSeparated:true,reload:true,backup:true,saveFailure:failure,interruptedWriteRecovery:true,liveOwnerProtected:true,closedOwnerRecovery:true,retryExactlyOnce:retried,corruptJournalWarning:true,corruptBytesPreserved:true,missingEvidenceImportRejected:true,evictedUnknownAggregateImportRejected:true,missingCompletionImportRejected:true,evictedLatestStatsImportRejected:true,continuityImportRejected:true,pendingReviewImportRejected:true,examHistoryImportRejected:true,activeExamImportRejected:true,legacyExamPoolImportRejected:true,legacyExamMigration:true,initialPlacementPreserved:true,initialPlacementImportRejected:true,mistakeTotalsImportRejected:true,legacyMistakeBoundsImportRejected:true,legacyMistakeMigration:true,legacyResolvedMistakeImportRejected:true,legacyExamArithmeticImportRejected:true,partialDraftImportRejected:true,partialDraftReload:true,badBackupImports:27,mistakeBadgesAndFiltersPreserved:true,activeExamResume:true,expiredExamAndRetry:true,...numericalBoundaries,pageErrors:errors});write();
+            evidence.reports.push({engine,width,observedAttempts:222,retained:200,delayedAttempts:220,delayedSuccesses:146,initialPreserved:true,assistedSeparated:true,reload:true,backup:true,saveFailure:failure,interruptedWriteRecovery:true,liveOwnerProtected:true,closedOwnerRecovery:true,retryExactlyOnce:retried,corruptJournalWarning:true,corruptBytesPreserved:true,missingEvidenceImportRejected:true,evictedUnknownAggregateImportRejected:true,missingCompletionImportRejected:true,evictedLatestStatsImportRejected:true,continuityImportRejected:true,pendingReviewImportRejected:true,examHistoryImportRejected:true,activeExamImportRejected:true,legacyExamPoolImportRejected:true,legacyExamMigration:true,initialPlacementPreserved:true,initialPlacementImportRejected:true,mistakeTotalsImportRejected:true,legacyMistakeBoundsImportRejected:true,legacyMistakeMigration:true,legacyResolvedMistakeImportRejected:true,legacyExamArithmeticImportRejected:true,partialDraftImportRejected:true,partialDraftReload:true,badBackupImports:27,mistakeBadgesAndFiltersPreserved:true,activeExamResume:true,expiredExamAndRetry:true,ineligibleRetryRejected:true,prerequisitesThroughRealAnswers:true,...numericalBoundaries,pageErrors:errors});write();
           }finally{await context.close();}
         }
       }finally{await browser.close();}
