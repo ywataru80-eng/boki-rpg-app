@@ -69,7 +69,9 @@ jobs:
             '20261126-244': 'scripts/validate-exam-start-successor-244.cjs',
             '20261126-245': 'scripts/validate-exam-resume-successor-245.cjs',
             '20261126-246': 'scripts/validate-exam-deadline-successor-246.cjs',
-            '20261126-247': 'scripts/validate-annual-catalog-successor-247.cjs'
+            '20261126-247': 'scripts/validate-annual-catalog-successor-247.cjs',
+            '20261127-248': 'scripts/validate-annual-storage-successor-248.cjs',
+            '20261127-249': 'scripts/validate-annual-storage-successor-249.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);

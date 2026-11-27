@@ -30,6 +30,7 @@ function tab(f, locks=f.locks) {
   const root = {localStorage:f.storage,navigator:{locks,serviceWorker},location:{protocol:'file:',reload(){reloads++;}},QuestionData:questions,CurriculumRegistry:{active:year=>year==='FY2026'?{questions,examPool:[]}:null},ProgressModel:Model,RPGModel:RPG,
     AppView:class{},validateSemanticQuestionData:()=>({}),addEventListener(name,fn){(events[name] ||= []).push(fn);},dispatchEvent(event){for(const fn of events[event.type]||[])fn(event);}};
   const sandbox = {window:root,document,navigator:root.navigator,location:root.location,console,URL,URLSearchParams,queueMicrotask,Event,MessageChannel,setTimeout,clearTimeout};
+  vm.runInNewContext(fs.readFileSync('js/annual-storage.js','utf8'),sandbox);
   vm.runInNewContext(fs.readFileSync('js/controller.js','utf8'),sandbox);
   root.AppController.prototype.init=function(){};
   vm.runInNewContext(fs.readFileSync('js/app.js','utf8'),sandbox);
@@ -385,6 +386,53 @@ async function test(name,fn){try{await fn();passed++;console.log('PASS '+name);}
     const f=fixture(),a=tab(f);a.worker.postMessage=function(message,ports){if(message.type==='BOKI_STORAGE_CLIENTS')ports[0].postMessage({protocol:1,release:malformed==='wrong-release'?'20260924-187':currentRelease,requester:a.clientId,clients:malformed==='duplicate-clients'?[a.clientId,a.clientId]:malformed==='missing-requester'?['another-client']:[a.clientId],activation:{state:'activated',active:true}});};
     try{await a.app.init();assert.strictEqual(a.app.controller,undefined);assert.strictEqual(f.storage.reads,0);}
     finally{a.fire('pagehide');}
+  });
+  await test('annual journal is recovered before the real models load after ownership loss',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    assert(c.learningTransaction(()=>{assert(c.model.recordAttempt('Q',true,10,'',false,Date.now()));c.rpg.state.xp+=20;return true;}));
+    const before={...f.data},set=f.storage.setItem;let interrupted=false;
+    f.storage.setItem=function(key,value){set.call(this,key,value);if(key===progressKey&&value==='null'&&!interrupted){interrupted=true;a.fire('pagehide');}};
+    try{assert.throws(()=>c.model.storage.annualStorage.resetAll({confirm:true}),/recovery pending/);assert(f.data['boki-rpg-annual-transaction-v1']);await b.app.init();assert(interrupted);assert(!b.app.controller.model.storageWriteBlocked);assert.strictEqual(b.app.controller.rpg.state.xp,20);assert.deepStrictEqual(f.data,before);}
+    finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  await test('unapproved future data or competing journals block all startup writes',async()=>{
+    for(const values of [{'boki-rpg-progress-v3:FY2027':'null'},{'boki-rpg-progress-v3:FY2027:pending-answer-v1':'bad'},{'boki-rpg-annual-transaction-v1':'{}',[progressKey+':pending-answer-v1']:'bad'}]){
+      const f=fixture(),a=tab(f);Object.assign(f.data,values);const before={...f.data};
+      try{await a.app.init();assert(a.app.controller.model.storageWriteBlocked);assert.deepStrictEqual(f.data,before);assert.strictEqual(a.app.controller.model.save(),false);assert.strictEqual(a.app.controller.rpg.save(),false);}
+      finally{a.fire('pagehide');}
+    }
+  });
+  await test('current V1 backup import interrupted between progress and character recovers original pair on next startup',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    c.model.save();c.rpg.save();const earlier=JSON.stringify({format:'boki-rpg-backup',version:1,progress:c.model.state,character:c.rpg.state});
+    assert(c.learningTransaction(()=>{assert(c.model.recordAttempt('Q',true,10,'',false,Date.now()));c.rpg.state.xp+=20;return true;}));
+    const before={...f.data},set=f.storage.setItem;let interrupted=false;
+    f.storage.setItem=function(key,value){set.call(this,key,value);if(key===progressKey&&!interrupted){interrupted=true;a.fire('pagehide');}};
+    const original=c.document.getElementById;c.document.getElementById=id=>id==='backup-status'?{textContent:'',classList:{add(){},remove(){}}}:original(id);
+    try{assert.strictEqual(await c.importBackup({text:async()=>earlier}),false);assert(f.data[progressKey+':pending-answer-v1']);await b.app.init();assert(interrupted);assert(!b.app.controller.model.storageWriteBlocked);assert.strictEqual(b.app.controller.rpg.state.xp,20);assert.deepStrictEqual(f.data,before);}
+    finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  await test('FY2026 scoped reset restarts with earned character while FY2027 is disabled',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{assert(c.learningTransaction(()=>{assert(c.model.recordAttempt('Q',true,10,'',false,Date.now()));c.rpg.state.xp+=20;return true;}));
+      assert(c.model.storage.annualStorage.resetYear('FY2026',{confirm:true}));const before={...f.data};a.fire('pagehide');await b.app.init();
+      assert(!b.app.controller.model.storageWriteBlocked);assert.strictEqual(b.app.controller.rpg.state.xp,20);assert.deepStrictEqual(b.app.controller.model.state.questionStats,{});assert.deepStrictEqual(f.data,before);
+      assert.strictEqual(b.app.controller.model.storage.annualStorage.exportV2().progress.FY2026.status,'reset');
+    }finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  for(const [progress,character] of [['absent','absent'],['absent','saved'],['reset','absent']])await test('intentional '+progress+'/'+character+' restore survives reload without legacy resurrection',async()=>{
+    const f=fixture();legacyFixture(f);const a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{c.model.save();c.rpg.state.xp=20;c.rpg.save();const old={progress:f.data[legacyProgressKey],character:f.data[legacyCharacterKey]};const backup=c.model.storage.annualStorage.exportV2();backup.progress.FY2026={status:progress};if(character==='absent')backup.character={status:character};
+      assert(c.model.storage.annualStorage.importV2(backup,{confirmReplaceAll:true}));const before={...f.data};a.fire('pagehide');await b.app.init();const next=b.app.controller;
+      assert(!next.model.storageWriteBlocked);assert.deepStrictEqual(next.model.state.questionStats,{});assert.strictEqual(next.rpg.state.xp,character==='saved'?20:0);assert.deepStrictEqual(f.data,before);assert.strictEqual(f.data[legacyProgressKey],old.progress);assert.strictEqual(f.data[legacyCharacterKey],old.character);assert.deepStrictEqual(JSON.parse(JSON.stringify(next.model.storage.annualStorage.exportV2())),JSON.parse(JSON.stringify(backup)));
+    }finally{a.fire('pagehide');b.fire('pagehide');}
+  });
+  await test('answer rollback preserves intentional empty marker and future absence',async()=>{
+    const f=fixture(),a=tab(f),b=tab(f);await a.app.init();const c=a.app.controller;
+    try{c.model.save();c.rpg.save();const backup=c.model.storage.annualStorage.exportV2();backup.progress.FY2026={status:'absent'};backup.character={status:'absent'};c.model.storage.annualStorage.importV2(backup,{confirmReplaceAll:true});a.fire('pagehide');await b.app.init();const d=b.app.controller,before={...f.data},set=f.storage.setItem;let fail=true;
+      f.storage.setItem=function(k,v){if(k===characterKey&&fail){fail=false;throw Error('character write interrupted');}return set.call(this,k,v);};
+      assert.strictEqual(d.learningTransaction(()=>{assert(d.model.recordAttempt('Q',true,10,'',false,Date.now()));d.rpg.state.xp+=20;return true;}),false);assert(!fail);assert.deepStrictEqual(f.data,before);
+    }finally{a.fire('pagehide');b.fire('pagehide');}
   });
   console.log(`STORAGE_OWNERSHIP ${passed}/${passed+failed} PASS; ${failed} FAIL`);if(failed)process.exitCode=1;
 })();

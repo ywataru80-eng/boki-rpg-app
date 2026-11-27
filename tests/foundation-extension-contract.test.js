@@ -5,7 +5,7 @@ const clone=value=>JSON.parse(JSON.stringify(value));
 const storage=()=>{const data=new Map();return{data,getItem:key=>data.get(key)??null,setItem:(key,value)=>{data.set(key,String(value));return true;},removeItem:key=>data.delete(key)};};
 const store=storage(), root={localStorage:store,dispatchEvent(){},console};
 const context=vm.createContext({window:root,console,queueMicrotask,Event:class Event{}});
-for(const file of ['data/accounting-domain.js','data/questions.js','data/accounting-oracle.js','js/calculator.js','js/engine.js','js/model.js','js/rpg.js','js/view.js','js/controller.js','tests/helpers/foundation-extension-adapter.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context,{filename:file});
+for(const file of ['data/accounting-domain.js','data/questions.js','data/accounting-oracle.js','data/fy2027-curriculum.js','js/calculator.js','js/engine.js','js/model.js','js/rpg.js','js/view.js','js/annual-storage.js','js/controller.js','tests/helpers/foundation-extension-adapter.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),context,{filename:file});
 const api=root.FoundationExtensionAdapter,questions=api.catalog(cases),canonical=JSON.stringify(root.QuestionData);
 let passed=0;
 function test(name,run){run();passed++;console.log('PASS '+name);}
@@ -215,5 +215,20 @@ for(const due of [[],[cases.cost.id]])test('browser bootstrap review route '+(du
   else {assert.deepStrictEqual(seen.started,[]);assert.strictEqual(c.currentId,null);
     assert.strictEqual(c.reviewSourceId,null);assert.strictEqual(seen.view,'view-review');assert.strictEqual(seen.reviewListClears,1);}
 });
-console.log('FOUNDATION_EXTENSION_CONTRACT '+passed+'/'+passed+' PASS');
-console.log('FIXTURE_SHA256 '+crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'fixtures/foundation-extension-cases.js'))).digest('hex'));
+// Regression for the actual browser import/reload failure at signed NPV.
+(async()=>{
+  const isolated=storage(),prefix='foundation-ext:restore:';for(const key of protectedKeys)isolated.setItem(key,'canonical sentinel '+key);
+  let reloads=0;root.location={reload(){reloads++;}};
+  const c=new api.ExtensionController(doc,questions,isolated,prefix),q=cases.npvNegative;
+  const score=root.GradingEngine.grade(q,clone(q.answer));assert(score.correct);
+  assert(c.learningTransaction(()=>c.model.recordAttempt(q.id,true,100,'',false,Date.now())&&c.model.record(q.id,true,Date.now())&&c.rpg.reward(q,score)));
+  const payload=clone({format:'boki-rpg-backup',version:1,progress:c.model.state,character:c.rpg.state});
+  assert(root.ProgressModel.validateBackupState(payload.progress,questions,c.model.examPool));assert(!root.ProgressModel.validateBackupState(payload.progress,root.QuestionData,root.ExamPoolDefinition));
+  assert.strictEqual(await c.importBackup({text:async()=>JSON.stringify(payload)}),true);assert.strictEqual(reloads,1);
+  const next=new api.ExtensionController(doc,questions,isolated,prefix);
+  assert(!next.model.storageWriteBlocked);assert.deepStrictEqual(clone(next.rpg.state),payload.character);assert(next.model.state.correctIds.includes(q.id));assert.strictEqual(next.rpg.state.totalTransactionAmount,-5870);
+  for(const key of protectedKeys)assert.strictEqual(isolated.getItem(key),'canonical sentinel '+key);
+  assert(!isolated.getItem(prefix+c.model.key+':pending-answer-v1'));passed++;console.log('PASS actual isolated signed NPV V1 backup import and restart');
+  console.log('FOUNDATION_EXTENSION_CONTRACT '+passed+'/'+passed+' PASS');
+  console.log('FIXTURE_SHA256 '+crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'fixtures/foundation-extension-cases.js'))).digest('hex'));
+})().catch(error=>{console.error(error);process.exitCode=1;});
