@@ -15,7 +15,17 @@ const ABSENT='boki-rpg:restored-absent:v1',SCOPED_RESET='boki-rpg:year-reset:v1'
 const intentionalEmpty=(key,v)=>(key===KEYS.FY2026&&(v===ABSENT||v===SCOPED_RESET))||(key===KEYS.character&&v===ABSENT);
 const stateOf=v=>v===null||v===ABSENT?'absent':v==='null'||v===SCOPED_RESET?'reset':'saved';
 const sig=o=>{let h=2166136261;const s=JSON.stringify([o.version,names.map(n=>o.before[n])]);for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619)>>>0;return h.toString(16).padStart(8,'0');};
-const requiresCharacter=p=>Array.isArray(p.correctIds)&&p.correctIds.length>0;
+// Wrong answers, partial scores and archived observations affect shared RPG
+// mastery and confidence even when no correct answer or XP has been earned.
+// Drafts, a placement choice and an unsubmitted mock alone are not evidence.
+const nonempty=a=>Array.isArray(a)&&a.length>0;
+const observed=q=>q&&(q.correctCount>0||q.incorrectCount>0||q.observedAttempts>0||q.delayedReview?.attempts>0);
+const requiresCharacter=p=>
+ ['answeredIds','correctIds','incorrectIds','attempts','examHistory'].some(k=>nonempty(p[k]))||
+ Object.values(p.questionStats||{}).some(observed)||Object.values(p.learningEffectiveness?.questions||{}).some(observed)||
+ Object.values(p.mistakeCounts||{}).some(n=>n>0)||
+ Object.values(p.contentMigrationArchive?.questions||{}).some(q=>nonempty(q.attempts)||nonempty(q.examHistory)||
+   Object.values(q.flags||{}).some(Boolean)||observed(q.questionStats)||observed(q.learningEvidence)||q.mistakeCount>0);
 function create(store,{owns,validateProgress,validateCharacter,yearAllowed=()=>true,recoverAnswer=null}){
  if(typeof owns!=='function'||typeof validateProgress!=='function'||typeof validateCharacter!=='function'||typeof yearAllowed!=='function')throw Error('annual contract');
  const guard=()=>{if(!owns())throw Error('writer lock required');};
