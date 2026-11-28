@@ -151,9 +151,10 @@
       return this.ready;
     },
     start() {
-      const curriculum = root.CurriculumRegistry?.active('FY2026');
+      const requested=(()=>{try{return new URLSearchParams(root.location?.search||'').get('year');}catch(_){return null;}})();
+      const curriculum = root.CurriculumRegistry?.active(requested==='FY2027'?'FY2027':'FY2026')||root.CurriculumRegistry?.active('FY2026');
       if (!curriculum) throw new Error('Approved curriculum unavailable');
-      this.controller = new root.AppController(document, curriculum.questions, curriculum.examPool); this.controller.init(this.initialRoute());
+      this.controller = new root.AppController(document, curriculum.questions, curriculum.examPool, curriculum.year); this.controller.init(this.initialRoute());
       this.setupInstallPrompt();
       if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).then(registration => {
         let updateAccepted = false;

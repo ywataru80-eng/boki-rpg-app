@@ -13,7 +13,7 @@ const load=source=>{
  vm.runInNewContext(source,scope,{filename:'questions.js',timeout:30000});
  return scope.window.QuestionData;
 };
-const successor=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247','20261127-248','20261127-249','20261128-250'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
+const successor=['20261103-234','20261105-235','20261107-236','20261115-237','20261116-238','20261119-239','20261123-240','20261123-241','20261126-242','20261126-243','20261126-244','20261126-245','20261126-246','20261126-247','20261127-248','20261127-249','20261128-250','20261128-251'].includes(JSON.parse(fs.readFileSync('pwa-release-manifest.json','utf8')).release);
 const documentedSource=successor?cp.execFileSync('git',['show','c3689f0529e10519c71073acf6d75ec75bdd253a:data/questions.js'],{encoding:'utf8',maxBuffer:16*1024*1024}):fs.readFileSync('data/questions.js','utf8');
 const before=load(oldQuestions),after=load(documentedSource);
 const ids=Object.keys(after).sort();

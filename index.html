@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/app-icon.svg" type="image/svg+xml">
   <title>日商簿記3級 経理シミュレーションRPG</title>
-  <link rel="stylesheet" href="css/style.css?v=20261128-250">
+  <link rel="stylesheet" href="css/style.css?v=20261128-251">
 </head>
 <body>
 <div class="container">
@@ -25,15 +25,18 @@
     <button type="button" data-action="mode" data-mode="desk">実務デスク</button>
   </nav>
   <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title"><form method="dialog" class="dialog-close-row"><button aria-label="設定を閉じる">×</button></form><h2 id="settings-title">設定・データ管理</h2><p>学習画面から離れた安全な場所で、端末へのインストールと進捗データを管理します。</p><div class="data-menu-actions">
+    <p id="learning-year-label">学習中：2026年度</p>
+    <button type="button" id="learning-year-switch" data-action="switch-year" hidden>学習年度を切り替える</button>
     <button type="button" id="install-app" hidden>アプリをインストール</button>
-    <button type="button" data-action="backup-export">進捗をJSONでバックアップ</button>
+    <button type="button" data-action="backup-export">全年度の学習記録をJSONでバックアップ</button>
     <label class="button-like" for="backup-import">JSONバックアップを復元</label><input id="backup-import" type="file" accept="application/json,.json" hidden>
   </div><p id="content-migration-status" class="log-analysis-note" hidden></p>
       <p id="backup-status" role="status" aria-live="polite"></p>
     <section class="data-reset-panel" aria-labelledby="data-reset-title">
       <h3 id="data-reset-title">学習データの初期化</h3>
-      <p>この画面の進捗・回答履歴・復習予定・経験値・役職を初期化します。旧版の画面に残る記録は削除しません。必要な場合は先にJSONバックアップを書き出してください。</p>
-      <button type="button" class="danger-button" data-action="reset-learning-data">この画面の学習データを初期化</button>
+      <p>年度ごとの学習記録だけを初期化するか、すべての学習記録とキャラクターを初期化するかを選べます。旧版の画面に残る記録は削除しません。必要な場合は先にJSONバックアップを書き出してください。</p>
+      <button type="button" data-action="reset-year-learning-data">この年度の学習記録だけを初期化</button>
+      <button type="button" class="danger-button" data-action="reset-learning-data">すべての年度とキャラクターを初期化</button>
     </section>
   </dialog>
   <p id="storage-warning" class="storage-warning" role="alert" aria-live="assertive" hidden>端末へ保存できません。進捗はこの画面を閉じるまでメモリ上で保持されます。JSONバックアップをご利用ください。</p>
@@ -95,7 +98,7 @@
   </main>
   <dialog id="game-over-dialog" class="game-over-dialog"><h2>帳簿信頼度が0になりました</h2><p>水野先輩「まだ立て直せる。未解決伝票を緊急精算しよう」</p><button type="button" data-action="review-game-over">緊急精算（復習モード）へ</button><button type="button" data-action="retry-mode">最初の案件から再挑戦</button></dialog>
 </div>
-<script src="data/accounting-domain.js?v=20261128-250"></script><script src="data/questions.js?v=20261128-250"></script><script src="data/accounting-oracle.js?v=20261128-250"></script><script src="data/fy2027-curriculum.js?v=20261128-250"></script><script src="js/calculator.js?v=20261128-250"></script><script src="js/model.js?v=20261128-250"></script><script src="js/rpg.js?v=20261128-250"></script><script src="js/engine.js?v=20261128-250"></script><script src="js/feedback.js?v=20261128-250"></script><script src="js/explanation-formulas.js?v=20261128-250"></script><script src="js/explanation-model.js?v=20261128-250"></script><script src="js/explanation-design-system.js?v=20261128-250"></script><script src="js/view.js?v=20261128-250"></script><script src="js/annual-storage.js?v=20261128-250"></script><script src="js/controller.js?v=20261128-250"></script><script src="js/app.js?v=20261128-250"></script>
+<script src="data/accounting-domain.js?v=20261128-251"></script><script src="data/questions.js?v=20261128-251"></script><script src="data/accounting-oracle.js?v=20261128-251"></script><script src="data/fy2027-curriculum.js?v=20261128-251"></script><script src="js/calculator.js?v=20261128-251"></script><script src="js/model.js?v=20261128-251"></script><script src="js/rpg.js?v=20261128-251"></script><script src="js/engine.js?v=20261128-251"></script><script src="js/feedback.js?v=20261128-251"></script><script src="js/explanation-formulas.js?v=20261128-251"></script><script src="js/explanation-model.js?v=20261128-251"></script><script src="js/explanation-design-system.js?v=20261128-251"></script><script src="js/view.js?v=20261128-251"></script><script src="js/annual-storage.js?v=20261128-251"></script><script src="js/controller.js?v=20261128-251"></script><script src="js/app.js?v=20261128-251"></script>
 
 <dialog id="app-notice-dialog" class="app-notice-dialog" role="alertdialog" aria-modal="true" aria-labelledby="app-notice-title" aria-describedby="app-notice-message">
   <h2 id="app-notice-title">お知らせ</h2>

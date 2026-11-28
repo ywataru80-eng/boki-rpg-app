@@ -72,7 +72,8 @@ jobs:
             '20261126-247': 'scripts/validate-annual-catalog-successor-247.cjs',
             '20261127-248': 'scripts/validate-annual-storage-successor-248.cjs',
             '20261127-249': 'scripts/validate-annual-storage-successor-249.cjs',
-            '20261128-250': 'scripts/validate-storage-lifecycle-successor-250.cjs'
+            '20261128-250': 'scripts/validate-storage-lifecycle-successor-250.cjs',
+            '20261128-251': 'scripts/validate-annual-context-successor-251.cjs'
           });
           const script = validators[manifest.release];
           assert(script, 'unknown release: '+manifest.release);
