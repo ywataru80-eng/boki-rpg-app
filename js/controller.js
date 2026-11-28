@@ -15,14 +15,25 @@
   const legacySignatureKey=progressKey+':legacy-source-v1';
   const futureProgressKey=progressKey+':FY2027';
   const primaryKey=key=>key===progressKey||key===characterKey||key===futureProgressKey;
+  const storageSessions = new WeakMap();
+  const reloadCommitted=(status,message)=>{
+    if(status){status.classList.remove('storage-error');status.textContent=message+'画面を再読み込みします。';}
+    try { if(typeof root.location?.reload!=='function')throw Error('reload unavailable');root.location.reload(); }
+    catch(_){if(status)status.textContent=message+'画面を手動で再読み込みしてください。再読み込みまで保存は停止しています。';}
+    return true;
+  };
   const getStorage = (questions,examPool) => {
     const reportFailure = () => root.dispatchEvent?.(new Event('boki-storage-error'));
     try {
       const storage = root.localStorage;
       if (!storage) { queueMicrotask(reportFailure); return null; }
       const ownership = root.App?.storageOwnership;
-      const owned = () => !ownership || ownership.active;
-      let writable = true,namespaceReady=false;
+      let writable = true,namespaceReady=false,retired=false,blocked=false,busy=false,onRetire=null;
+      const owned = () => (!ownership || ownership.active) && !retired && !blocked;
+      const canWrite = () => owned() && writable && !busy;
+      const block = () => { blocked=true; writable=false; onRetire?.(); reportFailure(); };
+      const retire = () => { retired=true; writable=false; onRetire?.(); };
+      const restoreRaw=(key,value)=>{if(!owned())return false;try{if(value===null&&primaryKey(key))storage.setItem(key,'null');else if(value===null)storage.removeItem(key);else storage.setItem(key,value);return true;}catch(_){return false;}};
       const adapter = {
         progressKey,characterKey,resetKeys:[progressKey,characterKey],
         getItem(key) { const result=this.readItem(key);return result.ok?result.value:null; },
@@ -41,18 +52,28 @@
           try{const raw=storage.getItem(key);return root.AnnualStorage?.intentionalEmpty(key,raw)?{ok:true,value:raw}:result;}catch(_){return {ok:false,value:null};}
         },
         setItem(key, value) {
-          if (!writable || !owned()) return false;
+          if (!canWrite()) return false;
           try { storage.setItem(key, value); return true; }
           catch (_) { writable = false; reportFailure(); return false; }
         },
-        removeItem(key) { if (!owned()) return false; try { if(primaryKey(key))storage.setItem(key,'null');else storage.removeItem(key);return true; } catch (_) { return false; } },
-        restoreItem(key, value) { if (!owned()) return false; try { if(value===null&&primaryKey(key))storage.setItem(key,'null');else if(value===null)storage.removeItem(key);else storage.setItem(key,value);return true; } catch (_) { reportFailure(); return false; } },
+        removeItem(key) { return canWrite() && restoreRaw(key,null); },
+        restoreItem(key, value) { return canWrite() && restoreRaw(key,value); },
         legacyChanged() {
           if(!owned()||!writable||!namespaceReady)return false;
           try { const values=legacyKeys.map(key=>storage.getItem(key));return values.some(value=>value!==null)&&storage.getItem(legacySignatureKey)!==textSignature(JSON.stringify(values)); }
           catch(_){return false;}
         }
       };
+      // The recovery capability stays private; only a verified answer journal
+      // may use it after a failed forward write. No stale/blocked heap can use it.
+      const recovery={readItem:k=>adapter.readItem(k),readTransactionItem:k=>adapter.readTransactionItem(k),hasItem:k=>adapter.hasItem(k),restoreItem:restoreRaw,removeItem:k=>restoreRaw(k,null)};
+      storageSessions.set(adapter,{recover(p,c){
+        if(!owned()||p!==progressKey||c!==characterKey)return false;
+        const pending=adapter.readItem(p+':pending-answer-v1');
+        const ok=Controller.recoverAnswerTransaction(recovery,p,c);
+        if(!ok)block();else if(pending.ok&&pending.value!==null&&pending.value!=='')writable=true;
+        return ok;
+      },retire,block,active:()=>canWrite(),onRetire:fn=>{onRetire=fn;}});
       // No model may load until all known answer/annual journals have been
       // reconciled under the existing origin-wide lock. Future curricula remain
       // closed until their registry approves them; do not overwrite their data.
@@ -71,8 +92,21 @@
         (!!root.CurriculumRegistry?.active('FY2027')||storage.getItem(futureProgressKey)===null);
         if(annualReady&&[progressKey,characterKey].some(key=>root.AnnualStorage.intentionalEmpty(key,storage.getItem(key))))annual.snapshot(); } catch (_) { annualReady=false; }
       if (!annualReady || !Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace())) {
-        writable = false; adapter.readItem = () => ({ok:false,value:null}); adapter.getItem = () => null; queueMicrotask(reportFailure);
-      } else { adapter.annualStorage=annual;namespaceReady=true;queueMicrotask(()=>{if(adapter.legacyChanged())root.dispatchEvent?.(new Event('boki-legacy-storage-conflict'));}); }
+        blocked=true; writable = false; adapter.readItem = () => ({ok:false,value:null}); adapter.getItem = () => null; queueMicrotask(reportFailure);
+      } else {
+        const run=(name,args,mutates)=>{
+          if(!canWrite())throw Error('storage session unavailable');
+          busy=true;
+          try { const result=annual[name](...args);if(mutates&&result===true)retire();return result; }
+          catch(error){
+            // A rejected input is harmless only if the complete current store
+            // still validates. An unresolved transaction must never resume.
+            try{annual.snapshot();}catch(_){block();}
+            throw error;
+          } finally {busy=false;}
+        };
+        adapter.annualStorage=Object.freeze(Object.fromEntries(['snapshot','recover','exportV2','importV2','importV1','resetYear','resetAll'].map(name=>[name,(...args)=>run(name,args,['importV2','importV1','resetYear','resetAll'].includes(name))])));
+        namespaceReady=true;queueMicrotask(()=>{if(adapter.legacyChanged())root.dispatchEvent?.(new Event('boki-legacy-storage-conflict'));}); }
       return adapter;
     } catch (_) { queueMicrotask(reportFailure); return null; }
   };
@@ -123,6 +157,7 @@
       this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.examPool = Array.isArray(examPool) ? Object.freeze([...examPool]) : null; this.view = new root.AppView(document);
       const storage = getStorage(questions,this.examPool);
       this.model = new root.ProgressModel(questions, storage,storage?.progressKey,examPool); this.rpg = new root.RPGModel(storage,storage?.characterKey); this.currentId = null; this.questionStartedAt = null; this.reviewSourceId = null; this.reviewMappings = new Map(); this.expression = '0'; this.calculatorTarget = null; this.examTimerId = null;
+      storageSessions.get(storage)?.onRetire(()=>{this.model.storageWriteBlocked=true;this.stopExamTimer();});
       this.calculator = { accumulator: null, operator: null, waitingForOperand: false, lastOperator: null, lastOperand: null };
       this.calculatorPositionFrame = null;
       this.filters = { query: '', account: '', mistakes: 'all' };
@@ -355,8 +390,10 @@
       const prepared=!journalKey||this.storageWrite(this.model.storage,journalKey,JSON.stringify({...pending,signature:transactionSignature(pending)}));
       if (!prepared || !snapshots.every(item=>this.storageRemove(item.storage,item.key)) ||
           (journalKey&&!this.storageRemove(this.model.storage,journalKey))) {
-        const restored=snapshots.map(item=>this.storageRestore(item.storage,item.key,item.value)).every(Boolean);
-        if(restored&&journalKey)this.storageRemove(this.model.storage,journalKey);
+        const session=storageSessions.get(this.model.storage);
+        const restored=session&&journalKey?Controller.recoverAnswerTransaction(this.model.storage,this.model.key,this.rpg.key)&&snapshots.every(item=>{const now=this.storageRead(item.storage,item.key);return now.ok&&now.value===item.value;}):snapshots.map(item=>this.storageRestore(item.storage,item.key,item.value)).every(Boolean);
+        if(restored&&journalKey&&!session)this.storageRemove(this.model.storage,journalKey);
+        if(!restored)session?.block();
         if (status) {
           status.textContent = restored
             ? '初期化できなかったため、元の学習データへ戻しました。'
@@ -365,8 +402,8 @@
         }
         this.openSettings(); return false;
       }
-      if (status) { status.classList.remove('storage-error'); status.textContent = '学習データを初期化しました。画面を再読み込みします。'; }
-      root.location?.reload?.(); return true;
+      storageSessions.get(this.model.storage)?.retire();
+      return reloadCommitted(status,'学習データを初期化しました。');
     }
     calculateTax() {
       if (this.rpg.level < 5) return false;
@@ -485,6 +522,7 @@
         if(this.model.storage?.annualStorage&&this.model.storage.annualStorage.snapshot().FY2027!==null)throw Error('legacy backup cannot replace shared character');
         const prepared = root.ProgressModel.prepareBackupState(payload.progress, this.questions, this.model.examPool);
         if (!prepared) throw new Error('invalid-progress-migration');
+        if(storageSessions.has(this.model.storage)&&!root.AnnualStorage.compatiblePair(prepared,payload.character))throw Error('backup reward mismatch');
         const progressValue = JSON.stringify(prepared); const characterValue = JSON.stringify(payload.character);
         const progressSnapshot = this.storageRead(this.model.storage, this.model.key); const characterSnapshot = this.storageRead(this.rpg.storage, this.rpg.key);
         if (!progressSnapshot.ok || !characterSnapshot.ok) throw new Error('storage-read');
@@ -512,14 +550,15 @@
           const restored=durable?Controller.recoverAnswerTransaction(store,this.model.key,this.rpg.key):
             [this.storageRestore(this.model.storage,this.model.key,progressSnapshot.value),this.storageRestore(this.rpg.storage,this.rpg.key,characterSnapshot.value)].every(Boolean);
           const p=this.storageRead(this.model.storage,this.model.key),c=this.storageRead(this.rpg.storage,this.rpg.key);
-          if (!restored||!p.ok||!c.ok||p.value!==progressSnapshot.value||c.value!==characterSnapshot.value) { this.model.storageWriteBlocked=true;this.rpg.save=()=>false;const error = new Error('rollback'); error.rollbackFailed = true; throw error; }
+          if (!restored||!p.ok||!c.ok||p.value!==progressSnapshot.value||c.value!==characterSnapshot.value) { storageSessions.get(store)?.block(); this.model.storageWriteBlocked=true;this.rpg.save=()=>false;const error = new Error('rollback'); error.rollbackFailed = true; throw error; }
           throw new Error('storage');
         }
-        status.classList.remove('storage-error');
-        status.textContent = 'バックアップを復元しました。画面を再読み込みします。'; root.location?.reload?.(); return true;
+        storageSessions.get(store)?.retire();
+        return reloadCommitted(status,'バックアップを復元しました。');
       } catch (error) { status.textContent = error.rollbackFailed ? '復元に失敗し、元の保存状態も完全には戻せませんでした。保存データが不整合な可能性があります。画面は再読み込みしていません。' : '復元できませんでした。このアプリで保存したバックアップファイルを選んでください。画面は再読み込みしていません。'; status.classList.add('storage-error'); return false; }
     }
     static recoverAnswerTransaction(storage, progressKey = 'boki-rpg-progress-v2', characterKey = 'boki-rpg-character-v1') {
+      const session=storageSessions.get(storage);if(session)return session.recover(progressKey,characterKey);
       const io = Controller.prototype, key = `${progressKey}:pending-answer-v1`, read = io.storageRead(storage, key);
       if (!read.ok) return false;
       if (read.value === null || read.value === '') return true;
@@ -543,7 +582,7 @@
       if (!model.key || !rpg.key) return operation() !== false;
       const storage = model.storage;
       if (!root.ProgressModel.validateBackupState(model.state,this.questions,model.examPool)) return false;
-      if (!storage || storage !== rpg.storage || model.storageWriteBlocked ||
+      if (!storage || storage !== rpg.storage || model.storageWriteBlocked || (storageSessions.has(storage)&&!storageSessions.get(storage).active()) ||
           !Controller.recoverAnswerTransaction(storage,model.key,rpg.key)) return false;
       const progress = io.storageRead(storage,model.key), character = io.storageRead(storage,rpg.key);
       if (!progress.ok || !character.ok) return false;
@@ -568,7 +607,7 @@
       if (committed) return true;
       const recovered = Controller.recoverAnswerTransaction(storage,model.key,rpg.key);
       restoreMemory();
-      if (!recovered) { model.storageWriteBlocked = true; rpg.save = () => false; }
+      if (!recovered) { storageSessions.get(storage)?.block(); model.storageWriteBlocked = true; rpg.save = () => false; }
       return false;
     }
     storageRead(storage, key) { if (typeof storage?.readTransactionItem === 'function') return storage.readTransactionItem(key); if (typeof storage?.readItem === 'function') return storage.readItem(key); try { return storage?.getItem ? { ok:true, value:storage.getItem(key) } : { ok:false, value:null }; } catch (_) { return { ok:false, value:null }; } }

@@ -26,6 +26,16 @@ const requiresCharacter=p=>
  Object.values(p.mistakeCounts||{}).some(n=>n>0)||
  Object.values(p.contentMigrationArchive?.questions||{}).some(q=>nonempty(q.attempts)||nonempty(q.examHistory)||
    Object.values(q.flags||{}).some(Boolean)||observed(q.questionStats)||observed(q.learningEvidence)||q.mistakeCount>0);
+// Only current, complete ordinary-answer receipts corroborate the reward
+// contract. Do not infer XP from older flags, migrated history or unfinished exams.
+function compatiblePair(progress,character){
+ if(progress?.learningEvidenceIntegrity?.schemaVersion!==11||progress.learningEffectiveness?.initialHistory!=='complete')return true;
+ const rewarded=new Set(character?.rewardedIds||[]);
+ return (progress.correctIds||[]).every(id=>{
+  const modes=progress.learningEffectiveness.questions?.[id]?.modes;
+  return !['story','training','desk'].some(mode=>modes?.[mode]?.successes>0)||rewarded.has(id);
+ });
+}
 function create(store,{owns,validateProgress,validateCharacter,yearAllowed=()=>true,recoverAnswer=null}){
  if(typeof owns!=='function'||typeof validateProgress!=='function'||typeof validateCharacter!=='function'||typeof yearAllowed!=='function')throw Error('annual contract');
  const guard=()=>{if(!owns())throw Error('writer lock required');};
@@ -51,11 +61,11 @@ function create(store,{owns,validateProgress,validateCharacter,yearAllowed=()=>t
  const pack=v=>stateOf(v)==='saved'?{status:'saved',state:JSON.parse(v)}:{status:stateOf(v)};
  const unpack=(n,v)=>{if(exact(v,['status'])&&v.status==='absent')return n==='FY2027'?null:ABSENT;if(exact(v,['status'])&&v.status==='reset')return 'null';if(exact(v,['status','state'])&&v.status==='saved'&&plain(v.state)){const s=JSON.stringify(v.state);if(validRaw(n,s))return s;}throw Error('invalid namespace entry');};
  function exportV2(){const s=snapshot();return {format:'boki-rpg-backup',version:2,progress:{FY2026:pack(s.FY2026),FY2027:pack(s.FY2027)},character:pack(s.character)};}
- function importV2(p,{confirmReplaceAll=false}={}){if(!confirmReplaceAll||!exact(p,['format','version','progress','character'])||p.format!=='boki-rpg-backup'||p.version!==2||!exact(p.progress,years))throw Error('full restore confirmation or format');const next={FY2026:unpack('FY2026',p.progress.FY2026),FY2027:unpack('FY2027',p.progress.FY2027),character:unpack('character',p.character)};if(next.FY2026==='null'&&stateOf(next.character)==='saved')next.FY2026=SCOPED_RESET;if(!validState(next))throw Error('invalid backup');return transact(()=>next);}
- function importV1(p,{confirmLegacyRestore=false}={}){if(!confirmLegacyRestore||!plain(p)||p.format!=='boki-rpg-backup'||p.version!==1||!plain(p.progress)||!plain(p.character)||validateProgress('FY2026',p.progress)!==true||validateCharacter(p.character)!==true)throw Error('invalid legacy backup');return transact(s=>{if(s.FY2027!==null)throw Error('legacy full restore would overwrite shared rewards');return {...s,FY2026:JSON.stringify(p.progress),character:JSON.stringify(p.character)};});}
+ function importV2(p,{confirmReplaceAll=false}={}){if(!confirmReplaceAll||!exact(p,['format','version','progress','character'])||p.format!=='boki-rpg-backup'||p.version!==2||!exact(p.progress,years))throw Error('full restore confirmation or format');const next={FY2026:unpack('FY2026',p.progress.FY2026),FY2027:unpack('FY2027',p.progress.FY2027),character:unpack('character',p.character)};if(next.FY2026==='null'&&stateOf(next.character)==='saved')next.FY2026=SCOPED_RESET;if(!validState(next)||stateOf(next.character)==='saved'&&years.some(y=>stateOf(next[y])==='saved'&&!compatiblePair(JSON.parse(next[y]),JSON.parse(next.character))))throw Error('invalid backup');return transact(()=>next);}
+ function importV1(p,{confirmLegacyRestore=false}={}){if(!confirmLegacyRestore||!plain(p)||p.format!=='boki-rpg-backup'||p.version!==1||!plain(p.progress)||!plain(p.character)||validateProgress('FY2026',p.progress)!==true||validateCharacter(p.character)!==true||!compatiblePair(p.progress,p.character))throw Error('invalid legacy backup');return transact(s=>{if(s.FY2027!==null)throw Error('legacy full restore would overwrite shared rewards');return {...s,FY2026:JSON.stringify(p.progress),character:JSON.stringify(p.character)};});}
  function resetYear(y,{confirm=false}={}){if(!years.includes(y)||!yearAllowed(y)||!confirm)throw Error('year reset confirmation');return transact(s=>({...s,[y]:y==='FY2026'?SCOPED_RESET:'null'}));}
  function resetAll({confirm=false}={}){if(!confirm)throw Error('all reset confirmation');return transact(s=>({FY2026:'null',FY2027:yearAllowed('FY2027')?'null':s.FY2027,character:'null'}));}
  return Object.freeze({snapshot,recover,exportV2,importV2,importV1,resetYear,resetAll});
 }
-const api=Object.freeze({create,KEYS,JOURNAL,intentionalEmpty});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AnnualStorage=api;
+const api=Object.freeze({create,KEYS,JOURNAL,intentionalEmpty,compatiblePair});if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AnnualStorage=api;
 })(typeof window!=='undefined'?window:globalThis);
