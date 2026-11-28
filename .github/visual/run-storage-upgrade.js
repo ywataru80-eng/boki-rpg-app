@@ -115,7 +115,26 @@ async function run(){
           const offline=await current.evaluate(()=>{const c=window.App.controller;return {metric:c.model.learningEffectivenessForQuestion('J002'),character:c.rpg.state};});
           assert.deepStrictEqual(offline,saved);assert.deepStrictEqual(errors,[]);
           await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
-          evidence.reports.push({engine,priorRelease:'20260924-179',partialWriteProtected:true,legacyStatsPreserved:true,rewardsPreserved:true,firstRemainsUnknown:true,lateLegacyWriterIsolated:true,legacyForkPreserved:true,legacyChangeNotice:true,staleWaitingRelease:staleProof.release,activeRelease:releaseProof.active.release,staleWaitingNotActivated:true,bfcacheRestorationTested:false,networkUnavailableReload:true,networkFailure,browserOfflineFlagUsed:false,pageErrors:errors});write();
+          // Same-document writes after a committed replacement must fail even
+          // before pagehide, with the actual controller and browser storage.
+          const probe=async(kind)=>current.evaluate(kind=>{
+            const c=window.App.controller,a=c.model.storage,annual=a.annualStorage;
+            const charBefore=localStorage.getItem(c.rpg.key);
+            if(kind==='year')annual.resetYear('FY2026',{confirm:true});
+            else {const b=annual.exportV2();b.progress.FY2026={status:'absent'};b.character={status:'absent'};annual.importV2(b,{confirmReplaceAll:true});}
+            const bytes=()=>JSON.stringify([localStorage.getItem(c.model.key),localStorage.getItem(c.rpg.key)]),before=bytes();
+            const results=[c.model.save(),c.rpg.save(),a.restoreItem(c.model.key,'{}'),a.removeItem(c.rpg.key)];
+            return {results,unchanged:before===bytes(),retained:charBefore===localStorage.getItem(c.rpg.key)};
+          },kind);
+          const reset=await probe('year');assert.deepStrictEqual(reset,{results:[false,false,false,false],unchanged:true,retained:true});
+          await current.reload({waitUntil:'load'});await current.waitForFunction(()=>Boolean(window.App?.controller));
+          const restarted=await current.evaluate(()=>({xp:window.App.controller.rpg.state.xp,correct:window.App.controller.model.state.correctIds.length}));
+          assert.deepStrictEqual(restarted,{xp:saved.character.xp,correct:0});
+          const restored=await probe('absent');assert.deepStrictEqual(restored,{results:[false,false,false,false],unchanged:true,retained:false});
+          await current.reload({waitUntil:'load'});await current.waitForFunction(()=>Boolean(window.App?.controller));
+          assert.deepStrictEqual(await current.evaluate(()=>({xp:window.App.controller.rpg.state.xp,correct:window.App.controller.model.state.correctIds.length})),{xp:0,correct:0});
+          assert.deepStrictEqual(errors,[]);
+          evidence.reports.push({engine,priorRelease:'20260924-179',partialWriteProtected:true,legacyStatsPreserved:true,rewardsPreserved:true,firstRemainsUnknown:true,lateLegacyWriterIsolated:true,legacyForkPreserved:true,legacyChangeNotice:true,staleWaitingRelease:staleProof.release,activeRelease:releaseProof.active.release,staleWaitingNotActivated:true,bfcacheRestorationTested:false,networkUnavailableReload:true,storageLifecycleResetRestore:true,networkFailure,browserOfflineFlagUsed:false,pageErrors:errors});write();
         }finally{await context.close();}
       }finally{await browser.close();}
     }
