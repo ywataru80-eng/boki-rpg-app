@@ -14,6 +14,7 @@
   const legacyKeys=['boki-rpg-progress-v2','boki-rpg-character-v1','boki-rpg-progress-v2:pending-answer-v1'];
   const legacySignatureKey=progressKey+':legacy-source-v1';
   const futureProgressKey=progressKey+':FY2027';
+  const futureInitializedKey=futureProgressKey+':initialized-v1';
   const primaryKey=key=>key===progressKey||key===characterKey||key===futureProgressKey;
   const storageSessions = new WeakMap();
   const reloadCommitted=(status,message)=>{
@@ -22,20 +23,28 @@
     catch(_){if(status)status.textContent=message+'画面を手動で再読み込みしてください。再読み込みまで保存は停止しています。';}
     return true;
   };
-  const getStorage = (questions,examPool) => {
+  const getStorage = (questions,examPool,year='FY2026') => {
     const reportFailure = () => root.dispatchEvent?.(new Event('boki-storage-error'));
     try {
       const storage = root.localStorage;
       if (!storage) { queueMicrotask(reportFailure); return null; }
       const ownership = root.App?.storageOwnership;
-      let writable = true,namespaceReady=false,retired=false,blocked=false,busy=false,onRetire=null;
+      let writable = true,namespaceReady=false,retired=false,blocked=false,busy=false,onRetire=null,expectedFutureMarker=null;
       const owned = () => (!ownership || ownership.active) && !retired && !blocked;
-      const canWrite = () => owned() && writable && !busy;
+      const canWrite = () => {
+        if(!owned()||!writable||busy)return false;
+        if(namespaceReady){try{
+          const marker=storage.getItem(futureInitializedKey),slot=storage.getItem(futureProgressKey);
+          if(storage.getItem(progressKey)===null||storage.getItem(characterKey)===null||marker!==expectedFutureMarker||
+            (marker==='1'&&slot===null)||(marker===null&&slot!==null)){block();return false;}
+        }catch(_){block();return false;}}
+        return true;
+      };
       const block = () => { blocked=true; writable=false; onRetire?.(); reportFailure(); };
       const retire = () => { retired=true; writable=false; onRetire?.(); };
       const restoreRaw=(key,value)=>{if(!owned())return false;try{if(value===null&&primaryKey(key))storage.setItem(key,'null');else if(value===null)storage.removeItem(key);else storage.setItem(key,value);return true;}catch(_){return false;}};
       const adapter = {
-        progressKey,characterKey,resetKeys:[progressKey,characterKey],
+        progressKey:year==='FY2027'?futureProgressKey:progressKey,characterKey,resetKeys:[progressKey,characterKey],
         getItem(key) { const result=this.readItem(key);return result.ok?result.value:null; },
         hasItem(key) { return owned()&&storage.getItem(key)!==null; },
         readItem(key) {
@@ -68,7 +77,7 @@
       // may use it after a failed forward write. No stale/blocked heap can use it.
       const recovery={readItem:k=>adapter.readItem(k),readTransactionItem:k=>adapter.readTransactionItem(k),hasItem:k=>adapter.hasItem(k),restoreItem:restoreRaw,removeItem:k=>restoreRaw(k,null)};
       storageSessions.set(adapter,{recover(p,c){
-        if(!owned()||p!==progressKey||c!==characterKey)return false;
+        if(!owned()||!(p===progressKey||(p===futureProgressKey&&root.CurriculumRegistry?.active('FY2027')))||c!==characterKey)return false;
         const pending=adapter.readItem(p+':pending-answer-v1');
         const ok=Controller.recoverAnswerTransaction(recovery,p,c);
         if(!ok)block();else if(pending.ok&&pending.value!==null&&pending.value!=='')writable=true;
@@ -84,16 +93,29 @@
       },{owns:owned,yearAllowed:year=>!!root.CurriculumRegistry?.active(year),
         // The controller's trusted catalog is authoritative for its own store,
         // including explicitly namespaced Foundation fixtures. Never use a backup's catalog.
-        validateProgress:(year,value)=>{const c=year==='FY2026'?{questions,examPool}:root.CurriculumRegistry?.active(year);return !!c&&root.ProgressModel.validateBackupState(value,c.questions,c.examPool);},
+        validateProgress:(year,value)=>{const c=year==='FY2026'&&adapter.progressKey===progressKey?{questions,examPool}:root.CurriculumRegistry?.active(year);return !!c&&root.ProgressModel.validateBackupState(value,c.questions,c.examPool);},
         validateCharacter:value=>root.RPGModel.validateBackupState(value),
-        recoverAnswer:year=>Controller.recoverAnswerTransaction(adapter,year==='FY2026'?progressKey:futureProgressKey,characterKey)});
+        recoverAnswer:year=>Controller.recoverAnswerTransaction(adapter,year==='FY2026'?progressKey:futureProgressKey,characterKey),
+        futureSlotRequired:()=>storage.getItem(futureInitializedKey)==='1',futureMarkerKey:futureInitializedKey});
       let annualReady=false;
       try { annualReady=!!annual&&annual.recover()&&
         (!!root.CurriculumRegistry?.active('FY2027')||storage.getItem(futureProgressKey)===null);
-        if(annualReady&&[progressKey,characterKey].some(key=>root.AnnualStorage.intentionalEmpty(key,storage.getItem(key))))annual.snapshot(); } catch (_) { annualReady=false; }
+        if(annualReady&&[progressKey,characterKey].some(key=>root.AnnualStorage.intentionalEmpty(key,storage.getItem(key))))annual.snapshot();
+        if(annualReady){const marker=storage.getItem(futureInitializedKey),slot=storage.getItem(futureProgressKey);
+          if(marker!==null&&(marker!=='1'||slot===null))annualReady=false;
+          if(annualReady&&slot!==null)annual.snapshot();
+        } } catch (_) { annualReady=false; }
       if (!annualReady || !Controller.initializeStorageNamespace(adapter,root.App?.storageMigrationSnapshot||Controller.captureStorageNamespace())) {
         blocked=true; writable = false; adapter.readItem = () => ({ok:false,value:null}); adapter.getItem = () => null; queueMicrotask(reportFailure);
       } else {
+        try {const slot=storage.getItem(futureProgressKey),marker=storage.getItem(futureInitializedKey);
+          if(root.CurriculumRegistry?.active('FY2027')&&(year==='FY2027'||slot!==null)){
+            // Keep an explicit empty old-year slot when future-only answers earn shared XP.
+            if(year==='FY2027'||slot!==null&&marker===null)annual.initializeFuture();
+            if(storage.getItem(futureInitializedKey)!=='1')throw Error('future slot marker');
+          }
+        }catch(_){block();adapter.readItem=()=>({ok:false,value:null});adapter.getItem=()=>null;return adapter;}
+        expectedFutureMarker=storage.getItem(futureInitializedKey);
         const run=(name,args,mutates)=>{
           if(!canWrite())throw Error('storage session unavailable');
           busy=true;
@@ -153,9 +175,12 @@
         throw new Error('Exam score display allocation failed');
       return { points, displayed };
     }
-    constructor(document, questions, examPool = root.ExamPoolDefinition) {
+    constructor(document, questions, examPool = root.ExamPoolDefinition, year='FY2026') {
+      if(year==='FY2027'){const catalog=root.CurriculumRegistry?.active(year);if(!catalog)throw Error('Approved curriculum unavailable');questions=catalog.questions;examPool=catalog.examPool;}
+      else if(year!=='FY2026'||Object.keys(questions).some(id=>id.startsWith('FY27-')))throw Error('Curriculum year mismatch');
+      this.year=year;
       this.document = document; this.questions = questions; this.ids = Object.keys(questions); this.examPool = Array.isArray(examPool) ? Object.freeze([...examPool]) : null; this.view = new root.AppView(document);
-      const storage = getStorage(questions,this.examPool);
+      const storage = getStorage(questions,this.examPool,year);
       this.model = new root.ProgressModel(questions, storage,storage?.progressKey,examPool); this.rpg = new root.RPGModel(storage,storage?.characterKey); this.currentId = null; this.questionStartedAt = null; this.reviewSourceId = null; this.reviewMappings = new Map(); this.expression = '0'; this.calculatorTarget = null; this.examTimerId = null;
       storageSessions.get(storage)?.onRetire(()=>{this.model.storageWriteBlocked=true;this.stopExamTimer();});
       this.calculator = { accumulator: null, operator: null, waitingForOperand: false, lastOperator: null, lastOperand: null };
@@ -291,7 +316,7 @@
         const calculatorInput = event.target.closest?.('.amount-input[readonly]:not(:disabled)');
         if (calculatorInput) this.selectCalculatorTarget(calculatorInput);
         const action = event.target.closest('[data-action]'); if (!action) return;
-      const handlers = { mode: () => this.showMode(action.dataset.mode), start: () => this.start(action.dataset.questionId || this.modeIds()[0], { fresh:action.dataset.startFresh === 'true' }), next: () => this.next(), save: () => this.saveDraft(true), 'hint-1': () => this.showHint(1), 'hint-2': () => this.showHint(2), 'coaching-retry': () => this.beginCoachingRetry(), 'coaching-retry-result': () => this.beginCoachingRetry(), 'reveal-answer': () => this.revealAnswer(), 'open-settings': () => this.openSettings(), 'backup-export': () => this.exportBackup(), 'reset-learning-data': () => this.requestFullReset(), 'tax-calculate': () => this.calculateTax(), 'open-log-analysis': () => this.openLogAnalysis(), 'start-rpg-mission': () => this.startRpgMission(action.dataset.questionId), 'start-boss': () => this.startBoss(action.dataset.boss), 'finish-exam': () => this.finishExam(false), 'exam-home': () => this.leaveExamResult('story'), 'exam-review': () => this.leaveExamResult('review'), 'exam-retry': () => this.retryExam(), 'placement-retake': () => { this.model.resetPlacement(); this.showPlacement(); }, 'placement-skip': () => this.skipPlacement(), calc: () => this.calcKey(action.dataset.calc), 'calc-insert': () => this.insertCalculatorResult(false), 'filter-reset': () => this.resetFilters(), 'retry-mode': () => this.restartAfterGameOver(false), 'review-game-over': () => this.restartAfterGameOver(true), 'open-related': () => this.openRelated(action.dataset.questionId) };
+      const handlers = { mode: () => this.showMode(action.dataset.mode), start: () => this.start(action.dataset.questionId || this.modeIds()[0], { fresh:action.dataset.startFresh === 'true' }), next: () => this.next(), save: () => this.saveDraft(true), 'hint-1': () => this.showHint(1), 'hint-2': () => this.showHint(2), 'coaching-retry': () => this.beginCoachingRetry(), 'coaching-retry-result': () => this.beginCoachingRetry(), 'reveal-answer': () => this.revealAnswer(), 'open-settings': () => this.openSettings(), 'backup-export': () => this.exportBackup(), 'reset-learning-data': () => this.requestFullReset(), 'reset-year-learning-data':()=>this.requestYearReset(), 'switch-year':()=>this.requestYearSwitch(action.dataset.year), 'tax-calculate': () => this.calculateTax(), 'open-log-analysis': () => this.openLogAnalysis(), 'start-rpg-mission': () => this.startRpgMission(action.dataset.questionId), 'start-boss': () => this.startBoss(action.dataset.boss), 'finish-exam': () => this.finishExam(false), 'exam-home': () => this.leaveExamResult('story'), 'exam-review': () => this.leaveExamResult('review'), 'exam-retry': () => this.retryExam(), 'placement-retake': () => { this.model.resetPlacement(); this.showPlacement(); }, 'placement-skip': () => this.skipPlacement(), calc: () => this.calcKey(action.dataset.calc), 'calc-insert': () => this.insertCalculatorResult(false), 'filter-reset': () => this.resetFilters(), 'retry-mode': () => this.restartAfterGameOver(false), 'review-game-over': () => this.restartAfterGameOver(true), 'open-related': () => this.openRelated(action.dataset.questionId) };
         if (handlers[action.dataset.action]) handlers[action.dataset.action]();
       });
       this.document.addEventListener('input', event => { if (event.target.matches('.amount-input')) this.formatAmount(event.target, event); if (event.target.matches('.amount-input, .table-text-input')) this.saveDraft(false); });
@@ -336,7 +361,7 @@
         this.submit();
       });
       this.document.getElementById('placement-form').addEventListener('submit', event => { event.preventDefault(); this.finishPlacement(); });
-      this.document.getElementById('backup-import')?.addEventListener('change', event => this.importBackup(event.target.files?.[0]));
+      this.document.getElementById('backup-import')?.addEventListener('change', event => {const file=event.target.files?.[0];event.target.value='';if(file)this.requestBackupImport(file);});
       root.addEventListener?.('boki-storage-error', () => { const warning = this.document.getElementById('storage-warning'); if (warning) warning.hidden = false; });
       const legacyNotice=()=>{
         if(!this.model.storage?.legacyChanged?.())return;
@@ -347,6 +372,9 @@
       root.addEventListener?.('storage',event=>{if(event.key===null||legacyKeys.includes(event.key))legacyNotice();});
     }
     openSettings() {
+      const yearLabel=this.document.getElementById('learning-year-label');if(yearLabel)yearLabel.textContent=`学習中：${this.year?.slice(2)||'2026'}年度`;
+      const other=this.year==='FY2027'?'FY2026':'FY2027',switcher=this.document.getElementById('learning-year-switch');
+      if(switcher?.dataset){switcher.hidden=!root.CurriculumRegistry?.active(other);switcher.dataset.year=other;switcher.textContent=`${other.slice(2)}年度に切り替える`;}
       const migration = this.document.getElementById('content-migration-status');
       if (migration) {
         migration.hidden = !Object.keys(this.model.state.contentMigrationArchive?.questions || {}).length && !this.model.state.legacyProvenance;
@@ -361,9 +389,33 @@
       if (!dialog) return;
       if (typeof dialog.close === 'function' && dialog.open) dialog.close(); else dialog.removeAttribute('open');
     }
+    requestYearSwitch(year) {
+      if(!['FY2026','FY2027'].includes(year)||year===this.year||!root.CurriculumRegistry?.active(year)||this.model.storageWriteBlocked)return false;
+      if(this.model.state.examSession){this.closeSettings();return this.view.showNotice('進行中の模試を終了してから年度を切り替えてください。',{title:'模試が進行中です'});}
+      this.closeSettings();return this.view.showNotice(`${year.slice(2)}年度の教材に切り替えます。現在の年度の記録とキャラクターの成長は残ります。`,{title:'学習年度を切り替えますか？',cancelLabel:'戻る',confirmLabel:'切り替える',onCancel:()=>this.openSettings(),onConfirm:()=>this.switchYear(year)});
+    }
+    switchYear(year){
+      if(!['FY2026','FY2027'].includes(year)||year===this.year||!root.CurriculumRegistry?.active(year)||this.model.storageWriteBlocked||this.model.state.examSession)return false;
+      const session=storageSessions.get(this.model.storage);if(!session?.active())return false;
+      try{const target=new URL(root.location.href);target.searchParams.set('year',year);target.searchParams.delete('mode');target.searchParams.delete('question');this.model.storage.annualStorage.snapshot();session.retire();root.location.assign(target.href);return true;}
+      catch(_){const status=this.document.getElementById('backup-status');if(status){status.textContent=this.model.storageWriteBlocked?'年度切替を完了できませんでした。画面を再読み込みしてください。':'年度切替の前に保存状態を確認できませんでした。';status.classList.add('storage-error');}this.openSettings();return false;}
+    }
+    requestBackupImport(file) {
+      this.closeSettings();
+      return this.view.showNotice('バックアップの内容で保存済みの学習記録とキャラクターを置き換えます。現在の記録が必要な場合は先に書き出してください。', {title:'バックアップを復元しますか？',cancelLabel:'戻る',confirmLabel:'復元する',onCancel:()=>this.openSettings(),onConfirm:async()=>{if(await this.importBackup(file,{confirmReplaceAll:true})===false)this.openSettings();}});
+    }
+    requestYearReset() {
+      this.closeSettings();
+      return this.view.showNotice(`${this.year.slice(2)}年度の回答・復習・模試の記録だけを初期化します。他年度の記録と獲得済みの経験値・役職・報酬は残ります。`,{title:'この年度の学習記録を初期化しますか？',cancelLabel:'戻る',confirmLabel:'初期化する',onCancel:()=>this.openSettings(),onConfirm:()=>this.resetYearLearningData()});
+    }
+    resetYearLearningData() {
+      const status=this.document.getElementById('backup-status');
+      try {if(this.model.storage?.annualStorage?.resetYear(this.year,{confirm:true})!==true)throw Error('year reset');return reloadCommitted(status,'この年度の学習記録を初期化しました。');}
+      catch(_){if(status){status.textContent='初期化できませんでした。保存状態を確認してください。';status.classList.add('storage-error');}this.openSettings();return false;}
+    }
     requestFullReset() {
       this.closeSettings();
-      return this.view.showNotice('この画面の学習進捗・回答履歴・復習予定・経験値・役職を初期化します。元に戻せません。旧版の画面に残る記録は削除しません。必要な場合は先にJSONバックアップを書き出してください。', {
+      return this.view.showNotice('すべての年度の学習進捗・回答履歴・復習予定・経験値・役職を初期化します。元に戻せません。旧版の画面に残る記録は削除しません。必要な場合は先にJSONバックアップを書き出してください。', {
         title:'学習データを初期化しますか？',
         cancelLabel:'戻る',
         confirmLabel:'初期化する',
@@ -372,6 +424,7 @@
     }
     resetLearningData() {
       const status = this.document.getElementById('backup-status');
+      if(this.model.storage?.annualStorage){try{if(this.model.storage.annualStorage.resetAll({confirm:true})!==true)throw Error('all reset');return reloadCommitted(status,'学習データを初期化しました。');}catch(_){if(status){status.textContent='初期化できませんでした。保存状態を確認してください。';status.classList.add('storage-error');}this.openSettings();return false;}}
       const recovered = this.model.storage !== this.rpg.storage || Controller.recoverAnswerTransaction(this.model.storage,this.model.key,this.rpg.key);
       const targets=this.model.storage===this.rpg.storage&&this.model.storage?.resetKeys
         ? this.model.storage.resetKeys.map(key=>({storage:this.model.storage,key}))
@@ -508,15 +561,19 @@
     }
     exportBackup() {
       if (this.model.storageWriteBlocked) { this.document.getElementById('backup-status').textContent='保存状態を安全に読み取れないため、書き出しませんでした。'; return false; }
-      const payload = { format:'boki-rpg-backup', version:1, exportedAt:new Date().toISOString(), progress:this.model.state, character:this.rpg.state };
+      let payload;
+      try {payload=this.model.storage?.annualStorage?this.model.storage.annualStorage.exportV2():{format:'boki-rpg-backup',version:1,exportedAt:new Date().toISOString(),progress:this.model.state,character:this.rpg.state};}
+      catch(_){this.document.getElementById('backup-status').textContent='保存状態を安全に読み取れないため、書き出しませんでした。';return false;}
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
       const link = this.document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `boki-rpg-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(link.href);
-      this.document.getElementById('backup-status').textContent = 'バックアップを書き出しました。';
+      this.document.getElementById('backup-status').textContent = 'バックアップを書き出しました。'; return true;
     }
-    async importBackup(file) {
+    async importBackup(file,{confirmReplaceAll=false}={}) {
       const status = this.document.getElementById('backup-status');
       try {
         const payload = JSON.parse(await file.text());
+        if(payload?.version===2){if(!confirmReplaceAll||this.model.storage?.annualStorage?.importV2(payload,{confirmReplaceAll:true})!==true)throw Error('annual restore');return reloadCommitted(status,'バックアップを復元しました。');}
+        if(this.year==='FY2027')throw Error('legacy backup requires FY2026 context');
         if (payload?.format !== 'boki-rpg-backup' || payload.version !== 1 || !root.ProgressModel.validateBackupState(payload.progress, this.questions, this.model.examPool) || !root.RPGModel.validateBackupState(payload.character)) throw new Error('invalid');
         if (this.model.storage === this.rpg.storage && !Controller.recoverAnswerTransaction(this.model.storage,this.model.key,this.rpg.key)) throw new Error('pending-answer');
         if(this.model.storage?.annualStorage&&this.model.storage.annualStorage.snapshot().FY2027!==null)throw Error('legacy backup cannot replace shared character');
@@ -653,6 +710,7 @@
       );
     }
     showMode(mode) {
+      if(mode==='exam'&&this.year==='FY2027'){this.view.showNotice('2027年度の模試は準備中です。基礎演習は利用できます。',{title:'2027年度の模試について'});return false;}
       if (mode !== 'exam' && this.hasActiveExamSession()) {
         this.view.showNotice('模試中は他のモードへ移動できません。先に試験を終了して採点してください。', { title:'模試を継続中です' });
         return false;
@@ -786,6 +844,8 @@
     }
     modeIds() { const mode = this.model.state.mode; if (mode === 'review') return this.reviewIds(); if (mode === 'exam') return this.model.state.examSession?.ids || this.buildExamIds(); if (mode === 'training') return this.learningIds().filter(id => this.questions[id].type !== 'journal'); return this.storyIds(); }
     ensureExamSession(now = Date.now(), replace = false) {
+      // FY2027 exam authority is a separate, not yet integrated acceptance gate.
+      if(this.year==='FY2027')return false;
       const previous = this.model.state.examSession;
       if (previous != null && !this.model.validExamSession(previous)) return false;
       const profile = root.ProgressModel?.examProfile2026?.();
@@ -821,6 +881,7 @@
     startExamTimer(alreadyUpdated = false) { this.stopExamTimer(); if (!alreadyUpdated) this.updateExamStatus(); if (this.isExamExpired()) return; this.examTimerId = root.setInterval?.(() => this.updateExamStatus(), 1000) || null; }
     stopExamTimer() { if (this.examTimerId !== null) root.clearInterval?.(this.examTimerId); this.examTimerId = null; }
     finishExam(force, now = Date.now(), confirmed = false) {
+      if(this.year==='FY2027')return false;
       const session = this.model.state.examSession; if (!session) return false;
       // Never silently grade a future-year or partially tagged session with
       // the FY2026 score schedule. Legacy unsigned sessions remain FY2026.

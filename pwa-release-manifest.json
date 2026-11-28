@@ -1,6 +1,6 @@
 {
-  "release": "20261128-250",
-  "previousRelease": "20261127-249",
+  "release": "20261128-251",
+  "previousRelease": "20261128-250",
   "assets": {
     "css/style.css": "f98961d88ca7fc4b89985ca1df3bd78d7d7e451319eefe7fdcbaa13422b57d70",
     "data/accounting-domain.js": "3c488f3348184bc68c132688b9b797c3d77f3a3a32420ff1ba257659ace6a648",
@@ -15,17 +15,17 @@
     "js/explanation-model.js": "4a5d6ee4cd8f93e04c0a0ca29de0c7c57a54c6822bf77a594f87fafa36782d58",
     "js/explanation-design-system.js": "4ed83c9430a0d9ef4d8687733a77668f5c0a09b2f92d293db748f5e1156683f6",
     "js/view.js": "bccb867af5ba9bfc1a0d774752be07278cc855606dbd80ad7f0c7e13b04dc2a7",
-    "js/controller.js": "04826dec840ecdc2a3a9d54726f83ff63fafe0501ab5b657ac6d329946c00676",
-    "js/app.js": "e544bb3c4542c1801f086722faa63443d379fc11291c1dab0e5361c7a44bf561",
+    "js/controller.js": "f7bff1e95f7d661db6b6d186453574c87b0dc6369a51577528ae203321afbc7e",
+    "js/app.js": "a66750d4fb3f24b173bc10d7e28663465d0c1a9106c5b8e021af3557b2e60909",
     "data/form-a.json": "8d980909e2dccd532bb9f23b6908bcd49fb8b9fdef7fc661afc72799d2a77bc1",
     "js/form-a-scoring.js": "0f115fdbd542438685d86a412c02e7a07262b516606c50fbe24409c0536cd086",
     "js/form-a-store.js": "13b5fd463de71b4a0536d7f5813abd21ca35303ada5334835f1fcc36622313b6",
     "js/form-a.js": "7724b8e15e41d38499b6647c9498e42272a5c27faecb8c853bf33947f9faaf58",
     "css/form-a.css": "3ba52dc986d720c5244636b3e866fadd4d71d4587fffcc3750e7438ff8e09369",
     "data/fy2027-curriculum.js": "25fce26192177202fa0d07eede72e2e695f47fc5bb7e7ab51efe902fe9832d10",
-    "js/annual-storage.js": "a2ce0f5c9656269f7eeac5464814b9d475514ac0d2c8fc66d31c1f68293d6f37"
+    "js/annual-storage.js": "013cab9ce64a2b28e8c7c089b55f1c297aea0851860766d8f0f6afaabd372c69"
   },
   "pages": {
-    "form-a.html": "c0bcf8d003aaa25c48b13ac1bb3a6ff8b0f0205855d96daf6c20d10f3d2b985d"
+    "form-a.html": "3914650aa2e5c69ef6d54284e11a3fcb164cc4ed07407e83fea46f5e9c246d96"
   }
 }
